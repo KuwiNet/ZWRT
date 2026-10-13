@@ -105,7 +105,7 @@ jobs:
         working-directory: openwrt
         run: bash "$GITHUB_WORKSPACE/scripts/merge-config.sh" "$GITHUB_WORKSPACE" "${{ matrix.device }}" .config
 
-      - name: 应用定制 (files 覆盖层: 主机名 ZWRT 等)
+      - name: "应用定制 (files 覆盖层: 主机名 ZWRT 等)"
         working-directory: openwrt
         run: |
           cp -r "$GITHUB_WORKSPACE/files/"* ./
@@ -157,8 +157,8 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
               --notes "OpenWrt ${{ env.OPENWRT_BRANCH }} @ ${{ needs.check.outputs.rev }}
-设备: ${{ matrix.board }}
-构建日期: ${{ steps.date.outputs.date }}"
+              设备: ${{ matrix.board }}
+              构建日期: ${{ steps.date.outputs.date }}"
           fi
 
   # ---- 构建成功后记录本次源码提交 (单一 job, 避免并发写冲突) ----
