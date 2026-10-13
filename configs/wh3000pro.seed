@@ -1,12 +1,17 @@
 # ===== Huasifei WH3000 Pro 目标配置 =====
 # 目标: mediatek / filogic (MT7981B + MT7976CN + RTL8221B)
-# 官方设备名: huasifei_wh3000-pro (DTS: mt7981b-huasifei-wh3000-pro)
+# ImmortalWrt 25.12 将 WH3000 Pro 拆为 eMMC / NAND 两个设备 (DTS: mt7981b-huasifei-wh3000-pro-*)
 CONFIG_TARGET_mediatek=y
 CONFIG_TARGET_mediatek_filogic=y
-CONFIG_TARGET_mediatek_filogic_DEVICE_huasifei_wh3000-pro=y
+CONFIG_TARGET_mediatek_filogic_DEVICE_huasifei_wh3000-pro-emmc=y
+CONFIG_TARGET_mediatek_filogic_DEVICE_huasifei_wh3000-pro-nand=y
 
 # 设备默认附带包 (官方 DEVICE_PACKAGES)
 # kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
 CONFIG_PACKAGE_kmod-mt7915e=y
 CONFIG_PACKAGE_kmod-mt7981-firmware=y
 CONFIG_PACKAGE_mt7981-wo-firmware=y
+
+# 包管理器: 强制 opkg (ImmortalWrt 25.12 默认 apk, 关闭 USE_APK 即用 opkg)
+CONFIG_USE_APK=n
+CONFIG_PACKAGE_opkg=y
