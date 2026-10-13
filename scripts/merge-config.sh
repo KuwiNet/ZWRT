@@ -7,13 +7,22 @@ ZWRT_DIR="$1"
 DEVICE="$2"
 OUT="${3:-.config}"
 
+# 变体 -> 种子/插件映射:
+#   x86-64-main / x86-64-bypass 共用 configs/x86_64.seed, 仅用 common 插件
+#   wh3000pro 等用 configs/<device>.seed + plugins/<device>.txt
+case "$DEVICE" in
+  x86-64-main|x86-64-bypass) SEED="x86_64"; PLUGIN="" ;;
+  *)                         SEED="$DEVICE"; PLUGIN="$DEVICE" ;;
+esac
+
 : > "$OUT"
 
 # 1) 目标平台 seed
-cat "$ZWRT_DIR/configs/$DEVICE.seed" >> "$OUT"
+echo "### 目标平台: $DEVICE (seed=$SEED)" >> "$OUT"
+cat "$ZWRT_DIR/configs/$SEED.seed" >> "$OUT"
 
 # 2) 插件清单 -> CONFIG_PACKAGE_xxx=y
-for pf in "$ZWRT_DIR/plugins/common.txt" "$ZWRT_DIR/plugins/$DEVICE.txt"; do
+for pf in "$ZWRT_DIR/plugins/common.txt" "$ZWRT_DIR/plugins/${PLUGIN}.txt"; do
   [ -f "$pf" ] || continue
   echo "### 合并插件清单: $(basename "$pf")" >> "$OUT"
   while IFS= read -r line || [ -n "$line" ]; do
