@@ -3,3 +3,24 @@
 # (以下包仅 WH3000 Pro 需要, x86_64 不需要)
 luci-app-5gmodem
 luci-i18n-5gmodem-zh-cn
+# (5gmodem 专属依赖, x86_64 不需要)
+sms-tool
+comgt
+qmi-utils
+libqmi
+uqmi
+mbim-utils
+libmbim
+umbim
+modemmanager
+luci-proto-mbim
+luci-proto-qmi
+luci-proto-modemmanager
+quectel-cm
+kmod-usb-serial
+kmod-usb-serial-option
+kmod-usb-serial-qualcomm
+kmod-usb-net-qmi-wwan
+kmod-usb-net-cdc-mbim
+kmod-usb-net-rndis
+usb-modeswitch

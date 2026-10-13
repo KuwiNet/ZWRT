@@ -11,7 +11,6 @@ busybox
 ca-bundle
 cgi-io
 chat
-comgt
 coremark
 coreutils
 coreutils-stat
@@ -162,13 +161,7 @@ kmod-usb-common
 kmod-usb-core
 kmod-usb-net
 kmod-usb-net-cdc-ether
-kmod-usb-net-cdc-mbim
 kmod-usb-net-cdc-ncm
-kmod-usb-net-qmi-wwan
-kmod-usb-net-rndis
-kmod-usb-serial
-kmod-usb-serial-option
-kmod-usb-serial-qualcomm
 kmod-usb-serial-sierrawireless
 kmod-usb-serial-wwan
 kmod-usb-storage
@@ -215,7 +208,6 @@ liblucihttp-ucode
 liblucihttp0
 liblzo2
 libmbedtls21
-libmbim
 libmnl0
 libmount1
 libncurses6
@@ -229,7 +221,6 @@ libopenssl3
 libparted
 libpcre2
 libpthread
-libqmi
 libqrtr-glib
 libreadline8
 librt
@@ -292,18 +283,13 @@ luci-mod-status
 luci-mod-system
 luci-nginx
 luci-proto-ipv6
-luci-proto-mbim
-luci-proto-modemmanager
 luci-proto-ppp
-luci-proto-qmi
 luci-theme-bootstrap
 luci-theme-zwrt
-mbim-utils
 mihomo
 minicom
 miniupnpd-nftables
 mkf2fs
-modemmanager
 mt7981-wo-firmware
 mtd
 my-default-settings
@@ -326,8 +312,6 @@ ppp
 ppp-mod-pppoe
 procd
 procd-seccomp
-qmi-utils
-quectel-cm
 resize2fs
 resolveip
 rpcd
@@ -338,7 +322,6 @@ rpcd-mod-rrdns
 rpcd-mod-ucode
 shellsync
 smartmontools
-sms-tool
 swconfig
 terminfo
 ttyd
@@ -364,11 +347,8 @@ ucode-mod-uci
 ucode-mod-uloop
 uhttpd
 uhttpd-mod-ubus
-umbim
-uqmi
 urandom-seed
 urngd
-usb-modeswitch
 uwsgi
 uwsgi-cgi-plugin
 uwsgi-luci-support
