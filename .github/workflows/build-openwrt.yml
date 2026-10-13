@@ -78,7 +78,7 @@ jobs:
             arch: x86_64
             board: main
             identity: x86-64-generic
-            variant: main
+            tag: x86_64-main
             feed_arch: x86_64
             feed_target: x86/64
             lan_ip: 192.168.100.1
@@ -95,7 +95,7 @@ jobs:
             arch: x86_64
             board: bypass
             identity: x86-64-generic
-            variant: bypass
+            tag: x86_64-bypass
             feed_arch: x86_64
             feed_target: x86/64
             lan_ip: 192.168.100.10
@@ -112,7 +112,7 @@ jobs:
             arch: mt7981b
             board: wh3000pro
             identity: mediatek-filogic-huasifei_wh3000-pro
-            variant: ""
+            tag: wh3000pro
             feed_arch: aarch64_cortex-a53
             feed_target: mediatek/filogic
             lan_ip: 192.168.100.1
@@ -207,12 +207,12 @@ jobs:
         run: |
           bash "$GITHUB_WORKSPACE/scripts/custom.sh" \
             "$GITHUB_WORKSPACE/openwrt/${{ matrix.bin_dir }}" \
-            "${{ steps.date.outputs.date }}" "${{ matrix.arch }}" "${{ matrix.board }}" "${{ matrix.identity }}" "${{ matrix.variant }}"
+            "${{ steps.date.outputs.date }}" "${{ matrix.tag }}" "${{ matrix.identity }}"
 
       - name: 上传固件 Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.arch }}-${{ matrix.board }}
+          name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.tag }}
           path: openwrt/${{ matrix.bin_dir }}/zwrt-*
 
       - name: 发布 Release
@@ -220,7 +220,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: openwrt
         run: |
-          TAG="zwrt-${{ steps.date.outputs.date }}-${{ matrix.arch }}-${{ matrix.board }}"
+          TAG="zwrt-${{ steps.date.outputs.date }}-${{ matrix.tag }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG 已存在, 跳过创建"
           else
@@ -238,12 +238,19 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL || 'https://dl.zwrt.de' }}
         working-directory: openwrt
         run: |
           if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ] || [ -z "$R2_BUCKET" ]; then
-            echo "未配置 R2 密钥, 跳过上传 (请先在仓库 Secrets 配置 R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ENDPOINT / R2_BUCKET)"
+            echo "未配置 R2 密钥, 跳过上传 (请先在仓库 Secrets 配置 R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET)"
+            exit 0
+          fi
+          # R2_ENDPOINT 未单独配置时, 由 ACCOUNT_ID 推导 (标准 R2 S3 端点)
+          ENDPOINT="${R2_ENDPOINT:-https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com}"
+          if [ -z "$R2_ACCOUNT_ID" ] && [ -z "$R2_ENDPOINT" ]; then
+            echo "缺少 R2_ENDPOINT 且未配置 R2_ACCOUNT_ID, 跳过上传"
             exit 0
           fi
           echo "安装 rclone ..."
@@ -252,7 +259,7 @@ jobs:
             provider=Cloudflare \
             access_key_id="$R2_ACCESS_KEY_ID" \
             secret_access_key="$R2_SECRET_ACCESS_KEY" \
-            endpoint="$R2_ENDPOINT" \
+            endpoint="$ENDPOINT" \
             --non-interactive
           rclone copy "${{ matrix.bin_dir }}/" "r2:$R2_BUCKET/firmware/" --include "zwrt-*" -v
           echo "==== 上传完成, 下载地址 ===="
