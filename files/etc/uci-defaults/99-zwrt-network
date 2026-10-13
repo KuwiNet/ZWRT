@@ -1,0 +1,53 @@
+#!/bin/sh
+# ZWRT 设备网络初始化 (主路由/旁路由/WiFi/IPv6)
+# 占位符由工作流按构建变体替换:
+#   __LAN_IP__ __LAN_MASK__ __GATEWAY__ __DNS__ __ROLE__ __IPV6__ __WIFI__ __WIFI_SSID__ __WIFI_KEY__
+. /lib/functions.sh
+
+# ---- LAN 接口 (静态 IP) ----
+uci set network.lan.proto='static'
+uci set network.lan.ipaddr='__LAN_IP__'
+uci set network.lan.netmask='__LAN_MASK__'
+
+if [ "__ROLE__" = "bypass" ]; then
+    # 旁路由: 网关/DNS 指向主路由, 关闭 LAN 的 DHCP, 关闭 WAN 避免抢 IP
+    uci set network.lan.gateway='__GATEWAY__'
+    uci set network.lan.dns='__DNS__'
+    uci set dhcp.lan.ignore='1'
+    uci set dhcp.lan.start=''
+    uci set dhcp.lan.limit=''
+    uci -q delete dhcp.lan.leasetime
+    # WAN 置空 (旁路由通常单 LAN 模式)
+    uci set network.wan.proto='none' 2>/dev/null || true
+    uci set network.wan6.proto='none' 2>/dev/null || true
+else
+    # 主路由: LAN 不设网关(自身路由), 开启 DHCP
+    uci -q delete network.lan.gateway
+    uci -q delete network.lan.dns
+    uci set dhcp.lan.ignore='0'
+fi
+
+# ---- IPv6 (WH3000 Pro 开启) ----
+if [ "__IPV6__" = "1" ]; then
+    uci set network.lan.ip6assign='60'
+    uci set dhcp.lan.dhcpv6='server'
+    uci set dhcp.lan.ra='server'
+    uci set dhcp.lan.ra_slaac='1'
+fi
+
+# ---- WiFi (WH3000 Pro: SSID=ZWRT, 无密码) ----
+if [ "__WIFI__" = "1" ]; then
+    for radio in $(uci show wireless 2>/dev/null | grep -o 'wireless\.radio[0-9]*\.disabled' | cut -d. -f2 | sort -u); do
+        uci set wireless.$radio.disabled='0'
+    done
+    for sec in $(uci show wireless 2>/dev/null | grep -o 'wireless\.[a-zA-Z0-9_]*\.ssid' | cut -d. -f2 | sort -u); do
+        uci set wireless.$sec.ssid='__WIFI_SSID__'
+        uci set wireless.$sec.encryption='none'
+        uci -q delete wireless.$sec.key
+    done
+fi
+
+uci commit network 2>/dev/null
+uci commit dhcp 2>/dev/null
+uci commit wireless 2>/dev/null
+exit 0

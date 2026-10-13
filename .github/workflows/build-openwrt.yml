@@ -73,13 +73,38 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - device: x86_64
+          - device: x86-64-main          # 主路由
             bin_dir: bin/targets/x86/64
             arch: x86_64
-            board: generic
+            board: main
             identity: x86-64-generic
             feed_arch: x86_64
             feed_target: x86/64
+            lan_ip: 192.168.100.1
+            lan_mask: 255.255.255.0
+            gateway: 192.168.100.1
+            dns: 192.168.100.1
+            role: main
+            ipv6: "0"
+            wifi: "0"
+            wifi_ssid: ""
+            wifi_key: ""
+          - device: x86-64-bypass       # 旁路由
+            bin_dir: bin/targets/x86/64
+            arch: x86_64
+            board: bypass
+            identity: x86-64-generic
+            feed_arch: x86_64
+            feed_target: x86/64
+            lan_ip: 192.168.100.10
+            lan_mask: 255.255.255.0
+            gateway: 192.168.100.1
+            dns: 192.168.100.1
+            role: bypass
+            ipv6: "0"
+            wifi: "0"
+            wifi_ssid: ""
+            wifi_key: ""
           - device: wh3000pro
             bin_dir: bin/targets/mediatek/filogic
             arch: mt7981b
@@ -87,6 +112,15 @@ jobs:
             identity: mediatek-filogic-huasifei_wh3000-pro
             feed_arch: aarch64_cortex-a53
             feed_target: mediatek/filogic
+            lan_ip: 192.168.100.1
+            lan_mask: 255.255.255.0
+            gateway: 192.168.100.1
+            dns: 192.168.100.1
+            role: main
+            ipv6: "1"
+            wifi: "1"
+            wifi_ssid: ZWRT
+            wifi_key: ""
     steps:
       - uses: actions/checkout@v4
 
@@ -126,6 +160,24 @@ jobs:
         run: |
           cp -r "$GITHUB_WORKSPACE/files/"* ./
           echo "已复制 files/ 覆盖层"
+
+      - name: 按变体生成网络/无线/IPv6/LuCI 配置 (替换占位符)
+        working-directory: openwrt
+        run: |
+          sed -e "s|__LAN_IP__|${{ matrix.lan_ip }}|g" \
+              -e "s|__LAN_MASK__|${{ matrix.lan_mask }}|g" \
+              -e "s|__GATEWAY__|${{ matrix.gateway }}|g" \
+              -e "s|__DNS__|${{ matrix.dns }}|g" \
+              -e "s|__ROLE__|${{ matrix.role }}|g" \
+              -e "s|__IPV6__|${{ matrix.ipv6 }}|g" \
+              -e "s|__WIFI__|${{ matrix.wifi }}|g" \
+              -e "s|__WIFI_SSID__|${{ matrix.wifi_ssid }}|g" \
+              -e "s|__WIFI_KEY__|${{ matrix.wifi_key }}|g" \
+              etc/uci-defaults/99-zwrt-network > /tmp/zwrt-nw
+          mv /tmp/zwrt-nw etc/uci-defaults/99-zwrt-network
+          chmod +x etc/uci-defaults/99-zwrt-network
+          echo "已生成变体配置 (${{ matrix.device }}):"
+          cat etc/uci-defaults/99-zwrt-network
 
       - name: 预下载源码包 (带重试)
         working-directory: openwrt
