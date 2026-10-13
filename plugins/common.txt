@@ -31,7 +31,6 @@ f2fsck
 fdisk
 firewall4
 fit-check-sign
-fitblk
 frpc
 fstools
 fwtool
@@ -65,7 +64,6 @@ kmod-crypto-gf128
 kmod-crypto-ghash
 kmod-crypto-hash
 kmod-crypto-hmac
-kmod-crypto-hw-safexcel
 kmod-crypto-manager
 kmod-crypto-md5
 kmod-crypto-null
@@ -86,7 +84,6 @@ kmod-fs-ntfs3
 kmod-fs-vfat
 kmod-gpio-button-hotplug
 kmod-hwmon-core
-kmod-hwmon-pwmfan
 kmod-i2c-core
 kmod-inet-diag
 kmod-ip6-tunnel
@@ -117,7 +114,6 @@ kmod-mt76-connac
 kmod-mt76-core
 kmod-mt7915-firmware
 kmod-mt7915e
-kmod-mt7981-firmware
 kmod-nf-conntrack
 kmod-nf-conntrack-netlink
 kmod-nf-conntrack6
@@ -169,7 +165,6 @@ kmod-usb-storage-extras
 kmod-usb-storage-uas
 kmod-usb-wdm
 kmod-usb-xhci-hcd
-kmod-usb-xhci-mtk
 kmod-usb3
 kmod-zram
 libatomic1
@@ -325,7 +320,6 @@ smartmontools
 swconfig
 terminfo
 ttyd
-ubi-utils
 uboot-envtools
 ubox
 ubus

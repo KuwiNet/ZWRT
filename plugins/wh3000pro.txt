@@ -24,3 +24,10 @@ kmod-usb-net-qmi-wwan
 kmod-usb-net-cdc-mbim
 kmod-usb-net-rndis
 usb-modeswitch
+# (mediatek/嵌入式专属, x86_64 无源, 仅 WH3000 Pro)
+fitblk
+ubi-utils
+kmod-crypto-hw-safexcel
+kmod-hwmon-pwmfan
+kmod-mt7981-firmware
+kmod-usb-xhci-mtk
