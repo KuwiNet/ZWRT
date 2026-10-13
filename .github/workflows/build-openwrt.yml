@@ -78,6 +78,7 @@ jobs:
             arch: x86_64
             board: main
             identity: x86-64-generic
+            variant: main
             feed_arch: x86_64
             feed_target: x86/64
             lan_ip: 192.168.100.1
@@ -94,6 +95,7 @@ jobs:
             arch: x86_64
             board: bypass
             identity: x86-64-generic
+            variant: bypass
             feed_arch: x86_64
             feed_target: x86/64
             lan_ip: 192.168.100.10
@@ -110,6 +112,7 @@ jobs:
             arch: mt7981b
             board: wh3000pro
             identity: mediatek-filogic-huasifei_wh3000-pro
+            variant: ""
             feed_arch: aarch64_cortex-a53
             feed_target: mediatek/filogic
             lan_ip: 192.168.100.1
@@ -204,7 +207,7 @@ jobs:
         run: |
           bash "$GITHUB_WORKSPACE/scripts/custom.sh" \
             "$GITHUB_WORKSPACE/openwrt/${{ matrix.bin_dir }}" \
-            "${{ steps.date.outputs.date }}" "${{ matrix.arch }}" "${{ matrix.board }}" "${{ matrix.identity }}"
+            "${{ steps.date.outputs.date }}" "${{ matrix.arch }}" "${{ matrix.board }}" "${{ matrix.identity }}" "${{ matrix.variant }}"
 
       - name: 上传固件 Artifact
         uses: actions/upload-artifact@v4
