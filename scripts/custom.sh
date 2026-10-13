@@ -5,7 +5,8 @@
 #      scripts/custom.sh bin/targets/mediatek/filogic 20261013 mt7981b wh3000pro "mediatek-filogic-huasifei_wh3000-pro"
 set -e
 BIN_DIR="$1"; DATE="$2"; ARCH="$3"; DEV="$4"; IDENTITY="$5"
-PATTERN="openwrt-*${IDENTITY}-"
+# 身份串前缀匹配: 兼容 openwrt- / immortalwrt- 前缀 (ImmortalWrt 产物为 immortalwrt-<arch>-<dev>-...)
+PATTERN="*${IDENTITY}-"
 
 cd "$BIN_DIR"
 for f in *; do
