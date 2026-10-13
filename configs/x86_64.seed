@@ -1,0 +1,13 @@
+# ===== x86_64 目标配置 =====
+# 目标: x86 / x86_64 (generic 镜像, 含 UEFI+legacy)
+CONFIG_TARGET_x86=y
+CONFIG_TARGET_x86_64=y
+CONFIG_TARGET_x86_64_DEVICE_generic=y
+
+# 使用 ext4 + squashfs combined 固件
+CONFIG_TARGET_ROOTFS_EXT4FS=y
+CONFIG_TARGET_ROOTFS_SQUASHFS=y
+
+# 分区/磁盘
+CONFIG_PACKAGE_grub2=y
+CONFIG_PACKAGE_grub2-efi=y

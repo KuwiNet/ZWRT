@@ -1,0 +1,5 @@
+# 构建缓存 (由 Actions 维护, 勿手工修改)
+.cache/
+# 本地编译产物
+openwrt/
+*.log

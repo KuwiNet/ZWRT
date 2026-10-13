@@ -1,0 +1,21 @@
+# 设备-构建矩阵定义
+# 每个设备对应: 一个 target seed 配置 + 插件清单组合
+# packages 顺序决定合并顺序 (common 在前, 平台专属在后)
+devices:
+  - id: x86_64
+    name: x86_64 (Generic)
+    arch: x86_64
+    board: generic
+    seed: configs/x86_64.seed
+    packages:
+      - common
+      - x86_64
+
+  - id: wh3000pro
+    name: Huasifei WH3000 Pro
+    arch: mt7981b (mediatek/filogic)
+    board: huasifei_wh3000-pro
+    seed: configs/wh3000pro.seed
+    packages:
+      - common
+      - wh3000pro

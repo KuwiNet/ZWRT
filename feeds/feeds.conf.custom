@@ -1,0 +1,21 @@
+# 自定义 feeds —— 提供官方 OpenWrt 源之外的自定义包
+# 说明: 构建脚本会把这个文件 append 到 OpenWrt 源码根的 feeds.conf.default 之后
+#       (脚本: scripts/merge-feeds.sh)
+#
+# 主要来源:
+#   kenzok8/openwrt-packages : 大量 luci-app (diskman/fan/timedreboot/wifihistory/advancedplus/partexp/sysctl 等)
+#   kenzok8/small             : nikki/mihomo/ddns-go/autocore/my-default-settings/sms-tool/yq 等
+#   KuWiNet/ZWRT-Theme        : 你自己的 luci-theme-zwrt 主题
+#
+# 注意: 若某包在编译时提示 "Package xxx is missing dependencies" 或找不到,
+#       多半是该包由其它源提供, 按需增删下面 src-git 条目或替换成对应仓库。
+
+src-git kenzo https://github.com/kenzok8/openwrt-packages.git
+src-git small https://github.com/kenzok8/small.git
+src-git zwrt https://github.com/KuWiNet/ZWRT-Theme.git
+
+# 以下为可选项, 默认注释:
+# src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki.git   # nikki (独立源, 与 small 二选一)
+# src-git mihomo https://github.com/morytyann/OpenWrt-mihomo.git     # mihomo (独立源, 与 small 二选一)
+# src-git 5gmodem https://github.com/cucv/OpenWrt-5G-Modem.git       # luci-app-5gmodem
+# src-git quectel https://github.com/Orginal-team/quectel-cm.git     # quectel-cm

@@ -1,0 +1,183 @@
+# =============================================================
+# ZWRT-openwrt 自动构建工作流
+#   - 跟踪 OpenWrt 稳定分支 (默认 openwrt-25.12, 可用仓库变量 OPENWRT_BRANCH 覆盖)
+#   - 稳定分支有新提交时自动编译, 无新提交则跳过 (避免空跑)
+#   - 按设备矩阵构建, 每个设备一个 job
+#   - 主机名统一 ZWRT, 固件命名 zwrt-YYYYMMDD-架构-设备
+#   - 产物: Artifact + GitHub Release
+# =============================================================
+name: Build OpenWrt ZWRT
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每天 22:30 UTC (= 北京时间次日 06:30) 检测稳定分支更新
+    - cron: '30 22 * * *'
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '.cache/**'
+
+concurrency:
+  group: zwrt-openwrt-build
+  cancel-in-progress: false
+
+env:
+  OPENWRT_BRANCH: ${{ vars.OPENWRT_BRANCH || 'openwrt-25.12' }}
+
+permissions:
+  contents: write
+
+jobs:
+  # ---- 检测稳定分支是否有新提交 ----
+  check:
+    name: 检测稳定分支更新
+    runs-on: ubuntu-latest
+    outputs:
+      rev: ${{ steps.src.outputs.rev }}
+      skip: ${{ steps.skip.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 读取稳定分支最新提交
+        id: src
+        run: |
+          REV=$(git ls-remote https://github.com/openwrt/openwrt.git "refs/heads/${OPENWRT_BRANCH}" | awk '{print $1}')
+          echo "rev=${REV}" >> "$GITHUB_OUTPUT"
+          echo "最新提交: ${REV}"
+      - name: 无新提交则跳过
+        id: skip
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "手动触发, 强制构建"
+          elif [ -f .cache/openwrt-stable-commit ] && \
+               [ "$(cat .cache/openwrt-stable-commit)" = "${{ steps.src.outputs.rev }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "OpenWrt ${OPENWRT_BRANCH} 无新提交, 跳过"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "检测到稳定分支更新, 开始构建"
+          fi
+
+  # ---- 按设备构建 ----
+  build:
+    name: 构建 ${{ matrix.device }}
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 420
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: x86_64
+            bin_dir: bin/targets/x86/64
+            arch: x86_64
+            board: generic
+            identity: x86-64-generic
+          - device: wh3000pro
+            bin_dir: bin/targets/mediatek/filogic
+            arch: mt7981b
+            board: wh3000pro
+            identity: mediatek-filogic-huasifei_wh3000-pro
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 拉取 OpenWrt 稳定分支源码
+        run: |
+          git clone --depth=1 --branch "${OPENWRT_BRANCH}" https://github.com/openwrt/openwrt.git openwrt
+
+      - name: 编译加速缓存 (ccache + dl)
+        uses: actions/cache@v4
+        with:
+          path: |
+            openwrt/dl
+            ~/.ccache
+          key: openwrt-${{ env.OPENWRT_BRANCH }}-${{ matrix.device }}-${{ hashFiles('configs/**','plugins/**','feeds/**') }}
+          restore-keys: |
+            openwrt-${{ env.OPENWRT_BRANCH }}-${{ matrix.device }}-
+
+      - name: 合并自定义 feeds
+        working-directory: openwrt
+        run: bash "$GITHUB_WORKSPACE/scripts/merge-feeds.sh" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/openwrt"
+
+      - name: 生成 .config (目标 seed + 插件清单)
+        working-directory: openwrt
+        run: bash "$GITHUB_WORKSPACE/scripts/merge-config.sh" "$GITHUB_WORKSPACE" "${{ matrix.device }}" .config
+
+      - name: 应用定制 (files 覆盖层: 主机名 ZWRT 等)
+        working-directory: openwrt
+        run: |
+          cp -r "$GITHUB_WORKSPACE/files/"* ./
+          echo "已复制 files/ 覆盖层"
+
+      - name: 预下载源码包 (带重试)
+        working-directory: openwrt
+        run: |
+          make defconfig
+          for i in 1 2 3; do
+            make download -j$(nproc) 2>&1 | tail -8 && break
+            echo "download 第 ${i} 次失败, 重试..."
+          done
+
+      - name: 编译固件
+        working-directory: openwrt
+        run: |
+          make -j$(nproc) V=s 2>&1 | tee build-${{ matrix.device }}.log
+          echo "==== 产物目录 ===="
+          ls -lh "${{ matrix.bin_dir }}" | tail -20
+
+      - name: 生成构建日期
+        id: date
+        run: echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: 重命名固件 (zwrt-日期-架构-设备)
+        working-directory: openwrt
+        run: |
+          bash "$GITHUB_WORKSPACE/scripts/custom.sh" \
+            "$GITHUB_WORKSPACE/openwrt/${{ matrix.bin_dir }}" \
+            "${{ steps.date.outputs.date }}" "${{ matrix.arch }}" "${{ matrix.board }}" "${{ matrix.identity }}"
+
+      - name: 上传固件 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.arch }}-${{ matrix.board }}
+          path: |
+            openwrt/${{ matrix.bin_dir }}/*.bin
+            openwrt/${{ matrix.bin_dir }}/*.img.gz
+
+      - name: 发布 Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: openwrt
+        run: |
+          TAG="zwrt-${{ steps.date.outputs.date }}-${{ matrix.arch }}-${{ matrix.board }}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在, 跳过创建"
+          else
+            gh release create "$TAG" \
+              ${{ matrix.bin_dir }}/*.bin ${{ matrix.bin_dir }}/*.img.gz \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" \
+              --notes "OpenWrt ${{ env.OPENWRT_BRANCH }} @ ${{ needs.check.outputs.rev }}
+设备: ${{ matrix.board }}
+构建日期: ${{ steps.date.outputs.date }}"
+          fi
+
+  # ---- 构建成功后记录本次源码提交 (单一 job, 避免并发写冲突) ----
+  record:
+    name: 记录构建版本
+    needs: [ check, build ]
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 写缓存并提交
+        run: |
+          mkdir -p .cache
+          echo "${{ needs.check.outputs.rev }}" > .cache/openwrt-stable-commit
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .cache/openwrt-stable-commit
+          git commit -m "chore: 记录已构建 OpenWrt ${OPENWRT_BRANCH} ${REV}" || echo "无变更"
+          git push
