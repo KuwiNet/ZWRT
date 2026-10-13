@@ -142,9 +142,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.arch }}-${{ matrix.board }}
-          path: |
-            openwrt/${{ matrix.bin_dir }}/*.bin
-            openwrt/${{ matrix.bin_dir }}/*.img.gz
+          path: openwrt/${{ matrix.bin_dir }}/zwrt-*
 
       - name: 发布 Release
         env:
@@ -155,8 +153,7 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG 已存在, 跳过创建"
           else
-            gh release create "$TAG" \
-              ${{ matrix.bin_dir }}/*.bin ${{ matrix.bin_dir }}/*.img.gz \
+            gh release create "$TAG" "${{ matrix.bin_dir }}"/zwrt-* \
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
               --notes "OpenWrt ${{ env.OPENWRT_BRANCH }} @ ${{ needs.check.outputs.rev }}
@@ -172,6 +169,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: 写缓存并提交
         run: |
           mkdir -p .cache
