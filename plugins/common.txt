@@ -1,4 +1,4 @@
-atinout
+﻿atinout
 autocore
 automount
 base-files
@@ -255,7 +255,6 @@ losetup
 lsblk
 lua
 luci
-luci-app-5gmodem
 luci-app-advancedplus
 luci-app-afrp
 luci-app-ddns-go
@@ -277,7 +276,6 @@ luci-app-wifihistory
 luci-app-wizard
 luci-base
 luci-compat
-luci-i18n-5gmodem-zh-cn
 luci-lib-base
 luci-lib-fs
 luci-lib-ip

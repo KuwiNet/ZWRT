@@ -1,4 +1,5 @@
-# Huasifei WH3000 Pro (MT7981B) 平台专属插件
-# 当前与 common.txt 相同, 全部在 common 中。
-# 若 WH3000 需要而 x86_64 不需要的包 (如 5G/4G 模块相关), 请移到这里并注明。
-# 构建时会合并: plugins/common.txt + plugins/wh3000pro.txt
+﻿# Huasifei WH3000 Pro (MT7981B) 平台专属插件
+# 构建时合并: plugins/common.txt + plugins/wh3000pro.txt
+# (以下包仅 WH3000 Pro 需要, x86_64 不需要)
+luci-app-5gmodem
+luci-i18n-5gmodem-zh-cn
