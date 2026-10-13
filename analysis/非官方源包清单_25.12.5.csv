@@ -1,0 +1,34 @@
+﻿# ZWRT 固件清单 387 包 - 非官方源包清单 (基线: 官方 25.12.5 / dl.openwrt.ai releases-25.12 / luci.zwrt.de)
+# 结论: 356 个官方提供, 27 个 dl.openwrt.ai 提供, 4 个 luci.zwrt.de 提供, 0 缺失
+包名,来源判定,dl.openwrt.ai提供(x86/a53),luci.zwrt.de提供
+atinout,dl.openwrt.ai,kiddin9/kiddin9,-
+autocore,dl.openwrt.ai,core/core,-
+automount,dl.openwrt.ai,core/core,-
+ddns-go,dl.openwrt.ai,kiddin9/kiddin9,-
+kmod-nft-fullcone,dl.openwrt.ai,core/core,-
+luci-app-advancedplus,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-ddns-go,dl.openwrt.ai,kiddin9/kiddin9,-
+luci-app-diskman,dl.openwrt.ai,kiddin9/kiddin9,-
+luci-app-fan,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-footstrap-files,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-nikki,dl.openwrt.ai,kiddin9/kiddin9,-
+luci-app-oui,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-partexp,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-syscontrol,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-sysctl,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-timedreboot,dl.openwrt.ai,kiddin9/kiddin9,-
+luci-app-unblockneteasemusic,dl.openwrt.ai,kiddin9/kiddin9,-
+luci-app-wizard,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-lib-fs,dl.openwrt.ai,kiddin9/kiddin9,-
+mihomo,dl.openwrt.ai,kiddin9/kiddin9,-
+my-default-settings,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+nikki,dl.openwrt.ai,kiddin9/kiddin9,-
+node127,dl.openwrt.ai,kiddin9/kiddin9,-
+ntfs3-mount,dl.openwrt.ai,core/core,-
+opkg,dl.openwrt.ai,core,base,kiddin9/core,base,kiddin9,-
+quectel-cm,dl.openwrt.ai,kiddin9/kiddin9,-
+shellsync,dl.openwrt.ai,core,kiddin9/core,kiddin9,-
+luci-app-5gmodem,luci.zwrt.de,-,是(WH3000pro专属)
+luci-app-afrp,luci.zwrt.de,-,是
+luci-i18n-5gmodem-zh-cn,luci.zwrt.de,-,是(WH3000pro专属)
+luci-theme-zwrt,luci.zwrt.de,-,是
