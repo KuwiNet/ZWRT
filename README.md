@@ -23,7 +23,8 @@ ZWRT/
 ├── feeds/feeds.conf.custom # 构建期自定义 git feeds (非官方源包)
 ├── files/
 │   ├── etc/config/system         # hostname=ZWRT
-│   └── etc/opkg/distfeeds.conf   # 运行期 opkg 源 (dl.openwrt.ai, 按架构生成)
+│   ├── etc/opkg/distfeeds.conf   # 运行期 opkg 源 (三级优先级, 按架构生成)
+│   └── etc/uci-defaults/99-zwrt-theme # 首次开机设默认主题为 ZWRT
 └── scripts/
     ├── merge-feeds.sh    # 合并自定义 feeds 到 OpenWrt 源码
     ├── merge-config.sh   # seed + 插件清单 -> .config
@@ -39,11 +40,12 @@ ZWRT/
 
 > 新增设备：在 `configs/` 加 `.seed`、`plugins/` 加 `.txt`、`targets/devices.yml` 加条目、workflow `matrix.include` 加条目（含 `feed_arch` / `feed_target`）。
 
-## 软件源 (dl.openwrt.ai 全源)
+## 软件源 (优先级: dl.openwrt.ai -> opkg.zwrt.de -> 官方)
 
 固件刷入后 `/etc/opkg/distfeeds.conf` 为 dl.openwrt.ai 的 7 个源（core/base/packages/luci/routing/video/kiddin9），覆盖清单中的全部包：
 
 ```
+① dl.openwrt.ai (主):
 src/gz kwrt_core https://dl.openwrt.ai/releases/25.12/targets/<目标>/6.12.112
 src/gz kwrt_base https://dl.openwrt.ai/releases/25.12/packages/<架构>/base
 src/gz kwrt_packages https://dl.openwrt.ai/releases/25.12/packages/<架构>/packages
@@ -51,6 +53,10 @@ src/gz kwrt_luci https://dl.openwrt.ai/releases/25.12/packages/<架构>/luci
 src/gz kwrt_routing https://dl.openwrt.ai/releases/25.12/packages/<架构>/routing
 src/gz kwrt_video https://dl.openwrt.ai/releases/25.12/packages/<架构>/video
 src/gz kwrt_kiddin9 https://dl.openwrt.ai/releases/25.12/packages/<架构>/kiddin9
+② opkg.zwrt.de (自有源):
+src/gz zwrt https://opkg.zwrt.de/opkg/<架构>
+③ 官方 (兜底, 25.12 为 apk 无 opkg 索引时需改版本或注释):
+src/gz base https://downloads.openwrt.org/releases/<版本>/packages/<架构>/base
 ```
 
 构建期自定义包由 `feeds/feeds.conf.custom`（kenzok8/openwrt-packages、kenzok8/small、KuWiNet/ZWRT-Theme 等）提供。
@@ -75,6 +81,10 @@ https://dl.zwrt.de/firmware/zwrt-YYYYMMDD-架构-设备-<类型>
 | `R2_BUCKET` | R2 桶名（已绑定 dl.zwrt.de） | `zwrt` |
 
 可选变量 `R2_PUBLIC_URL`（默认 `https://dl.zwrt.de`）。
+
+## 默认主题
+
+固件默认主题为 **ZWRT**（luci-theme-zwrt），由 iles/etc/uci-defaults/99-zwrt-theme 在首次开机时设置（uci set luci.main.mediaurlbase=/luci-static/zwrt）。
 
 ## 版本策略
 

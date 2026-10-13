@@ -114,6 +114,7 @@ jobs:
         run: |
           sed -e "s|__FEED_ARCH__|${{ matrix.feed_arch }}|g" \
               -e "s|__FEED_TARGET__|${{ matrix.feed_target }}|g" \
+              -e "s|__OFFICIAL_VER__|25.12.5|g" \
               "$GITHUB_WORKSPACE/files/etc/opkg/distfeeds.conf" > /tmp/distfeeds.conf
           mv /tmp/distfeeds.conf "$GITHUB_WORKSPACE/files/etc/opkg/distfeeds.conf"
           echo "已生成 opkg 源配置 (${{ matrix.feed_arch }}):"

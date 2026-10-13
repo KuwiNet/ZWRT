@@ -1,0 +1,5 @@
+#!/bin/sh
+# 设置 LuCI 默认主题为 ZWRT (首次开机执行)
+uci set luci.main.mediaurlbase='/luci-static/zwrt'
+uci commit luci
+exit 0
