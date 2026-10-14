@@ -177,7 +177,25 @@ jobs:
     timeout-minutes: 420
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
+      matrix:
+        - device: x86-64-main
+          bin_dir: bin/targets/x86/64
+          arch: x86_64
+          board: main
+          identity: x86-64-generic
+          tag: x86_64-main
+          feed_arch: x86_64
+          feed_target: x86/64
+          family: x86
+          lan_ip: 192.168.100.1
+          lan_mask: 255.255.255.0
+          gateway: 192.168.100.1
+          dns: 192.168.100.1
+          role: main
+          ipv6: '0'
+          wifi: '0'
+          wifi_ssid: ''
+          wifi_key: ''
     steps:
       - uses: actions/checkout@v4
 
