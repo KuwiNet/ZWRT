@@ -91,7 +91,7 @@ jobs:
           echo "==== 上传完成, 下载地址 ===="
           DOWNLOADS=""
           for f in firmware/zwrt-*; do
-            [ -f "$f" ] && { echo "  ${PUB}/firmware/$(basename "$f")"; DOWNLOADS="${DOWNLOADS}  - ${PUB}/firmware/$(basename "$f")\n"; }
+            [ -f "$f" ] && { echo "  ${PUB}/firmware/$(basename "$f")"; DOWNLOADS="${DOWNLOADS}$(printf '  - %s/firmware/%s\n' "$PUB" "$(basename "$f")")"; }
           done
           # 把 R2 下载地址追加进 Release body（<!--R2DL--> 标记防重复）
           TAG="ZWRT-${{ steps.date.outputs.date }}"
