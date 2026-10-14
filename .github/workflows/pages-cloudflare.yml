@@ -1,17 +1,18 @@
 # =============================================================
 # ZWRT 构建配置器网站 -> Cloudflare Pages (自动部署)
-# 触发: push 到 main 且改动 site/public/** 时自动发布
+# 触发: push 到 main 且改动 site/** 时自动发布
 # 依赖仓库配置:
 #   - Secret  CLOUDFLARE_API_TOKEN (Cloudflare API Token, 含 Cloudflare Pages: Edit 权限)
-#   - Variable CLOUDFLARE_ACCOUNT_ID (Cloudflare 账户 ID)
-# 访问地址: https://zwrt.pages.dev
+#   - Secret  CLOUDFLARE_ACCOUNT_ID (Cloudflare 账户 ID)
+# 访问地址: https://zwrt.de
+# Pages Functions: 位于 site/functions/ (与 site/public 同级), 部署时 cd site 使 wrangler 识别
 # =============================================================
 name: Deploy Site to Cloudflare Pages
 on:
   push:
     branches: [ main ]
     paths:
-      - 'site/public/**'
+      - 'site/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -40,4 +41,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy site/public --project-name=zwrt --branch=main
+          command: cd site && wrangler pages deploy public --project-name=zwrt --branch=main
