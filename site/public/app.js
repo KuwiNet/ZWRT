@@ -580,7 +580,7 @@ async function triggerBuild() {
     if (res.status !== 204 && res.status !== 201) throw new Error(await res.text());
     logc("已提交，等待调度…", "ok");
     setBottomBtn("gha");
-    startPoll({ owner, repo, token });
+    startPoll({ owner, repo, token, since: Date.now() });
   } catch (e) {
     logc("触发失败: " + e.message, "err");
     toast("触发失败：" + e.message);
@@ -594,8 +594,16 @@ async function startPoll(a) {
   let lastKey = "";
   const probe = async () => {
     try {
-      const runs = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs?event=workflow_dispatch&per_page=5", a.token));
-      const mine = runs.workflow_runs.find((r) => r.path === ".github/workflows/build-openwrt.yml" && new Date(r.created_at).getTime() >= t0 - 60000);
+      let mine = null;
+      if (a.runId) {
+        try { mine = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs/" + a.runId, a.token)); } catch (e) {}
+      }
+      if (!mine) {
+        const runs = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs?event=workflow_dispatch&per_page=5", a.token));
+        const cands = runs.workflow_runs.filter((r) => r.path === ".github/workflows/build-openwrt.yml");
+        if (a.since) mine = cands.find((r) => new Date(r.created_at).getTime() >= a.since) || null;
+        else mine = cands[0] || null;
+      }
       if (mine) {
         state.runId = mine.id;
         try { localStorage.setItem("zwrt_run", JSON.stringify({ owner: a.owner, repo: a.repo, runId: mine.id, ts: Date.now() })); } catch (e) {}
@@ -687,7 +695,7 @@ async function resumeProgress() {
     else logc("上次构建未成功 (" + c + ")，请查看 GitHub Actions 日志", "err");
   } else {
     logc("上次构建尚未完成，正在恢复跟踪进度…", "warn");
-    startPoll({ owner, repo, token });
+    startPoll({ owner, repo, token, runId: mine.id });
   }
 }
 
@@ -838,7 +846,7 @@ function bindStatic() {
       if (state.account.token) {
         setBottomBtn("gha");
         logc("检测到上次构建 Run #" + rr.runId + "，正在恢复跟踪进度…", "muted");
-        startPoll({ owner: rr.owner, repo: rr.repo, token: state.account.token });
+        startPoll({ owner: rr.owner, repo: rr.repo, token: state.account.token, runId: rr.runId });
       } else {
         logc("检测到上次构建 Run #" + rr.runId + "，请填写 GitHub Token 并勾选「保存 Token」以继续跟踪进度", "err");
       }
