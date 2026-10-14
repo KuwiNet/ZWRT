@@ -653,6 +653,35 @@ function stepMark(st) {
   return "·";
 }
 
+/* ---------- 重新打开页面后：查看/恢复上次定制构建 ---------- */
+async function resumeProgress() {
+  const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
+  if (!token) { logc("请先填写 GitHub Token", "err"); return; }
+  let mine = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem("zwrt_run") || "null");
+    if (saved && saved.runId && saved.owner === owner && saved.repo === repo) {
+      mine = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs/" + saved.runId, token));
+    }
+  } catch (e) {}
+  if (!mine) {
+    const runs = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs?event=workflow_dispatch&per_page=5", token));
+    mine = (runs.workflow_runs || []).find((r) => r.path === ".github/workflows/build-openwrt.yml");
+  }
+  if (!mine) { logc("未找到该仓库最近的定制构建记录", "err"); return; }
+  const s = mine.status, c = mine.conclusion;
+  const statusCN = { queued: "排队中", in_progress: "构建中", completed: "已完成", success: "成功", failure: "失败", cancelled: "已取消", skipped: "已跳过", timed_out: "超时", neutral: "无结果" };
+  const label = statusCN[c] || statusCN[s] || s || "";
+  logc("上次构建 Run #" + mine.id + " 状态: " + label, c === "success" ? "ok" : c === "failure" || c === "cancelled" ? "err" : s === "in_progress" ? "warn" : "muted");
+  if (s === "completed") {
+    if (c === "success") { logc("上次构建已完成，正在加载固件下载…", "ok"); loadDownloads(owner, repo, token); }
+    else logc("上次构建未成功 (" + c + ")，请查看 GitHub Actions 日志", "err");
+  } else {
+    logc("上次构建尚未完成，正在恢复跟踪进度…", "warn");
+    startPoll({ owner, repo, token });
+  }
+}
+
 /* ---------- 主题（深/浅），右上角切换，localStorage 记忆 ---------- */
 function initTheme() {
   const root = document.documentElement;
@@ -772,6 +801,7 @@ function bindStatic() {
     catch (err) {}
   });
   on("btnBuild", "click", () => triggerBuild());
+  on("btnResume", "click", () => resumeProgress());
   on("btnPreview", "click", () => {
     readParams();
     const { inputs } = composeInputs();

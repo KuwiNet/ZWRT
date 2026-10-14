@@ -145,7 +145,8 @@ button.ghost{background:none;border-color:var(--line2);color:var(--dim)}
 .step{color:var(--faint);line-height:1.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .step-run{color:var(--warn)}
 .step-skipped{opacity:.5}
-.gha{display:block;text-align:center;margin-top:10px;padding:8px;border:1px solid var(--line);border-radius:8px;color:var(--accent);text-decoration:none;font-size:13px}
+.gha-row{display:flex;gap:8px;margin-top:10px}
+.gha{flex:1;text-align:center;padding:8px;border:1px solid var(--line);border-radius:8px;color:var(--accent);text-decoration:none;font-size:13px;background:none;font-family:inherit;cursor:pointer}
 .gha:hover{background:var(--bg2)}
 
 /* ---- downloads ---- */
