@@ -1,0 +1,9 @@
+#!/bin/sh
+# 预装 nikki UI: 将 /usr/share/zwrt/nikki-ui 复制到 /etc/nikki/ui/ZWRT (开箱即用, 免首次联网下载)
+SRC=/usr/share/zwrt/nikki-ui
+DST=/etc/nikki/ui/ZWRT
+[ -d "$SRC" ] || exit 0
+mkdir -p "$DST"
+cp -r "$SRC/." "$DST/" 2>/dev/null
+chmod -R a+rX "$DST" 2>/dev/null || true
+exit 0
