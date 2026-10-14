@@ -238,11 +238,11 @@ jobs:
       - name: 列出待发布固件
         run: ls -lh firmware/
 
-      - name: 发布单个 Release (zwrt-日期, 含全部固件)
+      - name: 发布单个 Release (ZWRT-日期, 含全部固件)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="zwrt-${{ steps.date.outputs.date }}"
+          TAG="ZWRT-${{ steps.date.outputs.date }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG 已存在, 跳过创建"
           else
@@ -282,6 +282,16 @@ jobs:
             secret_access_key="$R2_SECRET_ACCESS_KEY" \
             endpoint="$ENDPOINT" \
             --non-interactive
+          # ---- R2 只保留最近 2 个版本: 上传前删除更早版本 (按文件名 zwrt-YYYYMMDD-*) ----
+          NEW_DATE="${{ steps.date.outputs.date }}"
+          ALL_DATES=$( { rclone lsf "r2:$R2_BUCKET/firmware/" 2>/dev/null | sed -n 's/^zwrt-\([0-9]\{8\}\)-.*/\1/p'; echo "$NEW_DATE"; } | sort -u )
+          KEEP_DATES=$( echo "$ALL_DATES" | sort -r | head -2 )
+          echo "R2 保留最近 2 版: $(echo $KEEP_DATES | tr '\n' ' ')"
+          for d in $( echo "$ALL_DATES" | sort -r | tail -n +3 ); do
+            echo "删除过期版本 zwrt-${d}-*"
+            rclone delete "r2:$R2_BUCKET/firmware/" --include "zwrt-${d}-*" --retries 3
+          done
+          # ---- 上传新固件 ----
           rclone copy firmware/ "r2:$R2_BUCKET/firmware/" --include "zwrt-*" -v
           echo "==== 上传完成, 下载地址 ===="
           for f in firmware/zwrt-*; do
