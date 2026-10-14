@@ -14,6 +14,7 @@
 # 用法: scripts/ibuild.sh <仓库根目录>
 # =============================================================
 set -e
+set -o pipefail
 ZWRT_DIR="$1"
 
 DEVICE="${DEVICE:?需要 DEVICE}"
@@ -137,10 +138,10 @@ for g in "${GROUPS[@]}"; do
   IFS=',' read -r PROFILE IDENTITY TAG <<< "$g"
   echo ">> make image PROFILE=$PROFILE tag=$TAG"
   cd "$ZWRT_DIR/$IB_DIR"
-  make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="$FILES" > "image-$PROFILE.log" 2>&1 || {
-    echo "!! make image 失败 (PROFILE=$PROFILE)"
-    echo "---- 日志尾部 ----"
-    tail -50 "image-$PROFILE.log"
+  make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="$FILES" 2>&1 | tee "image-$PROFILE.log" || {
+    echo "!! make image 失败 (PROFILE=$PROFILE)" >&2
+    echo "---- 日志尾部 ----" >&2
+    tail -50 "image-$PROFILE.log" >&2
     exit 1
   }
   echo ">> make image PROFILE=$PROFILE 完成"
