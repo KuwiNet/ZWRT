@@ -1,114 +1,137 @@
 # ZWRT-openwrt
 
-通过 GitHub Actions 自动构建定制的多平台 OpenWrt 固件。跟踪稳定分支，稳定分支有新提交时自动编译；按设备/平台矩阵构建。
+基于 GitHub Actions + Cloudflare Pages / R2 的自建 **OpenWrt 固件在线定制与构建**项目。
 
-- 主机名统一：`ZWRT`
-- 固件命名：`zwrt-YYYYMMDD-架构-设备-<类型>.bin / .img.gz`
-- 固件内 opkg 软件源：**全部使用 dl.openwrt.ai (Kwrt)**
-- 发布：GitHub Release + Artifact + **Cloudflare R2**（https://dl.zwrt.de/firmware/）
+- **在线构建器**：https://zwrt.pages.dev （同时发布到 GitHub Pages）
+- 选设备、开功能开关（旁路由 / IPv6 / 无线 / WWAN / Docker / HTTPS 后台 / DHCP / iStoreOS）、选软件包、写初始化脚本 → **一键触发 GitHub Actions 构建**
+- 构建产物自动发布到 GitHub Release + Cloudflare R2（`dl.zwrt.de/firmware`）
+- **去中心化**：任何人 fork 到自己的库即可构建，不依赖本项目配额
+
+---
+
+## 特性
+
+- **多平台矩阵**：x86-64 主路由 / x86-64 旁路由 / WH3000 Pro
+- **workflow_dispatch 全参数定制**：动态矩阵 + 主机名 / LAN IP / 网关 / DNS / 管理密码 / IPv6 / 无线 / 软件包清单 / 初始化脚本
+- 固件默认：主题 `ZWRT`、LAN `192.168.100.1`（旁路由 `.100.10`）、后台密码空、WiFi SSID `ZWRT`、签名 `kuwi.net`
+- 软件源三级：`dl.openwrt.ai` → `luci.zwrt.de` → 官方
+- 自动发布：单个 Release（`ZWRT-日期`），R2 只保留最近 2 版
 
 ## 目录结构
 
 ```
-ZWRT/
-├── .github/workflows/build-openwrt.yml   # 自动构建工作流 (含 R2 上传)
-├── configs/                              # 各平台目标配置 (seed)
+.
+├── .github/workflows/
+│   ├── build-openwrt.yml     # 固件构建工作流（workflow_dispatch 全参数）
+│   └── pages-cloudflare.yml  # 网站 → Cloudflare Pages 自动部署
+├── configs/                  # 各平台目标配置 (seed)
 │   ├── x86_64.seed
 │   └── wh3000pro.seed
-├── plugins/                              # 插件清单 (一行一个包名)
-│   ├── common.txt        # 所有平台通用插件
-│   ├── x86_64.txt        # x86_64 专属
-│   └── wh3000pro.txt     # WH3000 Pro 专属
-├── targets/devices.yml   # 设备-矩阵定义 (设备名/架构/seed/插件组合)
-├── feeds/feeds.conf.custom # 构建期自定义 git feeds (非官方源包)
-├── files/
-│   ├── etc/config/system         # hostname=ZWRT
-│   ├── etc/opkg/distfeeds.conf   # 运行期 opkg 源 (三级优先级, 按架构生成)
-│   └── etc/uci-defaults/99-zwrt-theme # 首次开机设默认主题为 ZWRT
-└── scripts/
-    ├── merge-feeds.sh    # 合并自定义 feeds 到 OpenWrt 源码
-    ├── merge-config.sh   # seed + 插件清单 -> .config
-    └── custom.sh         # 固件重命名
+├── plugins/                  # 插件清单（一行一个包名）
+│   ├── common.txt            # 所有平台通用
+│   ├── x86_64.txt            # x86_64 专属
+│   └── wh3000pro.txt         # WH3000 Pro 专属
+├── targets/devices.yml       # 设备-矩阵定义
+├── feeds/feeds.conf.custom   # 自定义 feeds
+├── files/                    # 覆盖层（hostname=ZWRT、opkg 源、网络/无线生成模板）
+├── scripts/                  # merge-feeds / merge-config / custom
+└── site/public/              # 在线构建器前端（GitHub Pages + Cloudflare Pages）
 ```
 
 ## 支持的设备
 
-| 设备 ID | 设备 | 架构 / 目标 | opkg 源架构 |
-|---------|------|-------------|-------------|
-| `x86_64` | x86_64 (Generic) | x86_64 / `x86/64` | `x86_64` |
-| `wh3000pro` | Huasifei WH3000 Pro | MT7981B / `mediatek/filogic` | `aarch64_cortex-a53` |
+| device | 设备 | 架构 / 目标 |
+|--------|------|-------------|
+| `x86-64-main` | x86_64 主路由 | x86_64 / `x86/64` |
+| `x86-64-bypass` | x86_64 旁路由 | x86_64 / `x86/64` |
+| `wh3000pro` | Huasifei WH3000 Pro | MT7981B / `mediatek/filogic` |
 
-> 新增设备：在 `configs/` 加 `.seed`、`plugins/` 加 `.txt`、`targets/devices.yml` 加条目、workflow `matrix.include` 加条目（含 `feed_arch` / `feed_target`）。
+## 固件默认配置
 
-## 软件源 (优先级: dl.openwrt.ai -> opkg.zwrt.de -> 官方)
+- 主机名：`ZWRT`；LAN IP：`192.168.100.1`（旁路由 `.100.10`，网关 `.100.1`）
+- 后台密码：空（**首次登录进入修改密码页面**）；WiFi SSID：`ZWRT`、密码空
+- 默认主题：`luci-theme-zwrt`；签名：`kuwi.net`
+- 软件源：`dl.openwrt.ai`（25.12 / 6.12 内核）→ `luci.zwrt.de`（ipk / apk）→ 官方
 
-固件刷入后 `/etc/opkg/distfeeds.conf` 为 dl.openwrt.ai 的 7 个源（core/base/packages/luci/routing/video/kiddin9），覆盖清单中的全部包：
+## 构建方式
 
-```
-① dl.openwrt.ai (主):
-src/gz kwrt_core https://dl.openwrt.ai/releases/25.12/targets/<目标>/6.12.112
-src/gz kwrt_base https://dl.openwrt.ai/releases/25.12/packages/<架构>/base
-src/gz kwrt_packages https://dl.openwrt.ai/releases/25.12/packages/<架构>/packages
-src/gz kwrt_luci https://dl.openwrt.ai/releases/25.12/packages/<架构>/luci
-src/gz kwrt_routing https://dl.openwrt.ai/releases/25.12/packages/<架构>/routing
-src/gz kwrt_video https://dl.openwrt.ai/releases/25.12/packages/<架构>/video
-src/gz kwrt_kiddin9 https://dl.openwrt.ai/releases/25.12/packages/<架构>/kiddin9
-② opkg.zwrt.de (自有源):
-src/gz zwrt https://opkg.zwrt.de/opkg/<架构>
-③ 官方 (兜底, 25.12 为 apk 无 opkg 索引时需改版本或注释):
-src/gz base https://downloads.openwrt.org/releases/<版本>/packages/<架构>/base
-```
+### 1. 在线构建器（推荐）
+访问 https://zwrt.pages.dev ，填写设备 / 功能开关 / 软件包 / 初始化脚本后，前端直连 GitHub API 触发 `workflow_dispatch` 构建。构建账号默认 `KuWiNet/ZWRT`，**也可填你自己 fork 的仓库**。
 
-构建期自定义包由 `feeds/feeds.conf.custom`（kenzok8/openwrt-packages、kenzok8/small、KuWiNet/ZWRT-Theme 等）提供。
+### 2. 手动触发（Actions → Run workflow）
+`workflow_dispatch` 支持以下 inputs：
 
-> 注意：opkg 源仅对 **opkg 体系** 固件生效。官方主线 `openwrt-25.12` 分支已改用 **apk**；如需 opkg 固件，请把 `OPENWRT_BRANCH` 指向 opkg 体系的源码线（见下方"版本策略"）。
+| input | 说明 |
+|-------|------|
+| `device` | `all` / `x86-64-main` / `x86-64-bypass` / `wh3000pro` |
+| `hostname` | 主机名（空=ZWRT） |
+| `lan_ip` / `lan_mask` / `gateway` / `dns` | 网络配置（空=设备默认；旁路由填网关） |
+| `password` | root 管理密码（空=无密码） |
+| `ipv6` / `wifi` | 布尔开关 |
+| `wifi_ssid` / `wifi_key` | 无线（空=设备默认/无密码） |
+| `packages_common` / `packages_wh3000` | 软件包清单（空=仓库默认；`__none__`=不装） |
+| `init_script` / `init_script_b64` | 初始化脚本（写入 `/etc/uci-defaults`） |
 
-## 固件下载 (Cloudflare R2)
+### 3. 自动构建
+`schedule` 每日检测稳定分支（默认 `openwrt-25.12`）有新提交即构建，无更新则跳过（`.cache/openwrt-stable-commit` 记录）。
 
-每次构建会把 `zwrt-*` 固件上传到 R2 的 `firmware/` 目录，公开下载地址：
+## 软件源
 
-```
-https://dl.zwrt.de/firmware/zwrt-YYYYMMDD-架构-设备-<类型>
-```
+`files/etc/opkg/distfeeds.conf` 定义三级源，构建时按 `dl.openwrt.ai` → `luci.zwrt.de` → 官方 顺序。
 
-需要在仓库 **Secrets** 配置（否则该步骤自动跳过）：
+## 去中心化构建：Fork 到自己的库（推荐私有）
 
-| Secret | 说明 | 示例 |
-|--------|------|------|
-| `R2_ACCESS_KEY_ID` | R2 S3 API Access Key ID | `xxxxxxxxxxxxxxxxxxxx` |
-| `R2_SECRET_ACCESS_KEY` | R2 S3 API Secret | `xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
-| `R2_ENDPOINT` | R2 S3 API Endpoint | `https://<accountid>.r2.cloudflarestorage.com` |
-| `R2_BUCKET` | R2 桶名（已绑定 dl.zwrt.de） | `zwrt` |
+任何人可 fork 本项目，用**自己的 GitHub 账号**构建，不占用本项目配额：
 
-可选变量 `R2_PUBLIC_URL`（默认 `https://dl.zwrt.de`）。
+1. **Fork**：GitHub → KuWiNet/ZWRT → Fork。
+2. **设为私有（推荐）**：Settings → General → Danger Zone → Change visibility → **Private**。私有库的 Actions run 对外不可见，dispatch 参数（含密码）不会公开。
+3. **（可选）配置仓库 Secrets / Variables**：
+   - 需要固件上传 R2：配置 `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET`（可选 `R2_ENDPOINT` / `R2_ACCOUNT_ID`）。**不配置则自动跳过上传，构建与 Release 照常成功。**
+   - 需要网站部署到 Cloudflare Pages：配置 `CLOUDFLARE_API_TOKEN`（Secret）、`CLOUDFLARE_ACCOUNT_ID`（Secret）。
+4. **使用你自己的库构建**：在在线构建器里把"构建账号"填成 `你的用户名/你的仓库名`，并填入你自己的 GitHub Token（只需 `repo` + `workflow` 权限）。
 
-## 默认主题
+## 安全事项（重要）
 
-固件默认主题为 **ZWRT**（luci-theme-zwrt），由 iles/etc/uci-defaults/99-zwrt-theme 在首次开机时设置（uci set luci.main.mediaurlbase=/luci-static/zwrt）。
+> 本项目为"去中心化直连 GitHub API"设计，token 只存于你的浏览器（localStorage），**不经任何服务器**。但仍有几点务必注意：
 
-## 版本策略
+### 1. dispatch 参数会留在 Actions run 记录里
+`workflow_dispatch` 的 inputs（**含管理密码 `password`、base64 的初始化脚本**）会随该次 run 的元数据保存。**对公开仓库，任何人可通过 GitHub API 查看 run 的 inputs（明文）**。因此：
 
-- 默认跟踪 **OpenWrt 稳定分支 `openwrt-25.12`**；稳定分支有新提交时自动编译，无新提交则跳过（`.cache/openwrt-stable-commit` 记录上次 commit）。
-- 手动触发（`Actions` → `Run workflow`）强制构建。
-- 换分支：设置仓库变量 `OPENWRT_BRANCH` 覆盖。
-- ⚠️ 若目标是 opkg/ipk 固件（与 dl.openwrt.ai、opkg.zwrt.de 生态一致），官方 `openwrt-25.12`（apk）不适用，请改用 opkg 体系源码线（如 dl.openwrt.ai / Kwrt 对应构建树或相应分支）。
+- **构建请优先用私有 fork**（run 记录仅自己可见）。
+- 若用公开 `KuWiNet/ZWRT` 构建，**管理密码请留空**（走首次开机改密），固件和 dispatch 中都不会有密码。
 
-## 插件清单说明
+### 2. 固件镜像内含 root 密码 hash（非明文）
+固件上传到公开 R2 / Release，`/etc/shadow` 含密码的 **crypt hash**（单向不可逆），但弱密码可被**离线爆破**。请用强密码，或保持"首次登录改密"模式。
 
-`common.txt` 为两设备共用的一整套包（387 个）。平台特有包移入 `x86_64.txt` / `wh3000pro.txt` 即可实现"不同平台不同插件"。清单版本号仅供对照，构建时以 feeds 实际版本为准。
+### 3. 初始化脚本不要写敏感信息
+`init_script` 会随 dispatch 暴露且解码后为**明文脚本**。**不要**在初始化脚本里写密码 / Token / API Key。
 
-## 本地运行
+### 4. Token 权限最小化
+- GitHub Token：只需 `repo` + `workflow` 权限即可触发构建，不要用高权限 token。
+- Cloudflare Token：只需 `Account · Cloudflare Pages · Edit`（部署网站）；如需 R2 再加对应 R2 权限。
+- **绝不**把 Token 写入仓库文件、脚本或日志。
+
+### 5. R2 密钥缺失自动跳过
+fork 后未配置 R2 Secrets，上传步骤自动 `exit 0` 跳过，构建与 Release 照常成功，不会失败。
+
+## 发布与部署
+
+- **GitHub Release**：单 tag `ZWRT-日期`，含全部设备固件。
+- **Cloudflare R2**：`dl.zwrt.de/firmware/`，只保留最近 2 版（按 `zwrt-YYYYMMDD-*` 清理）。
+- **网站**：`site/public` 由 `pages-cloudflare.yml`（Cloudflare Pages）与 `pages.yml`（GitHub Pages）双发布；推送 `site/public/**` 自动触发。
+
+## 本地构建
 
 ```bash
 git clone https://github.com/KuWiNet/ZWRT.git
-git clone --depth=1 --branch openwrt-25.12 https://github.com/openwrt/openwrt.git openwrt
+git clone --depth=1 --branch openwrt-25.12 https://github.com/immortalwrt/immortalwrt.git openwrt
 cd openwrt
 bash ../ZWRT/scripts/merge-feeds.sh ../ZWRT .
-bash ../ZWRT/scripts/merge-config.sh ../ZWRT x86_64 .config
+bash ../ZWRT/scripts/merge-config.sh ../ZWRT x86-64-main .config
 make defconfig && make -j$(nproc)
 ```
 
 ## 首次构建注意事项
 
-- 首次构建拉取全部依赖，耗时较长。
-- 个别自定内核模块（如 `kmod-nft-fullcone`）需匹配内核版本，报错请反馈日志调整 feeds 或配置。
+- 首次构建耗时较长（拉取全部依赖），GitHub Actions 免费额度足够。
+- 个别自定内核模块需匹配内核版本，若编译报错请提供日志并调整 feeds / 配置。
