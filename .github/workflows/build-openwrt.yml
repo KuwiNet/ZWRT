@@ -230,7 +230,9 @@ jobs:
         run: |
           TAG="ZWRT-${{ steps.date.outputs.date }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG 已存在, 跳过创建"
+            echo "Release $TAG 已存在, 覆盖上传最新固件"
+            gh release upload "$TAG" firmware/zwrt-* \
+              --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$TAG" firmware/zwrt-* \
               --repo "$GITHUB_REPOSITORY" \
