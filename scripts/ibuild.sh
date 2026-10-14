@@ -132,11 +132,13 @@ PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | 
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 
 echo "==== [5/7] 组装固件 (ImageBuilder make image) ===="
+echo ">> DEBUG PROFILE_TAGS=[$PROFILE_TAGS]" >&2
 BIN_DIR="$ZWRT_DIR/$IB_DIR/bin/targets/$FEED_TARGET"
 IFS=';' read -ra GROUPS <<< "$PROFILE_TAGS"
+echo ">> DEBUG GROUPS count=${#GROUPS[@]} => [${GROUPS[*]}]" >&2
 for g in "${GROUPS[@]}"; do
   IFS=',' read -r PROFILE IDENTITY TAG <<< "$g"
-  echo ">> make image PROFILE=$PROFILE tag=$TAG"
+  echo ">> make image PROFILE=$PROFILE tag=$TAG" >&2
   cd "$ZWRT_DIR/$IB_DIR"
   make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="$FILES" 2>&1 | tee "image-$PROFILE.log" || {
     echo "!! make image 失败 (PROFILE=$PROFILE)" >&2
@@ -144,7 +146,7 @@ for g in "${GROUPS[@]}"; do
     tail -50 "image-$PROFILE.log" >&2
     exit 1
   }
-  echo ">> make image PROFILE=$PROFILE 完成"
+  echo ">> make image PROFILE=$PROFILE 完成" >&2
   cd "$ZWRT_DIR"
 done
 
