@@ -41,4 +41,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: cd site && wrangler pages deploy public --project-name=zwrt --branch=main
+          workingDirectory: site
+          command: pages deploy public --project-name=zwrt --branch=main
