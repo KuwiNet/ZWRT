@@ -637,7 +637,7 @@ function render() {
   $("lblGateway").hidden = !by;
   $("netHint").hidden = !by;
   $("fieldsWifi").hidden = !state.features.wifi;
-  $("fieldsWwan").hidden = !state.features.wwan || state.features.bypass;
+  $("fieldsWwan").hidden = state.features.bypass;      // 拨号默认显示；旁路由时隐藏
   $("f-wifi").disabled = by;                       // 旁路由不可开无线
   if (by && $("f-wifi").checked) $("f-wifi").checked = false;
   if (by && $("f-wwan").checked) { state.features.wwan = false; $("f-wwan").checked = false; }  // 旁路由隐藏并关闭拨号
