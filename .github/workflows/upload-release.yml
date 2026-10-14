@@ -98,9 +98,9 @@ jobs:
           CUR=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)
           if [ -z "$(printf '%s' "$CUR" | grep '<!--R2DL-->')" ]; then
             BODY="${CUR}
-<!--R2DL-->
-R2 下载地址:
-${DOWNLOADS}"
+            <!--R2DL-->
+            R2 下载地址:
+            ${DOWNLOADS}"
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes "$BODY" || echo "(body 更新失败, 不影响固件)"
           else
             echo "R2 下载地址已在 Release body 中, 跳过更新"
