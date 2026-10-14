@@ -104,7 +104,7 @@ const state = {
   catalogArr: [],
   catalogFile: "",
   device: null,
-  features: { bypass: false, ipv6: false, wifi: false, wwan: false, docker: false, https: false, dhcp: true, istore: false },
+  features: { bypass: false, ipv6: false, wifi: false, wwan: false, docker: false, https: false, dhcp: false, istore: false },
   params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", password: "", wifi_ssid: "", wifi_key: "" },
   net: new Set(["nikki"]),            // 已选互联网方案
   themes: new Set(["luci-theme-zwrt", "luci-theme-openwrt"]), // 已选主题
@@ -222,7 +222,7 @@ function applyDeviceDefaults() {
   state.features.wwan = !!dd.wwan;
   state.features.docker = false;
   state.features.https = false;
-  state.features.dhcp = true;
+  state.features.dhcp = false;
   state.features.istore = false;
   state.net = new Set(["nikki"]);
   state.themes = new Set(["luci-theme-zwrt", "luci-theme-openwrt"]);
