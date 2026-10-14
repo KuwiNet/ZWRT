@@ -111,7 +111,7 @@ fi
 echo ">> 覆盖层: $FILES"
 
 echo "==== [4/7] 生成 PACKAGES 清单 ===="
-clean() { echo "$1" | sed '1s/^\xEF\xBB\xBF//' | grep -v '^\s*#' | grep -v '^\s*$' | tr '\n' ' '; }
+clean() { echo "$1" | sed '1s/^\xEF\xBB\xBF//' | grep -v '^\s*#' | grep -v '^\s*$' | tr '\n' ' ' || true; }
 # 按来源组装覆盖 (空=默认; __none__=不装; 其它=以清单为准)
 apply_src() {
   local list="$1" base="$2"
