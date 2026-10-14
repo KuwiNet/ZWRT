@@ -145,6 +145,7 @@ for g in "${GROUPS[@]}"; do
   }
   echo ">> make image PROFILE=$PROFILE 完成"
   cd "$ZWRT_DIR"
+done
 
 echo "==== [6/7] 重命名固件 (zwrt-日期-发布标签-类型) ===="
 for g in "${GROUPS[@]}"; do
