@@ -4,7 +4,7 @@
 
 - **在线构建器**：https://zwrt.de （同时发布到 GitHub Pages）
 - 选设备、开功能开关（旁路由 / IPv6 / 无线 / WWAN / Docker / HTTPS 后台 / DHCP / iStoreOS）、选软件包、写初始化脚本 → **一键触发 GitHub Actions 构建**
-- 构建产物自动发布到 GitHub Release
+- 构建产物自动发布到 GitHub Release；固件可选上传 R2/B2（下载地址由 `R2_PUBLIC_URL` 自定义）
 - **去中心化**：任何人 fork 到自己的库即可构建，不依赖本项目配额
 
 ---
@@ -15,7 +15,7 @@
 - **workflow_dispatch 全参数定制**：动态矩阵 + 主机名 / LAN IP / 网关 / DNS / 管理密码 / IPv6 / 无线 / 软件包清单 / 初始化脚本
 - 固件默认：主题 `ZWRT`、LAN `192.168.100.1`（旁路由 `.100.10`）、后台密码空、WiFi SSID `ZWRT`、签名 `kuwi.net`
 - 软件源三级：`dl.openwrt.ai` → `luci.zwrt.de` → 官方
-- 自动发布：单个 Release（`ZWRT-日期`）
+- 自动发布：单个 Release（`ZWRT-日期`）；R2 只保留最近 2 版
 
 ## 目录结构
 
@@ -85,7 +85,9 @@
 
 1. **Fork**：GitHub → KuWiNet/ZWRT → Fork。
 2. **设为私有（推荐）**：Settings → General → Danger Zone → Change visibility → **Private**。私有库的 Actions run 对外不可见，dispatch 参数（含密码）不会公开。
-3. **（可选）配置仓库 Secrets**：需要把网站部署到自己的 Cloudflare Pages 时，配置 `CLOUDFLARE_API_TOKEN`（Secret）、`CLOUDFLARE_ACCOUNT_ID`（Secret）；不需要则跳过。
+3. **（可选）配置仓库 Secrets / Variables**：
+   - 需要把网站部署到自己的 Cloudflare Pages：配置 `CLOUDFLARE_API_TOKEN`（Secret）、`CLOUDFLARE_ACCOUNT_ID`（Secret）。
+   - 需要固件上传到自己的 R2/B2 对象存储：配置 `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET`（Secret，可选 `R2_ENDPOINT` / `R2_ACCOUNT_ID`），并设置仓库 Variable `R2_PUBLIC_URL` 为桶的公开下载前缀（如 `https://你的域名`）。**不配置则跳过上传，构建与 Release 照常成功。** 下载地址会写入该 Release 描述，前端"固件下载"优先显示你自己的地址。
 4. **使用你自己的库构建**：在在线构建器里把"构建账号"填成 `你的用户名/你的仓库名`，并填入你自己的 GitHub Token（只需 `repo` + `workflow` 权限）。
 
 ## 安全事项（重要）
@@ -99,7 +101,7 @@
 - 若用公开 `KuWiNet/ZWRT` 构建，**管理密码请留空**（走首次开机改密），固件和 dispatch 中都不会有密码。
 
 ### 2. 固件镜像内含 root 密码 hash（非明文）
-固件上传到公开 Release，`/etc/shadow` 含密码的 **crypt hash**（单向不可逆），但弱密码可被**离线爆破**。请用强密码，或保持"首次登录改密"模式。
+固件上传到公开 Release / R2（若桶公开），`/etc/shadow` 含密码的 **crypt hash**（单向不可逆），但弱密码可被**离线爆破**。请用强密码，或保持"首次登录改密"模式。
 
 ### 3. 初始化脚本不要写敏感信息
 `init_script` 会随 dispatch 暴露且解码后为**明文脚本**。**不要**在初始化脚本里写密码 / Token / API Key。
@@ -112,6 +114,7 @@
 ## 发布与部署
 
 - **GitHub Release**：单 tag `ZWRT-日期`，含全部设备固件。
+- **R2/B2 对象存储（可选）**：配置 R2 密钥后固件自动上传，上传完成后把下载地址写进 Release 描述。下载地址前缀由仓库 Variable `R2_PUBLIC_URL` 定义（默认 `https://dl.zwrt.de`），R2 只保留最近 2 版。前端"固件下载"优先显示该地址，无则回退 GitHub Release 直链。
 - **网站**：`site/public` 由 `pages-cloudflare.yml`（Cloudflare Pages）与 `pages.yml`（GitHub Pages）双发布；推送 `site/public/**` 自动触发。
 
 ## 本地构建
