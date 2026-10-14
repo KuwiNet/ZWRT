@@ -171,8 +171,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 安装 zstd (解压 ImageBuilder)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq zstd 2>/dev/null || true
+      - name: 安装构建依赖 (zstd 解压 + qemu-img 打包 x86 镜像)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zstd qemu-utils 2>/dev/null || true
 
       - name: 生成构建日期
         id: date
