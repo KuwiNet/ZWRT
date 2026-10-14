@@ -73,6 +73,7 @@ h1,h2,h3{margin:0;line-height:1.2}
 .chips-selected .chip:hover span{border-color:var(--danger);color:var(--danger)}
 
 /* ---- fields ---- */
+[hidden]{display:none!important}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:12px;align-items:start}
 .fields label{font-size:13px;color:var(--dim);display:flex;flex-direction:column;gap:5px;min-width:0}
 .fields .full{grid-column:1/-1}
