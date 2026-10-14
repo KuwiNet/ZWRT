@@ -122,7 +122,7 @@ button{font-size:15px;font-weight:700;border-radius:10px;padding:12px 20px;curso
 button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#06121f;flex:1;min-width:140px}
 button.primary:disabled{opacity:.5;cursor:not-allowed}
 button.ghost{background:none;border-color:var(--line2);color:var(--dim)}
-.preview{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:var(--mono);font-size:12px;white-space:pre-wrap;overflow:auto;margin:12px 0 0;max-height:320px}
+.preview{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:var(--mono);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;overflow:auto;margin:12px 0 0;max-width:100%;max-height:320px}
 
 /* ---- summary ---- */
 .summary{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px}
