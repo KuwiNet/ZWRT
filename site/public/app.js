@@ -127,7 +127,7 @@ function applyDeviceDefaults() {
     wifi_ssid: dd.wifi_ssid || "", wifi_key: dd.wifi_key || "",
     pppoe_user: "", pppoe_pass: "",
   };
-  state.pkgInput = (state.device.default || []).join("\n");
+  state.pkgInput = (state.device.default || []).join(" ");
   state.initScript = "";
   $("f-bypass").checked = false;
   $("f-ipv6").checked = state.features.ipv6;
@@ -152,8 +152,7 @@ function renderPkgChips() {
     const label = el("label", "chip");
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true;
     cb.addEventListener("change", () => {
-      const rest = state.pkgInput.split(/\s+/).filter((t) => t && t !== p).join("\n");
-      state.pkgInput = rest ? rest + "\n-" + p : "-" + p;
+      state.pkgInput = state.pkgInput.split(/\s+/).filter((t) => t && t !== p).join(" ") + " -" + p;
       render();
     });
     label.appendChild(cb);
