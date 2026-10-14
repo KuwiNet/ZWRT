@@ -134,10 +134,10 @@ echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 echo "==== [5/7] 组装固件 (ImageBuilder make image) ===="
 echo ">> DEBUG PROFILE_TAGS=[$PROFILE_TAGS]" >&2
 BIN_DIR="$ZWRT_DIR/$IB_DIR/bin/targets/$FEED_TARGET"
-IFS=';' read -ra GROUPS <<< "$PROFILE_TAGS"
+IFS=';' read -ra GROUPS <<< "$PROFILE_TAGS" || true
 echo ">> DEBUG GROUPS count=${#GROUPS[@]} => [${GROUPS[*]}]" >&2
 for g in "${GROUPS[@]}"; do
-  IFS=',' read -r PROFILE IDENTITY TAG <<< "$g"
+  IFS=',' read -r PROFILE IDENTITY TAG <<< "$g" || true
   echo ">> make image PROFILE=$PROFILE tag=$TAG" >&2
   cd "$ZWRT_DIR/$IB_DIR"
   make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="$FILES" 2>&1 | tee "image-$PROFILE.log" || {
@@ -152,7 +152,7 @@ done
 
 echo "==== [6/7] 重命名固件 (zwrt-日期-发布标签-类型) ===="
 for g in "${GROUPS[@]}"; do
-  IFS=',' read -r PROFILE IDENTITY TAG <<< "$g"
+  IFS=',' read -r PROFILE IDENTITY TAG <<< "$g" || true
   echo ">> 重命名 profile=$PROFILE identity=$IDENTITY tag=$TAG"
   bash "$ZWRT_DIR/scripts/custom.sh" "$BIN_DIR" "$DATE" "$TAG" "$IDENTITY" || true
 done
