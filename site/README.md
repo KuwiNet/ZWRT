@@ -29,17 +29,27 @@ site/
 └── README.md
 ```
 
-## 部署到 Cloudflare Pages
+## 部署
 
-1. **把本仓库 fork 一份**（或直接用 KuwiNet/ZWRT）。`site/` 就放在仓库根目录下。
+站点已随仓库自动发布（两种方式，选一种即可）：
+
+### 方式 A：GitHub Pages（已配置，开箱即用）
+
+ZWRT 仓库已内置 `.github/workflows/pages.yml`：每次 `push` 改动 `site/**` 自动发布。首次需在 仓库 **Settings → Pages → Source** 选择 **GitHub Actions**。
+
+访问：**https://kuwinet.github.io/ZWRT/**
+
+### 方式 B：Cloudflare Pages（可选）
+
+1. 把本仓库 fork 一份（或直接用 KuwiNet/ZWRT）。
 2. Cloudflare 控制台 → **Workers & Pages → Create → Pages → Connect to Git**，选择该仓库。
 3. 构建设置：
    - **Build command（构建命令）**：留空（纯静态，无需构建）
    - **Build output directory（输出目录）**：`site/public`
-   - （可选）Production branch：`main`
+   - Production branch：`main`
 4. 保存并部署，得到一个 `*.pages.dev` 域名；可在 **Custom domains** 绑定你自己的域名。
 
-> 注意：ZWRT 的 `build-openwrt.yml` 已把 `site/**` 和 `.github/workflows/pages.yml` 排除在 OpenWrt 构建触发之外，所以改 `site/` 下的文件不会触发固件重编译。
+> 注意：ZWRT 的 `build-openwrt.yml` 已把 `site/**` 和 `.github/workflows/pages.yml` 排除在 OpenWrt 构建触发之外，所以改 `site/` 下的文件不会触发固件重编译（只会触发 pages 发布）。
 
 ## fork 后如何用自己的账号构建
 
