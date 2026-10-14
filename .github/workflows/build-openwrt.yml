@@ -282,6 +282,24 @@ jobs:
           echo "已生成变体配置 (${{ matrix.device }}):"
           cat etc/uci-defaults/99-zwrt-network
 
+      - name: 配置 DNS 主机记录 (zwrt → LAN IP, 改 LAN IP 自动跟随)
+        working-directory: openwrt
+        run: |
+          mkdir -p etc/hotplug.d/iface
+          cat > etc/hotplug.d/iface/20-zwrt-dns <<'EOF'
+#!/bin/sh
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$INTERFACE" = "lan" ] || exit 0
+IP=$(uci get network.lan.ipaddr 2>/dev/null)
+[ -n "$IP" ] || exit 0
+uci set dhcp.@dnsmasq[0].address="/zwrt/$IP"
+uci commit dhcp
+/etc/init.d/dnsmasq restart
+exit 0
+EOF
+          chmod +x etc/hotplug.d/iface/20-zwrt-dns
+          echo "已配置 DNS 主机记录 hotplug (20-zwrt-dns): 浏览器访问 http://zwrt 打开后台"
+
       - name: 写入自定义初始化脚本 (workflow_dispatch, base64)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.init_script_b64 != '' }}
         working-directory: openwrt
