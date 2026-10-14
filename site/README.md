@@ -1,72 +1,69 @@
-# ZWRT Builder — 构建配置器网站
+# ZWRT — 定制 OpenWrt 固件构建器（前端站点）
 
-仿 [openwrt.ai](https://openwrt.ai) 的 ZWRT 固件在线配置器，可直接在浏览器中配置并触发 GitHub Actions 构建。
+一个纯静态的 OpenWrt 固件在线定制页，部署在 Cloudflare Pages。**没有任何后端**：
+构建用你在浏览器里填的 GitHub Token 直接触发你自己的 GitHub Actions，Token 只保存在你的浏览器，不经过任何服务器 —— 所以不占任何人的构建配额，可随意 fork。
 
-## 功能
+## 它做什么
 
-- **设备选择**：x86_64 主路由 / x86_64 旁路由 / WH3000 Pro / 全部构建
-- **参数配置**：主机名、LAN IP、子网掩码、网关、DNS、IPv6、无线 SSID/密码
-- **软件包选择**：通用 359 包 + WH3000 Pro 专属 28 包，可搜索、全选/清空
-  - 默认全选 = 仓库标准清单；清空某类 = `__none__`（不装）；取消勾选 = 按所选清单构建
-- **初始化脚本**：自定义 `/etc/uci-defaults` 脚本（附常用模板）
-- **一键构建**：填写 GitHub Token（仅存浏览器 localStorage）→ 触发 `build-openwrt.yml` 的 `workflow_dispatch`
-- **最近发布**：自动拉取最新 Release 并提供 R2 / GitHub 下载链接
+1. 选设备型号：`x86-64-main` / `x86-64-bypass` / `wh3000pro`
+2. 出厂软件包默认全选，可点掉或输入 `-包名` 剔除；常用/定制软件包点击添加
+3. 参数：主机名、LAN IP、掩码、网关、DNS、IPv6、无线（SSID/密码）
+4. 系统初始化 shell 脚本（写入固件 `/etc/uci-defaults`，首次开机执行）
+5. 填你的 GitHub Token（`repo` + `workflow` 权限）+ 仓库（默认 `KuwiNet/ZWRT`）
+6. 一键触发对应仓库的 `build-openwrt.yml` 的 `workflow_dispatch`，实时轮询构建状态，完成后列出固件下载
 
 ## 目录
 
 ```
 site/
-├── index.html      # 单页应用 (自包含, 内嵌软件包清单)
-├── wrangler.toml   # Cloudflare Pages 配置
+├── public/                    # 静态站点（Cloudflare Pages 的根目录指向这里）
+│   ├── index.html
+│   ├── styles.css
+│   ├── app.js
+│   └── data/                  # 设备与包目录数据（由脚本生成，可重新生成）
+│       ├── devices.json
+│       ├── packages-x86_64.json
+│       └── packages-aarch64.json
+├── scripts/
+│   └── refresh-data.js        # 重新生成 public/data（拉 dl.openwrt.ai + luci.zwrt.de + 本仓库 plugins）
 └── README.md
 ```
 
-## 发布
+## 部署到 Cloudflare Pages
 
-### GitHub Pages（自动）
+1. **把本仓库 fork 一份**（或直接用 KuwiNet/ZWRT）。`site/` 就放在仓库根目录下。
+2. Cloudflare 控制台 → **Workers & Pages → Create → Pages → Connect to Git**，选择该仓库。
+3. 构建设置：
+   - **Build command（构建命令）**：留空（纯静态，无需构建）
+   - **Build output directory（输出目录）**：`site/public`
+   - （可选）Production branch：`main`
+4. 保存并部署，得到一个 `*.pages.dev` 域名；可在 **Custom domains** 绑定你自己的域名。
 
-1. 推送后由 `.github/workflows/pages.yml` 自动部署 `site/`。
-2. 首次需在仓库 **Settings → Pages → Source** 选择 **GitHub Actions**。
-3. 地址：`https://<用户名>.github.io/ZWRT/`
+> 注意：ZWRT 的 `build-openwrt.yml` 已把 `site/**` 和 `.github/workflows/pages.yml` 排除在 OpenWrt 构建触发之外，所以改 `site/` 下的文件不会触发固件重编译。
 
-### Cloudflare Pages（二选一）
+## fork 后如何用自己的账号构建
 
-**方式 A — 控制台直连（推荐，无需本地环境）**
-1. 打开 [Cloudflare Dashboard](https://dash.cloudflare.com) → **Workers 和 Pages** → **创建** → **Pages** → **连接到 Git**。
-2. 选择 `KuWiNet/ZWRT` 仓库。
-3. 构建配置：
-   - Framework preset: **None**
-   - 构建命令: *(留空)*
-   - 构建输出目录: **`site`**
-4. 保存并部署，访问地址形如 `https://zwrt-builder.pages.dev`（可在项目设置中绑定自定义域名，如 `builder.zwrt.de`）。
+- 保留 `build-openwrt.yml`（fork 会自动带过来，其 `workflow_dispatch` 已支持设备/参数/软件包/初始化脚本输入）。
+- 部署你的 fork 后，页面上把「仓库所有者」改成你的 GitHub 用户名、仓库名改成你的 fork 名，填入你自己创建的 Token（Personal access token，勾选 `repo` 与 `workflow` 权限）。
+- 这样构建在你自己的仓库/Actions 配额下进行。
 
-**方式 B — Wrangler CLI**
+## 重新生成包目录
+
+包目录是从 dl.openwrt.ai 与 luci.zwrt.de 拉取生成。如需更新：
+
 ```bash
-export CLOUDFLARE_API_TOKEN=<你的 CF API Token>
-npx wrangler pages deploy site --project-name zwrt-builder
+node scripts/refresh-data.js            # 默认 KuwiNet/ZWRT
+node scripts/refresh-data.js your/repo  # fork 用户用你自己的仓库
 ```
 
-## 触发构建需要什么
+## 安全说明
 
-- 仓库：默认 `KuWiNet/ZWRT`（可改为你自己的 fork）
-- GitHub Token：需 **repo** 权限（`repo` scope 即包含 `workflow`），用于调用 `POST /repos/{repo}/actions/workflows/build-openwrt.yml/dispatches`
-- Token 仅保存在浏览器 localStorage，**不会**发送到本站服务器
+- GitHub Token 只在你的浏览器里使用，通过 `Authorization: Bearer` 直接调用 GitHub API，**不会发送到任何服务器**，也不写入任何后端。
+- 可选勾选「把 Token 保存在本机浏览器」会写入 `localStorage`（下次免填，但存在本机浏览器里，自行权衡）。
+- 向 `KuwiNet/ZWRT` 触发构建需要对该仓库有 `workflow` 写权限；普通用户用自己的 Token 指向别人仓库会失败，这是自然保护，不会占用 KuwiNet 的配额。
 
-## 与 Actions 联动
+## 已知边界
 
-网站提交的 `workflow_dispatch` inputs（`build-openwrt.yml` 已支持）：
-
-| input | 说明 |
-|---|---|
-| `device` | `all` / `x86-64-main` / `x86-64-bypass` / `wh3000pro` |
-| `hostname` | 主机名，默认 ZWRT |
-| `lan_ip` / `lan_mask` / `gateway` / `dns` | 网络参数，空 = 设备默认 |
-| `ipv6` / `wifi` | 布尔开关 |
-| `wifi_ssid` / `wifi_key` | 无线参数 |
-| `packages_common` | 通用软件包清单（空格分隔；空 = 仓库默认；`__none__` = 不装） |
-| `packages_wh3000` | WH3000 Pro 专属清单（同上） |
-| `init_script` | 自定义初始化脚本，写入 `/etc/uci-defaults/90-zwrt-custom-init` |
-
-## 本地预览
-
-直接双击打开 `index.html` 即可预览（包清单已内嵌，无需联网）；仅"最近发布"与"触发构建"需要联网。
+- 每次构建在同一个仓库的 `concurrency: zwrt-openwrt-build` 队列里串行，多人同时构建会排队；页面会显示等待状态。
+- 固件会进入当天（或已有）的 `ZWRT-日期` Release 与 R2 `firmware/`，站点从 GitHub Release 列出下载。
+- 设备/架构目前为 ZWRT 的三变体；需要更多设备时扩展 `devices.json` 与 ZWRT 的 matrix/workflow。

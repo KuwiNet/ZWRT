@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZWRT — 定制 OpenWrt 固件构建器</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1a2b'/%3E%3Cpath d='M9 21V11l4 6 4-6v10' stroke='%232dd4bf' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='23' cy='17' r='2.4' fill='%2338bdf8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">ZWRT</span>
+    <span class="tagline">定制 OpenWrt 固件构建器</span>
+  </div>
+  <div class="topmeta">
+    <span class="badge" id="srcBadge">源码</span>
+    <a class="gh" href="https://github.com/KuwiNet/ZWRT" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ===== 左栏：配置 ===== -->
+  <section class="config">
+
+    <div class="panel" id="panel-device">
+      <div class="panel-head"><h2>设备型号</h2><span class="step">1</span></div>
+      <div id="deviceList" class="device-list" role="radiogroup" aria-label="设备型号"></div>
+      <p class="hint" id="deviceNote"></p>
+    </div>
+
+    <div class="panel" id="panel-packages">
+      <div class="panel-head"><h2>软件包</h2><span class="step">2</span></div>
+
+      <div class="subrow">
+        <span class="sub">出厂软件包</span>
+        <button id="resetDefaults" class="ghost" type="button">重置默认</button>
+      </div>
+      <div id="defaultChips" class="chips" aria-label="出厂软件包"></div>
+
+      <div class="subrow"><span class="sub">常用软件包</span><span class="muted">点击添加</span></div>
+      <div id="commonChips" class="chips" aria-label="常用软件包"></div>
+
+      <div class="subrow"><span class="sub">定制软件包</span><span class="muted" id="customCount">0</span></div>
+      <input id="pkgInput" class="text" autocomplete="off" spellcheck="false"
+             placeholder="输入包名，空格分隔；加 -包名 可移除出厂包">
+      <div id="customChips" class="chips" aria-label="定制软件包"></div>
+    </div>
+
+    <div class="panel" id="panel-params">
+      <div class="panel-head"><h2>参数</h2><span class="step">3</span></div>
+      <div class="grid">
+        <label>主机名<input id="hostname" class="text" value="ZWRT" maxlength="32" spellcheck="false"></label>
+        <label>LAN IP<input id="lan_ip" class="text" spellcheck="false"></label>
+        <label>子网掩码<input id="lan_mask" class="text" value="255.255.255.0" spellcheck="false"></label>
+        <label>网关<input id="gateway" class="text" spellcheck="false"></label>
+        <label>DNS<input id="dns" class="text" spellcheck="false"></label>
+        <div class="toggles">
+          <label class="switch"><input type="checkbox" id="ipv6"><span>启用 IPv6</span></label>
+          <label class="switch" id="wifiWrap"><input type="checkbox" id="wifi"><span>启用无线</span></label>
+        </div>
+        <label id="ssidWrap">无线 SSID<input id="wifi_ssid" class="text" maxlength="32" spellcheck="false"></label>
+        <label id="keyWrap">无线密码<input id="wifi_key" class="text" type="password" maxlength="64" spellcheck="false"></label>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-init">
+      <div class="panel-head"><h2>系统初始化 shell 脚本</h2><span class="step">4</span></div>
+      <p class="hint">可选的 uci-defaults 脚本，固件首次开机执行。放在出厂包之后。</p>
+      <textarea id="initScript" class="text code" rows="7"
+                placeholder="#!/bin/sh&#10;# 首次开机执行，例如：&#10;uci set system.@system[0].timezone=Asia/Shanghai&#10;uci commit system"></textarea>
+      <div class="muted right" id="initLen"></div>
+    </div>
+
+    <div class="panel" id="panel-account">
+      <div class="panel-head"><h2>构建账号</h2><span class="step">5</span></div>
+      <p class="hint">默认仓库 KuwiNet/ZWRT。填你自己的 GitHub Token（需 <code>repo</code> + <code>workflow</code> 权限）即可在你的账号下构建；fork 本仓库后改填你自己的仓库，就不会占用别人配额。</p>
+      <div class="grid">
+        <label>GitHub 用户名<small>（仓库所有者）</small><input id="repoOwner" class="text" value="KuwiNet" spellcheck="false"></label>
+        <label>仓库名<input id="repoName" class="text" value="ZWRT" spellcheck="false"></label>
+        <label class="full">GitHub Token<input id="ghToken" class="text" type="password" placeholder="ghp_… / ghp…" spellcheck="false" autocomplete="off"></label>
+      </div>
+      <label class="switch"><input type="checkbox" id="saveToken"><span>把 Token 保存在本机浏览器（不推荐，下次免填）</span></label>
+    </div>
+
+  </section>
+
+  <!-- ===== 右栏：构建 ===== -->
+  <aside class="build">
+    <div class="card summary-card">
+      <h3>本次构建</h3>
+      <pre id="summaryJson" class="code"></pre>
+      <button id="buildBtn" class="primary" type="button">开始构建</button>
+      <p class="muted" id="buildHint">构建在你的 GitHub 账号下进行，不占用本站资源。</p>
+    </div>
+
+    <div class="card" id="consoleCard" hidden>
+      <h3>构建进度</h3>
+      <div id="console" class="console code"></div>
+    </div>
+
+    <div class="card">
+      <h3>固件下载</h3>
+      <div id="dlList" class="dl-list"></div>
+    </div>
+  </aside>
+
+</main>
+
+<footer>
+  <span>由 KuwiNet 维护</span>
+  <a href="https://github.com/KuwiNet/ZWRT" target="_blank" rel="noopener">源码 · KuwiNet/ZWRT</a>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
