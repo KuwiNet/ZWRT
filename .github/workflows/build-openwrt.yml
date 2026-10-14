@@ -239,19 +239,27 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/files/"* ./
           echo "已复制 files/ 覆盖层"
 
-      - name: 应用自定义主机名 (workflow_dispatch)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.hostname != '' && inputs.hostname != 'ZWRT' }}
+      - name: 应用自定义主机名 (workflow_dispatch, 空=默认 ZWRT)
         working-directory: openwrt
+        env:
+          HN: ${{ inputs.hostname }}
         run: |
-          sed -i "s/option hostname '.*'/option hostname '${{ inputs.hostname }}'/" etc/config/system
-          echo "主机名已改为: ${{ inputs.hostname }}"
+          if [ -z "$HN" ] || [ "$HN" = "ZWRT" ]; then
+            echo "主机名未设置或为 ZWRT, 保持默认 (etc/config/system 已含 ZWRT)"
+          else
+            sed -i "s/option hostname '.*'/option hostname '$HN'/" etc/config/system
+            echo "主机名已改为: $HN"
+          fi
 
       - name: 应用管理密码 (workflow_dispatch, 空=无密码)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.password != '' }}
         working-directory: openwrt
         env:
           ROOT_PASS: ${{ inputs.password }}
         run: |
+          if [ -z "$ROOT_PASS" ]; then
+            echo "管理密码未设置, 保持默认 (无密码, 首次开机请设置密码)"
+            exit 0
+          fi
           printf '#!/bin/sh\n(echo "%s"; echo "%s") | passwd root 2>/dev/null || true\nexit 0\n' "$ROOT_PASS" "$ROOT_PASS" > etc/uci-defaults/89-zwrt-pass
           chmod +x etc/uci-defaults/89-zwrt-pass
           echo "已写入管理密码 uci-defaults (89-zwrt-pass)"
