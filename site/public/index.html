@@ -128,7 +128,7 @@
         <label>仓库（所有者/仓库名）<input id="p-account" type="text" placeholder="KuWiNet/ZWRT"></label>
         <label>GitHub Token（需 repo + workflow 权限）
           <input id="p-token" type="password" placeholder="ghp_… 仅存浏览器">
-          <label class="mini"><input id="p-tokensave" type="checkbox">记住 Token 在本机</label>
+          <label class="mini"><input id="p-tokensave" type="checkbox">记住 Token<span class="mini-hint">，只记住在你浏览器并直连 GitHub API，不经任何服务器。</span></label>
         </label>
       </div>
       <div class="actions">
@@ -136,7 +136,6 @@
         <button id="btnPreview" class="ghost">预览提交 JSON</button>
       </div>
       <pre id="preview" class="preview" hidden></pre>
-      <p class="field-hint">Token 只在你浏览器里直连 GitHub API，不经任何服务器。</p>
     </div>
   </section>
 
