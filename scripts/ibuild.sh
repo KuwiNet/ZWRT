@@ -154,18 +154,15 @@ echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 if [ "$ENGINE" = "immortalwrt" ]; then
   DROP_FILE="$ZWRT_DIR/plugins/immortalwrt-drop.txt"
   if [ -f "$DROP_FILE" ]; then
-    DROP_SP="$(sed '1s/^\xEF\xBB\xBF//' "$DROP_FILE" | grep -vE '^[[:space:]]*#|^[[:space:]]*$' | tr -d '\r' | tr '\n' ' ')"
-    echo ">> immortalwrt 剔除缺包: $DROP_SP"
-    if [ -n "$DROP_SP" ]; then
-      KEPT=""
-      for p in $PACKAGES; do
-        case " $DROP_SP " in
-          *" $p "*) echo "  (immortalwrt) 剔除: $p" ;;
-          *) KEPT="$KEPT $p" ;;
-        esac
-      done
-      PACKAGES="$(echo "$KEPT" | sed 's/^ *//;s/ *$//')"
-    fi
+    echo ">> immortalwrt 用 Python 剔除缺包 (来自 $DROP_FILE)"
+    PACKAGES="$(python3 - "$DROP_FILE" "$PACKAGES" <<'PYEOF'
+import sys
+drop=set(l.strip() for l in open(sys.argv[1],encoding='utf-8',errors='replace') if l.strip() and not l.strip().startswith('#'))
+pkgs=[p for p in sys.argv[2].split() if p]
+kept=[p for p in pkgs if p not in drop]
+print(' '.join(kept))
+PYEOF
+)"
     echo ">> immortalwrt 剔除后 PACKAGES ($(echo "$PACKAGES" | wc -w) 个)"
   else
     echo "!! immortalwrt-drop.txt 不存在: $DROP_FILE"
