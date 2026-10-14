@@ -1,7 +1,7 @@
 /* ZWRT 构建器 — 纯静态、去中心化：浏览器直连 GitHub API 触发构建。Token 仅存 localStorage。 */
 "use strict";
 
-const $ = (s) => document.querySelector(s);
+const $ = (s) => document.querySelector(s[0] === "#" ? s : "#" + s);
 function on(sel, ev, fn) {
   const n = $(sel);
   if (!n) { console.warn("ZWRT: 缺少元素 #" + sel); return; }
