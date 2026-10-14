@@ -1,0 +1,93 @@
+# 独立"只上传"工作流: 复用最近一次成功构建的固件, 只发布 Release + 上传 R2, 不重新编译
+name: Upload Release + R2
+run-name: Upload Release + R2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    name: 上传 Release + R2 (复用最近固件)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 取最近成功的构建 Run
+        id: recent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build-openwrt.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id')
+          echo "最近成功构建 run=$RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          test -n "$RUN_ID"
+
+      - name: 下载固件 Artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p firmware/
+          gh run download "${{ steps.recent.outputs.run_id }}" --pattern 'zwrt-*' --dir firmware/ || true
+          find firmware -type f -name 'zwrt-*' -exec cp {} firmware/ \; 2>/dev/null || true
+          ls -lh firmware/
+          test -n "$(ls firmware/zwrt-* 2>/dev/null)"
+
+      - name: 计算日期并发布 Release
+        id: date
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(ls firmware/zwrt-* 2>/dev/null | head -1 | sed -n 's/.*zwrt-\([0-9]\{8\}\)-.*/\1/p')
+          echo "date=$DATE"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          TAG="ZWRT-$DATE"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在, 覆盖上传最新固件"
+            gh release upload "$TAG" firmware/zwrt-* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" firmware/zwrt-* --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" --notes "复用最近成功构建固件, 日期: $DATE"
+          fi
+
+      - name: 上传全部固件到 Cloudflare R2 (firmware)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        run: |
+          if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ] || [ -z "$R2_BUCKET" ] || [ -z "$R2_PUBLIC_URL" ]; then
+            echo "未配置 R2 密钥或 R2_PUBLIC_URL, 跳过上传"
+            exit 0
+          fi
+          ENDPOINT="${R2_ENDPOINT:-https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com}"
+          # 补协议兜底: 若 R2_PUBLIC_URL 未带 http(s):// 自动加 https://
+          PUB="${R2_PUBLIC_URL}"
+          case "$PUB" in
+            http://*|https://*) ;;
+            *) PUB="https://$PUB" ;;
+          esac
+          curl -s https://rclone.org/install.sh | sudo bash >/dev/null 2>&1
+          rclone config create r2 s3 provider=Cloudflare \
+            access_key_id="$R2_ACCESS_KEY_ID" secret_access_key="$R2_SECRET_ACCESS_KEY" \
+            endpoint="$ENDPOINT" --non-interactive
+          NEW_DATE="${{ steps.date.outputs.date }}"
+          ALL_DATES=$( { rclone lsf "r2:$R2_BUCKET/firmware/" 2>/dev/null | sed -n 's/^zwrt-\([0-9]\{8\}\)-.*/\1/p'; echo "$NEW_DATE"; } | sort -u )
+          KEEP_DATES=$( echo "$ALL_DATES" | sort -r | head -2 )
+          echo "R2 保留最近 2 版: $(echo $KEEP_DATES | tr '\n' ' ')"
+          for d in $( echo "$ALL_DATES" | sort -r | tail -n +3 ); do
+            echo "删除过期版本 zwrt-${d}-*"
+            rclone delete "r2:$R2_BUCKET/firmware/" --include "zwrt-${d}-*" --retries 3
+          done
+          rclone copy firmware/ "r2:$R2_BUCKET/firmware/" --include "zwrt-*" -v
+          echo "==== 上传完成, 下载地址 ===="
+          for f in firmware/zwrt-*; do
+            [ -f "$f" ] && echo "  ${PUB}/firmware/$(basename "$f")"
+          done
+          echo "已把 R2 下载地址写入上方, Release body 由 gh release 管理"
