@@ -18,6 +18,7 @@ set -o pipefail
 ZWRT_DIR="$1"
 
 DEVICE="${DEVICE:?需要 DEVICE}"
+ENGINE="${ENGINE:-kwrt}"
 DATE="${DATE:?需要 DATE}"
 FEED_ARCH="${FEED_ARCH:?需要 FEED_ARCH}"
 FEED_TARGET="${FEED_TARGET:?需要 FEED_TARGET}"
@@ -46,16 +47,29 @@ echo "==== [1/7] 下载并解压 ImageBuilder ===="
 IB_TAR="$(basename "$IMG_URL")"
 curl -fsSL -o "$IB_TAR" "$IMG_URL"
 tar --zstd -xf "$IB_TAR"
-IB_DIR="$(ls -d kwrt-imagebuilder-*/ | head -1)"
+IB_DIR="$(ls -d *imagebuilder-*/ 2>/dev/null | head -1)"
 [ -n "$IB_DIR" ] && IB_DIR="${IB_DIR%/}"
-echo ">> ImageBuilder 目录: $IB_DIR"
+echo ">> ImageBuilder 目录: $IB_DIR (engine=$ENGINE)"
 
-echo "==== [2/7] 写入 repositories.conf (构建时拉包源 = dl.openwrt.ai + luci.zwrt.de) ===="
-# 由固件运行时源 distfeeds.conf 生成(替换架构占位符), 并作为构建源
+echo "==== [2/7] 写入源配置 (构建时拉包源, engine=$ENGINE) ===="
+# 由固件运行时源 distfeeds.conf 生成(替换架构占位符)
 sed -e "s|__FEED_ARCH__|$FEED_ARCH|g" -e "s|__FEED_TARGET__|$FEED_TARGET|g" \
     "$ZWRT_DIR/files/etc/opkg/distfeeds.conf" > /tmp/zwrt-distfeeds.conf
-grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$IB_DIR/repositories.conf"
-cat "$IB_DIR/repositories.conf"
+if [ "$ENGINE" = "immortalwrt" ]; then
+  # apk 引擎: 官方 imagebuilder 自带 repositories(apk源, 官方 .adb 索引) + 追加 luci.zwrt.de 自定义 apk 源
+  cp "$IB_DIR/repositories" "$IB_DIR/repositories.orig"
+  grep -vE '^[[:space:]]*#' "$IB_DIR/repositories.orig" > "$IB_DIR/repositories"
+  if [ -n "${ZWRT_FEED:-}" ]; then
+    echo "$ZWRT_FEED/$FEED_ARCH/packages.adb" >> "$IB_DIR/repositories"
+  fi
+  echo ">> apk 源 (repositories):"
+  cat "$IB_DIR/repositories"
+else
+  # opkg 引擎 (kwrt): 由 distfeeds.conf 生成 repositories.conf (dl.openwrt.ai + luci.zwrt.de)
+  grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$IB_DIR/repositories.conf"
+  echo ">> opkg 源 (repositories.conf):"
+  cat "$IB_DIR/repositories.conf"
+fi
 
 echo "==== [3/7] 生成覆盖层 FILES 目录 ===="
 FILES="$ZWRT_DIR/overlay-$DEVICE"
@@ -76,9 +90,14 @@ if [ -n "$ROOT_PASS" ]; then
 else
   echo "管理密码为空, 保持无密码"
 fi
-# 3c 运行时 opkg 源 (替换架构占位符后进覆盖层)
-mkdir -p "$FILES/etc/opkg"
-cp /tmp/zwrt-distfeeds.conf "$FILES/etc/opkg/distfeeds.conf"
+# 3c 运行时软件源 (immortalwrt=apk /etc/apk/repositories; kwrt=opkg /etc/opkg/distfeeds.conf)
+if [ "$ENGINE" = "immortalwrt" ]; then
+  mkdir -p "$FILES/etc/apk"
+  cp "$IB_DIR/repositories" "$FILES/etc/apk/repositories"
+else
+  mkdir -p "$FILES/etc/opkg"
+  cp /tmp/zwrt-distfeeds.conf "$FILES/etc/opkg/distfeeds.conf"
+fi
 # 3d 网络变体
 sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__GATEWAY__|$GATEWAY|g" -e "s|__DNS__|$DNS|g" \
@@ -130,6 +149,21 @@ COMMON_P="$(apply_src "$PKG_COMMON" "$COMMON_BASE")"
 DEV_P="$(apply_src "$PKG_WH3000" "$DEV_BASE")"
 PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
+# immortalwrt 引擎: 剔除官方+自定义 apk 源尚未提供的包 (plugins/immortalwrt-drop.txt, 可编辑)
+# 你在自定义源补齐 apk 后, 把对应包名从该文件删除即可自动纳入
+if [ "$ENGINE" = "immortalwrt" ] && [ -f "$ZWRT_DIR/plugins/immortalwrt-drop.txt" ]; then
+  DROP="$(sed '1s/^\xEF\xBB\xBF//' "$ZWRT_DIR/plugins/immortalwrt-drop.txt" | grep -vE '^\s*#|^\s*$' | tr '\n' ' ')"
+  KEPT=""
+  for p in $PACKAGES; do
+    if echo " $DROP " | grep -q " $p "; then
+      echo "  (immortalwrt) 剔除缺包: $p" >&2
+    else
+      KEPT="$KEPT $p"
+    fi
+  done
+  PACKAGES="$(echo "$KEPT" | tr ' ' '\n' | sed '/^$/d' | tr '\n' ' ')"
+  echo ">> immortalwrt 剔除后 PACKAGES ($(echo "$PACKAGES" | wc -w) 个)"
+fi
 
 echo "==== [5/7] 组装固件 (ImageBuilder make image) ===="
 BIN_DIR="$ZWRT_DIR/$IB_DIR/bin/targets/$FEED_TARGET"
@@ -152,7 +186,7 @@ echo "==== [6/7] 重命名固件 (zwrt-日期-发布标签-类型) ===="
 for g in "${PKG_GROUPS[@]}"; do
   IFS=',' read -r PROFILE IDENTITY TAG <<< "$g" || true
   echo ">> 重命名 profile=$PROFILE identity=$IDENTITY tag=$TAG"
-  bash "$ZWRT_DIR/scripts/custom.sh" "$BIN_DIR" "$DATE" "$TAG" "$IDENTITY" || true
+  bash "$ZWRT_DIR/scripts/custom.sh" "$BIN_DIR" "$DATE" "$ENGINE" "$TAG" "$IDENTITY" || true
 done
 
 echo "==== [7/7] 固件产物 ===="
