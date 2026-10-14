@@ -108,7 +108,6 @@ function bindFeatures() {
 function readParams() {
   state.params.hostname = $("p-hostname").value.trim() || "ZWRT";
   state.params.lan_ip = $("p-lanip").value.trim();
-  state.params.lan_mask = $("p-lanmask").value.trim();
   state.params.gateway = $("p-gateway").value.trim();
   state.params.dns = $("p-dns").value.trim();
   state.params.wifi_ssid = $("p-wifissid").value.trim();
@@ -376,7 +375,6 @@ function render() {
   // 基础参数回填
   $("p-hostname").value = state.params.hostname;
   $("p-lanip").value = state.params.lan_ip;
-  $("p-lanmask").value = state.params.lan_mask;
   $("p-gateway").value = state.params.gateway;
   $("p-dns").value = state.params.dns;
   $("p-wifissid").value = state.params.wifi_ssid;
@@ -404,7 +402,7 @@ function bindStatic() {
   });
   on("pkgSearch", "input", (e) => renderPkgSuggest(e.target.value));
   on("pkgSearch", "focus", (e) => { if (e.target.value.trim()) renderPkgSuggest(e.target.value); });
-  ["p-hostname", "p-lanip", "p-lanmask", "p-gateway", "p-dns", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
+  ["p-hostname", "p-lanip", "p-gateway", "p-dns", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; renderSummary(); });
