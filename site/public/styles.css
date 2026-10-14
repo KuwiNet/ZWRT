@@ -78,6 +78,7 @@ h1,h2,h3{margin:0;line-height:1.2}
 .pkgmeta{display:flex;gap:16px;font-size:13px;color:var(--dim);margin-bottom:10px}
 .pkgmeta b{color:var(--accent)}
 #pkgInput,#initScript{font-family:var(--mono);font-size:13px;line-height:1.5;white-space:pre-wrap}
+#initScript{resize:vertical}
 #pkgInput{overflow:hidden;resize:vertical;min-height:88px}
 .mod-title{font-size:14px;font-weight:700;margin:16px 0 8px;color:var(--txt)}
 .basebox{margin:6px 0}
