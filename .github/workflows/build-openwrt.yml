@@ -181,11 +181,17 @@ jobs:
           PKG_WH3000: ${{ inputs.packages_wh3000 }}
         run: bash scripts/ibuild.sh "$GITHUB_WORKSPACE"
 
+      - name: 收集固件到顶层
+        run: |
+          mkdir -p firmware/
+          find kwrt-imagebuilder-*/bin/targets/${{ matrix.feed_target }}/ -type f -name 'zwrt-*' -exec cp {} firmware/ \;
+          ls -lh firmware/
+
       - name: 上传固件 Artifact
         uses: actions/upload-artifact@v4
         with:
           name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.tag }}
-          path: kwrt-imagebuilder-*/bin/targets/${{ matrix.feed_target }}/zwrt-*
+          path: firmware/zwrt-*
           if-no-files-found: error
 
   # ---- 汇聚全部固件, 打单个 Release (ZWRT-日期), 上传 R2 (只保留最近2版) ----
