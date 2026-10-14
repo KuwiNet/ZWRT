@@ -20,7 +20,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RUN_ID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build-openwrt.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id')
+          RUN_ID=$(gh run list --workflow build-openwrt.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
           echo "最近成功构建 run=$RUN_ID"
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           test -n "$RUN_ID"
