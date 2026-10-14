@@ -43,6 +43,59 @@ const THEMES = [
   "luci-theme-shadcnui", "luci-theme-spectra", "luci-theme-teleofis", "luci-theme-vantage",
 ];
 
+/* 常用软件包（点击包名添加到可选包；参照 openwrt.ai 常用列表） */
+const COMMON_PKGS = [
+  ["luci-app-accesscontrol-plus", "访问控制"], ["luci-app-acme", "https证书申请"],
+  ["luci-app-adbyby-plus", "adbyby去广告"], ["luci-app-adguardhome", "ADG去广告"],
+  ["luci-app-airplay2", "Airplay2音箱"], ["luci-app-aliyundrive-webdav", "阿里云盘WebDAV"],
+  ["luci-app-ap-modem", "访问AP/光猫"], ["luci-app-aria2", "Aria2下载工具"],
+  ["luci-app-arpbind", "ARP绑定"], ["luci-app-bandix", "流量监控限速"],
+  ["luci-app-broadbandacc", "宽带提速"], ["luci-app-cifs-mount", "共享盘挂载"],
+  ["luci-app-clouddrive2", "多云盘管理工具"], ["luci-app-cpulimit", "CPU占用率限制"],
+  ["luci-app-cloudreve", "多存储网盘"], ["luci-app-cupsd", "CUPS打印服务"],
+  ["luci-app-ddns", "动态域名解析"], ["luci-app-ddns-go", "动态域名解析"],
+  ["luci-app-ddnsto", "内网穿透"], ["luci-app-diskman", "磁盘管理"],
+  ["luci-app-dufs", "WebDAV文件管理"], ["luci-app-easymesh", "Mesh组网"],
+  ["luci-app-easytier", "异地组网"], ["luci-app-filebrowser-q", "文件网盘管理"],
+  ["luci-app-frpc", "内网穿透"], ["luci-app-frps", ""],
+  ["luci-app-guest-wifi", "访客WIFI"], ["luci-app-hd-idle", "硬盘休眠"],
+  ["luci-app-homeassistant", "智能家居"], ["luci-app-homeredirect", "端口转发"],
+  ["luci-app-ipsec-server", ""], ["luci-app-iptvhelper", "IPTV助手"],
+  ["luci-app-kodexplorer", "可道云网盘"], ["luci-app-ksmbd", "内核级文件共享"],
+  ["luci-app-linkease", "易有云文件管理"], ["luci-app-lucky", "多功能网络工具"],
+  ["luci-app-minidlna", ""], ["luci-app-mosdns", "DNS转发"],
+  ["luci-app-msd_lite", "IPTV组播"], ["luci-app-mwan3-nft", "负载均衡"],
+  ["luci-app-natmap", "内网穿透"], ["luci-app-nft-timecontrol", "上网时间控制"],
+  ["luci-app-npc", "NPS内网穿透客户端"], ["luci-app-netdata", "性能监测"],
+  ["luci-app-fastnet", "网络体检/测速"], ["luci-app-nlbwmon", "流量统计"],
+  ["luci-app-oaf", "应用过滤"], ["luci-app-openclaw", "OpenClaw AI"],
+  ["luci-app-openlist2", "原alist 多存储文件列表"], ["luci-app-openvpn-plus", "OpenVPN服务与客户端"],
+  ["luci-app-p910nd", "USB打印机"], ["luci-app-parentcontrol", "家长控制"],
+  ["luci-app-partexp", "分区扩容"], ["luci-app-qbittorrent", "BT下载工具"],
+  ["luci-app-qosmate", "Qos流量控制"], ["luci-app-quickfile", "文件管理器"],
+  ["luci-app-rclone", "云盘挂载同步"], ["luci-app-run", ""],
+  ["luci-app-samba4", "samba文件共享"], ["luci-app-shunt", "策略路由"],
+  ["luci-app-smartdns", ""], ["luci-app-snmpd", ""],
+  ["luci-app-socat", "端口转发"], ["luci-app-softethervpn", ""],
+  ["luci-app-statistics", "collectd系统监控统计"], ["luci-app-store", "iStore软件包补充"],
+  ["luci-app-substore", "订阅管理与转换"], ["luci-app-syncdial", "多拨"],
+  ["luci-app-tailscale-community", "Tailscale虚拟组网"], ["luci-app-taskplan", "定时/开机任务"],
+  ["luci-app-thunder", "迅雷下载"], ["luci-app-timedreboot", "定时重启"],
+  ["luci-app-timewol", "网络唤醒"], ["luci-app-trafficctl", "流量限速"],
+  ["luci-app-transmission", "BT下载"], ["luci-app-ttyd", "网页版命令行"],
+  ["luci-app-turboacc", "网络加速"], ["luci-app-unblockneteasemusic", "解锁网易云音乐"],
+  ["luci-app-unshare", "多种文件共享"], ["luci-app-uugamebooster", "UU游戏加速器"],
+  ["luci-app-vlmcsd", "KMS服务器"], ["luci-app-vsftpd", "FTP服务器"],
+  ["luci-app-watchcat", "断网检测重启"], ["luci-app-webdav", "基于Nginx的WebDAV"],
+  ["luci-app-wechatpush", "通知推送"], ["luci-app-apfree-wifidog", "无线认证"],
+  ["luci-app-wifischedule", "WiFi计划任务"], ["luci-app-wireguard", ""],
+  ["luci-app-wrtbwmon", "流量监控"], ["luci-app-xlnetacc", "迅雷快鸟"],
+  ["luci-app-xunyou", "迅游加速器"], ["luci-app-zerotier", "内网穿透"],
+  ["automount", "自动挂载USB/硬盘"], ["btop", "性能监控"],
+  ["naiveproxy", ""], ["open-vm-tools", ""],
+  ["qemu-ga", ""], ["tvhelper", "盒子助手"],
+];
+
 const state = {
   devices: [],
   wwan: [],
@@ -276,6 +329,29 @@ function autoGrow(el) {
   el.style.height = "auto";
   const sh = el.scrollHeight;
   el.style.height = (Math.max(sh, cur + 2)) + "px";
+}
+
+/* 常用软件包：点击包名添加到可选包；已添加的标勾选态 */
+function addCommonPkg(name) {
+  if (state.pkgInput.match(new RegExp("(?:^|\\s)-" + name + "(?=\\s|$)"))) {
+    state.pkgInput = state.pkgInput.replace(new RegExp("(?:^|\\s)-" + name + "(?=\\s|$)"), " ").replace(/\s{2,}/g, " ").trim();
+  }
+  if (!parsePkgInput(state.pkgInput).includes(name)) state.pkgInput = (state.pkgInput + " " + name).trim();
+  render();
+}
+function renderCommonChips() {
+  const box = $("commonChips"); box.innerHTML = "";
+  if (!state.catalog.size) { box.appendChild(el("p", "dim", "包目录加载中…")); return; }
+  const chosen = new Set(parsePkgInput(state.pkgInput));
+  COMMON_PKGS.forEach(([name, desc]) => {
+    if (!state.catalog.has(name)) return;         // 当前架构无此包则不显示
+    const tag = el("span", "ctag" + (chosen.has(name) ? " on" : ""));
+    tag.title = desc || name;
+    tag.appendChild(el("span", "cn", name));
+    if (chosen.has(name)) tag.appendChild(el("em", "ck", "✓"));
+    tag.addEventListener("click", () => addCommonPkg(name));
+    box.appendChild(tag);
+  });
 }
 
 function renderPkgSuggest(kw) {
@@ -527,6 +603,7 @@ function render() {
   $("initHint").textContent = state.features.wwan ? "已勾选蜂窝上网：构建时会自动附加 WWAN 配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
   $("deviceNote").textContent = "共 " + state.devices.length + " 种设备；x86/64 可旁路由。";
   renderBaseChips();
+  renderCommonChips();
   renderNetChips();
   renderThemeChips();
   autoGrow($("pkgInput"));

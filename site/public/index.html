@@ -93,6 +93,11 @@
         <p class="field-hint" style="margin-bottom:8px">选中即可去除指定的出厂软件包，过度精简可能导致固件出现不可预知的问题。仅显示可安全剔除的包；影响固件使用的核心包不显示、不可减。</p>
         <div class="chips" id="baseChips"></div>
       </details>
+      <details class="basebox" id="commonBox" open>
+        <summary>常用软件包（点击包名添加）</summary>
+        <p class="field-hint" style="margin-bottom:8px">点击包名添加到定制固件中，其他更多插件请直接在下面软件包框中输入包名，包含市面上几乎所有开源插件。</p>
+        <div class="chips" id="commonChips"></div>
+      </details>
       <textarea id="pkgInput" spellcheck="false" placeholder="软件包名列表，空格分隔；-包名 表示剔除"></textarea>
       <div class="combo" id="pkgCombo">
         <input id="pkgSearch" type="text" placeholder="🔍 输入关键字补包，如 5g、qos、ddns…" autocomplete="off">
