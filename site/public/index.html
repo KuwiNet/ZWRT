@@ -88,13 +88,24 @@
         <span>基础包 <b id="m-base">—</b>（固定必装）</span>
         <span>当前已选 <b id="m-selected">—</b></span>
       </div>
-      <textarea id="pkgInput" rows="3" spellcheck="false" placeholder="软件包名列表，空格分隔；-包名 表示剔除"></textarea>
+      <textarea id="pkgInput" spellcheck="false" placeholder="软件包名列表，空格分隔；-包名 表示剔除"></textarea>
       <div class="combo" id="pkgCombo">
         <input id="pkgSearch" type="text" placeholder="🔍 输入关键字补包，如 5g、qos、ddns…" autocomplete="off">
         <ul class="combo-list" id="pkgSuggest" hidden></ul>
       </div>
       <div class="chips chips-selected" id="pkgChips"></div>
-      <p class="field-hint">默认值 = 该设备出厂可选包；在输入框删除即剔除，用上方搜索补包。基础包与蜂窝包（开启蜂窝上网时）自动包含。</p>
+      <p class="field-hint">默认值 = 该设备出厂可选包；在输入框删除即剔除，用下方搜索补包。基础包与蜂窝包（开启蜂窝上网时）自动包含。</p>
+
+      <h4 class="mod-title">互联网（科学上网）</h4>
+      <div class="chips" id="netChips"></div>
+      <p class="field-hint">勾选方案即安装其软件包（默认勾选 nikki）。</p>
+
+      <h4 class="mod-title">主题</h4>
+      <div class="chips" id="themeChips"></div>
+      <div class="fields" id="fieldsTheme" style="grid-template-columns:1fr">
+        <label>默认主题 <select id="p-theme"></select></label>
+      </div>
+      <p class="field-hint">勾选即安装对应主题；默认主题总会安装并设为 LuCI 默认（默认 zwrt）。</p>
     </div>
 
     <!-- ===== 4 初始化脚本 ===== -->

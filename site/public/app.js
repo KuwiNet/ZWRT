@@ -14,6 +14,27 @@ const el = (tag, cls, text) => {
   return n;
 };
 
+/* 互联网（科学上网）多选方案：默认勾选 nikki */
+const INTERNET_SCHEMES = [
+  { id: "nikki", name: "nikki（Mihomo TUN）", pkgs: ["luci-app-nikki", "nikki", "mihomo"] },
+  { id: "openclash", name: "OpenClash", pkgs: ["luci-app-openclash"] },
+  { id: "passwall2", name: "PassWall 2", pkgs: ["luci-app-passwall2"] },
+  { id: "homeproxy", name: "HomeProxy", pkgs: ["luci-app-homeproxy"] },
+  { id: "v2raya", name: "v2rayA", pkgs: ["luci-app-v2raya", "v2raya"] },
+  { id: "singbox", name: "sing-box", pkgs: ["sing-box"] },
+];
+/* 主题多选（openwrt.ai 全部主题，含用户自建 zwrt / kucat） */
+const THEMES = [
+  "luci-theme-zwrt", "luci-theme-kucat", "luci-theme-argon", "luci-theme-bootstrap",
+  "luci-theme-bootstrap-mmdvm", "luci-theme-design", "luci-theme-alpha", "luci-theme-aurora",
+  "luci-theme-edge", "luci-theme-fluent", "luci-theme-fluent-lite", "luci-theme-footstrap",
+  "luci-theme-glass", "luci-theme-inas", "luci-theme-istorenas", "luci-theme-lightblue",
+  "luci-theme-liquid", "luci-theme-luxe", "luci-theme-material", "luci-theme-material3",
+  "luci-theme-merona", "luci-theme-noobwrt", "luci-theme-openmptcprouter", "luci-theme-openwrt",
+  "luci-theme-openwrt-2020", "luci-theme-rmm", "luci-theme-routerich", "luci-theme-shadcn",
+  "luci-theme-shadcnui", "luci-theme-spectra", "luci-theme-teleofis", "luci-theme-vantage",
+];
+
 const state = {
   devices: [],
   wwan: [],
@@ -23,6 +44,9 @@ const state = {
   device: null,
   features: { bypass: false, ipv6: false, wifi: false, wwan: false },
   params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", dns: "", wifi_ssid: "", wifi_key: "" },
+  net: new Set(["nikki"]),            // 已选互联网方案
+  themes: new Set(["luci-theme-zwrt"]), // 已选主题
+  defaultTheme: "luci-theme-zwrt",     // 默认主题
   pkgInput: "",             // 当前输入框内容
   initScript: "",
   account: { owner: "KuWiNet", repo: "ZWRT", token: "" },
@@ -121,6 +145,9 @@ function applyDeviceDefaults() {
   state.features.ipv6 = !!dd.ipv6;
   state.features.wifi = !!dd.wifi;
   state.features.wwan = !!dd.wwan;
+  state.net = new Set(["nikki"]);
+  state.themes = new Set(["luci-theme-zwrt"]);
+  state.defaultTheme = "luci-theme-zwrt";
   state.params = {
     hostname: dd.hostname || "ZWRT", lan_ip: dd.lan_ip, lan_mask: dd.lan_mask,
     gateway: dd.gateway || "", dns: dd.dns || "",
@@ -160,6 +187,43 @@ function renderPkgChips() {
     box.appendChild(label);
   });
 }
+/* 互联网（科学上网）多选 */
+function renderNetChips() {
+  const box = $("netChips"); box.innerHTML = "";
+  INTERNET_SCHEMES.forEach((s) => {
+    const label = el("label", "chip");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = state.net.has(s.id);
+    cb.addEventListener("change", () => { if (cb.checked) state.net.add(s.id); else state.net.delete(s.id); render(); });
+    label.appendChild(cb);
+    label.appendChild(el("span", "", s.name));
+    box.appendChild(label);
+  });
+}
+/* 主题多选 */
+function renderThemeChips() {
+  const box = $("themeChips"); box.innerHTML = "";
+  THEMES.forEach((t) => {
+    const label = el("label", "chip");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = state.themes.has(t);
+    cb.addEventListener("change", () => { if (cb.checked) state.themes.add(t); else state.themes.delete(t); render(); });
+    label.appendChild(cb);
+    label.appendChild(el("span", "", t.replace("luci-theme-", "")));
+    box.appendChild(label);
+  });
+}
+/* 默认主题下拉 */
+function renderThemeSelect() {
+  const sel = $("p-theme"); sel.innerHTML = "";
+  THEMES.forEach((t) => {
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t.replace("luci-theme-", "");
+    sel.appendChild(o);
+  });
+  sel.value = state.defaultTheme;
+}
+/* textarea 高度自适应：显示全部内容、无滚动条 */
+function autoGrow(el) { el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
+
 function renderPkgSuggest(kw) {
   const box = $("pkgSuggest");
   if (!kw.trim()) { box.innerHTML = ""; $("pkgCombo").classList.remove("open"); return; }
@@ -199,6 +263,8 @@ function renderSummary() {
   if (state.features.wwan) { rows.push(["蜂窝上网", "开（5gmodem + 蜂窝驱动）"]); if (state.params.pppoe_user || state.params.pppoe_pass) rows.push(["蜂窝拨号", (state.params.pppoe_user || "—") + " / " + (state.params.pppoe_pass ? "****" : "—")]); }
   rows.push(["基础包", d.base.length + " 个（固定）"]);
   rows.push(["可选包", set.length + " 个"]);
+  rows.push(["互联网", state.net.size ? [...state.net].join("、") : "无"]);
+  rows.push(["主题", [...new Set([...state.themes, state.defaultTheme])].length + " 个 · 默认 " + state.defaultTheme.replace("luci-theme-", "")]);
   rows.push(["构建账号", state.account.owner + "/" + state.account.repo]);
   rows.forEach(([k, v]) => {
     dd.appendChild(el("dt", "", k));
@@ -206,22 +272,32 @@ function renderSummary() {
   });
 }
 
-/* ---------- wwan init snippet ---------- */
+/* ---------- wwan / theme init snippet ---------- */
 function composeInitScript() {
+  const parts = [];
   const user = state.initScript.trim();
-  if (!state.features.wwan) return user;
-  const cred = (state.params.pppoe_user || state.params.pppoe_pass)
-    ? "# 蜂窝拨号凭据（构建器填写）\n" +
-      "uci set network.wwan=interface\n" +
-      "uci set network.wwan.username='" + state.params.pppoe_user + "'\n" +
-      "uci set network.wwan.password='" + state.params.pppoe_pass + "'\n" +
-      "uci commit network 2>/dev/null || true\n" : "";
-  const snip = "# ZWRT 构建器 · 蜂窝上网(WWAN) 自动配置\n" + cred +
-    "if [ -f /etc/init.d/ModemManager ]; then\n" +
-    "  /etc/init.d/ModemManager enable 2>/dev/null || true\n" +
-    "  /etc/init.d/ModemManager start 2>/dev/null || true\n" +
-    "fi\nexit 0";
-  return user ? user + "\n\n" + snip : snip;
+  if (user) parts.push(user);
+  if (state.features.wwan) {
+    const cred = (state.params.pppoe_user || state.params.pppoe_pass)
+      ? "# 蜂窝拨号凭据（构建器填写）\n" +
+        "uci set network.wwan=interface\n" +
+        "uci set network.wwan.username='" + state.params.pppoe_user + "'\n" +
+        "uci set network.wwan.password='" + state.params.pppoe_pass + "'\n" +
+        "uci commit network 2>/dev/null || true\n" : "";
+    parts.push("# ZWRT 构建器 · 蜂窝上网(WWAN) 自动配置\n" + cred +
+      "if [ -f /etc/init.d/ModemManager ]; then\n" +
+      "  /etc/init.d/ModemManager enable 2>/dev/null || true\n" +
+      "  /etc/init.d/ModemManager start 2>/dev/null || true\n" +
+      "fi");
+  }
+  const theme = state.defaultTheme.replace("luci-theme-", "");
+  if (theme && theme !== "bootstrap") {
+    parts.push("# ZWRT 构建器 · 默认主题\n" +
+      "uci set luci.main.mediaurlbase=/luci-static/" + theme + "\n" +
+      "uci commit luci 2>/dev/null || true");
+  }
+  if (!parts.length) return "";
+  return parts.join("\n\n") + "\n\nexit 0";
 }
 
 /* ---------- dispatch ---------- */
@@ -235,9 +311,10 @@ function composeInputs() {
   const d = state.device;
   const base = [...d.base];
   const sel = parsePkgInput(state.pkgInput);
-  const set = [...new Set([...base, ...sel])];
+  const netPkgs = [...state.net].flatMap((id) => (INTERNET_SCHEMES.find((s) => s.id === id) || {}).pkgs || []);
+  const themePkgs = [...new Set([...state.themes, state.defaultTheme])];
   const wwan = state.features.wwan ? state.wwan : [];
-  const common = [...new Set([...set, ...wwan])];
+  const common = [...new Set([...base, ...sel, ...netPkgs, ...themePkgs, ...wwan])];
   const wh3000 = [...new Set([...d.whExtra, ...wwan])];
   const inputs = {
     device: workflowDevice(),
@@ -388,6 +465,10 @@ function render() {
   $("initHint").textContent = state.features.wwan ? "已勾选蜂窝上网：构建时会自动附加 WWAN 配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
   $("deviceNote").textContent = "共 " + state.devices.length + " 种设备；x86/64 可旁路由。";
   renderPkgChips();
+  renderNetChips();
+  renderThemeChips();
+  renderThemeSelect();
+  autoGrow($("pkgInput"));
   renderSummary();
 }
 
@@ -405,7 +486,8 @@ function bindStatic() {
   ["p-hostname", "p-lanip", "p-gateway", "p-dns", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
-  on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; renderSummary(); });
+  on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); });
+  on("p-theme", "change", (e) => { state.defaultTheme = e.target.value; renderThemeChips(); render(); });
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
   on("p-owner", "input", (e) => { state.account.owner = e.target.value.trim() || "KuWiNet"; renderSummary(); });
   on("p-repo", "input", (e) => { state.account.repo = e.target.value.trim() || "ZWRT"; renderSummary(); });
