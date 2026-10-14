@@ -205,7 +205,7 @@ function readParams() {
   state.params.lan_ip = $("p-lanip").value.trim();
   state.params.password = $("p-password").value.trim();
   state.params.gateway = $("p-gateway").value.trim();
-  state.params.wifi_ssid = $("p-wifissid").value.trim();
+  state.params.wifi_ssid = $("p-wifissid").value.trim() || "ZWRT";
   state.params.wifi_key = $("p-wifikey").value.trim();
   state.params.pppoe_user = $("p-pppuser").value.trim();
   state.params.pppoe_pass = $("p-ppppass").value.trim();
@@ -229,7 +229,7 @@ function applyDeviceDefaults() {
   state.params = {
     hostname: dd.hostname || "ZWRT", lan_ip: dd.lan_ip, lan_mask: dd.lan_mask,
     gateway: "", password: "",
-    wifi_ssid: dd.wifi_ssid || "", wifi_key: dd.wifi_key || "",
+    wifi_ssid: dd.wifi_ssid || "ZWRT", wifi_key: dd.wifi_key || "",
     pppoe_user: "", pppoe_pass: "",
   };
   state.pkgInput = (state.device.default || []).join(" ");
