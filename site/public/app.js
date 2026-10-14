@@ -641,10 +641,7 @@ function render() {
   $("f-wifi").disabled = by;                       // 旁路由不可开无线
   if (by && $("f-wifi").checked) $("f-wifi").checked = false;
   if (by && $("f-wwan").checked) { state.features.wwan = false; $("f-wwan").checked = false; }  // 旁路由隐藏并关闭拨号
-  $("featureHint").textContent = [
-    by ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关指向主路由（DNS=网关），不可开无线。" : "",
-    state.features.wwan ? "WWAN：自动追加 5gmodem 应用与主流蜂窝网卡驱动包。" : "",
-  ].filter(Boolean).join(" ");
+  $("featureHint").textContent = by ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关指向主路由（DNS=网关），不可开无线。" : "";
   // 基础参数回填
   $("p-hostname").value = state.params.hostname;
   $("p-lanip").value = state.params.lan_ip;
