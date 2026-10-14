@@ -612,14 +612,25 @@ async function loadDownloads(owner, repo, token) {
     const items = rel.filter((r) => r.assets && r.assets.length);
     if (!items.length) { box.appendChild(el("p", "dim", "暂无 Release 固件")); return; }
     items.forEach((r) => {
+      // 从 Release body 提取 R2/B2 下载地址（按文件名映射），无则不显示
+      const r2map = {};
+      const body = r.body || "";
+      (body.match(/https?:\/\/[^\s"']+\/firmware\/[^\s"']+/g) || []).forEach((u) => {
+        const nm = decodeURIComponent(u.split("/firmware/").pop());
+        r2map[nm] = u;
+      });
       r.assets.filter((a) => a.name.startsWith("zwrt-")).forEach((a) => {
         const it = el("div", "dl-item");
         const n = el("div", "n", a.name); it.appendChild(n);
         const m = el("div", "m", (a.size / 1048576).toFixed(1) + " MB · " + r.tag_name); it.appendChild(m);
         const l = el("div", "links");
         const gh = el("a", "", "GitHub ↓"); gh.href = a.browser_download_url; gh.target = "_blank"; gh.rel = "noopener";
-        const r2 = el("a", "", "R2 下载 ↓"); r2.href = "https://dl.zwrt.de/firmware/" + a.name; r2.target = "_blank"; r2.rel = "noopener";
-        l.appendChild(r2); l.appendChild(gh); it.appendChild(l);
+        l.appendChild(gh);
+        if (r2map[a.name]) {
+          const r2 = el("a", "", "R2 下载 ↓"); r2.href = r2map[a.name]; r2.target = "_blank"; r2.rel = "noopener";
+          l.insertBefore(r2, l.firstChild);
+        }
+        it.appendChild(l);
         box.appendChild(it);
       });
     });
