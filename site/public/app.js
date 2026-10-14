@@ -111,6 +111,8 @@ function readParams() {
   state.params.dns = $("p-dns").value.trim();
   state.params.wifi_ssid = $("p-wifissid").value.trim();
   state.params.wifi_key = $("p-wifikey").value.trim();
+  state.params.pppoe_user = $("p-pppuser").value.trim();
+  state.params.pppoe_pass = $("p-ppppass").value.trim();
 }
 function applyDeviceDefaults() {
   const dd = state.device.defaults;
@@ -122,6 +124,7 @@ function applyDeviceDefaults() {
     hostname: dd.hostname || "ZWRT", lan_ip: dd.lan_ip, lan_mask: dd.lan_mask,
     gateway: dd.gateway || "", dns: dd.dns || "",
     wifi_ssid: dd.wifi_ssid || "", wifi_key: dd.wifi_key || "",
+    pppoe_user: "", pppoe_pass: "",
   };
   state.pkgInput = (state.device.default || []).join(" ");
   state.initScript = "";
@@ -192,7 +195,7 @@ function renderSummary() {
   rows.push(["IPv6", state.features.ipv6 ? "开" : "关"]);
   if (state.features.wifi) rows.push(["无线", "SSID " + (state.params.wifi_ssid || "—") + (state.params.wifi_key ? "（加密）" : "（无密码）")]);
   else rows.push(["无线", "关"]);
-  if (state.features.wwan) rows.push(["蜂窝上网", "开（5gmodem + 蜂窝驱动）"]);
+  if (state.features.wwan) { rows.push(["蜂窝上网", "开（5gmodem + 蜂窝驱动）"]); if (state.params.pppoe_user || state.params.pppoe_pass) rows.push(["蜂窝拨号", (state.params.pppoe_user || "—") + " / " + (state.params.pppoe_pass ? "****" : "—")]); }
   rows.push(["基础包", d.base.length + " 个（固定）"]);
   rows.push(["可选包", set.length + " 个"]);
   rows.push(["构建账号", state.account.owner + "/" + state.account.repo]);
@@ -203,16 +206,21 @@ function renderSummary() {
 }
 
 /* ---------- wwan init snippet ---------- */
-const WWAN_SNIPPET = `# ZWRT 构建器 · 蜂窝上网(WWAN) 自动配置
-if [ -f /etc/init.d/ModemManager ]; then
-  /etc/init.d/ModemManager enable 2>/dev/null || true
-  /etc/init.d/ModemManager start 2>/dev/null || true
-fi
-exit 0`;
 function composeInitScript() {
   const user = state.initScript.trim();
   if (!state.features.wwan) return user;
-  return user ? user + "\n\n" + WWAN_SNIPPET : WWAN_SNIPPET;
+  const cred = (state.params.pppoe_user || state.params.pppoe_pass)
+    ? "# 蜂窝拨号凭据（构建器填写）\n" +
+      "uci set network.wwan=interface\n" +
+      "uci set network.wwan.username='" + state.params.pppoe_user + "'\n" +
+      "uci set network.wwan.password='" + state.params.pppoe_pass + "'\n" +
+      "uci commit network 2>/dev/null || true\n" : "";
+  const snip = "# ZWRT 构建器 · 蜂窝上网(WWAN) 自动配置\n" + cred +
+    "if [ -f /etc/init.d/ModemManager ]; then\n" +
+    "  /etc/init.d/ModemManager enable 2>/dev/null || true\n" +
+    "  /etc/init.d/ModemManager start 2>/dev/null || true\n" +
+    "fi\nexit 0";
+  return user ? user + "\n\n" + snip : snip;
 }
 
 /* ---------- dispatch ---------- */
@@ -358,6 +366,7 @@ function render() {
   // 功能字段显隐
   $("fieldsBypass").hidden = !state.features.bypass;
   $("fieldsWifi").hidden = !state.features.wifi;
+  $("fieldsWwan").hidden = !state.features.wwan;
   $("featureHint").textContent = [
     state.features.bypass ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关/DNS 指向主路由。" : "",
     state.features.wwan ? "蜂窝上网：自动追加 5gmodem 应用与主流蜂窝网卡驱动包。" : "",
@@ -370,6 +379,8 @@ function render() {
   $("p-dns").value = state.params.dns;
   $("p-wifissid").value = state.params.wifi_ssid;
   $("p-wifikey").value = state.params.wifi_key;
+  $("p-pppuser").value = state.params.pppoe_user;
+  $("p-ppppass").value = state.params.pppoe_pass;
   $("pkgInput").value = state.pkgInput;
   $("initScript").value = state.initScript;
   $("m-base").textContent = state.device.base.length;
@@ -391,7 +402,7 @@ function bindStatic() {
   });
   on("pkgSearch", "input", (e) => renderPkgSuggest(e.target.value));
   on("pkgSearch", "focus", (e) => { if (e.target.value.trim()) renderPkgSuggest(e.target.value); });
-  ["p-hostname", "p-lanip", "p-lanmask", "p-gateway", "p-dns", "p-wifissid", "p-wifikey"].forEach((id) => {
+  ["p-hostname", "p-lanip", "p-lanmask", "p-gateway", "p-dns", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; renderSummary(); });
