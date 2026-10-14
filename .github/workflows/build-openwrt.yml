@@ -215,25 +215,47 @@ jobs:
           name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.tag }}
           path: openwrt/${{ matrix.bin_dir }}/zwrt-*
 
-      - name: 发布 Release
+  # ---- 汇聚全部固件, 打单个 Release (zwrt-日期), 上传 R2 ----
+  release:
+    name: 发布 Release + 上传 R2
+    needs: [ check, build ]
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 生成构建日期
+        id: date
+        run: echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: 下载全部固件 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: zwrt-${{ steps.date.outputs.date }}-*
+          path: firmware/
+          merge-multiple: true
+
+      - name: 列出待发布固件
+        run: ls -lh firmware/
+
+      - name: 发布单个 Release (zwrt-日期, 含全部固件)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: openwrt
         run: |
-          TAG="zwrt-${{ steps.date.outputs.date }}-${{ matrix.tag }}"
+          TAG="zwrt-${{ steps.date.outputs.date }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG 已存在, 跳过创建"
           else
-            gh release create "$TAG" "${{ matrix.bin_dir }}"/zwrt-* \
+            gh release create "$TAG" firmware/zwrt-* \
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
               --notes "OpenWrt ${{ env.OPENWRT_BRANCH }} @ ${{ needs.check.outputs.rev }}
-              设备: ${{ matrix.board }}
               构建日期: ${{ steps.date.outputs.date }}
+              内容: x86_64 主路由 / x86_64 旁路由 / WH3000 Pro (eMMC+NAND)
               下载: https://dl.zwrt.de/firmware/"
           fi
 
-      - name: 上传固件到 Cloudflare R2 (dl.zwrt.de/firmware)
+      - name: 上传全部固件到 Cloudflare R2 (dl.zwrt.de/firmware)
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -241,7 +263,6 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL || 'https://dl.zwrt.de' }}
-        working-directory: openwrt
         run: |
           if [ -z "$R2_ACCESS_KEY_ID" ] || [ -z "$R2_SECRET_ACCESS_KEY" ] || [ -z "$R2_BUCKET" ]; then
             echo "未配置 R2 密钥, 跳过上传 (请先在仓库 Secrets 配置 R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET)"
@@ -261,9 +282,9 @@ jobs:
             secret_access_key="$R2_SECRET_ACCESS_KEY" \
             endpoint="$ENDPOINT" \
             --non-interactive
-          rclone copy "${{ matrix.bin_dir }}/" "r2:$R2_BUCKET/firmware/" --include "zwrt-*" -v
+          rclone copy firmware/ "r2:$R2_BUCKET/firmware/" --include "zwrt-*" -v
           echo "==== 上传完成, 下载地址 ===="
-          for f in "${{ matrix.bin_dir }}"/zwrt-*; do
+          for f in firmware/zwrt-*; do
             [ -f "$f" ] && echo "  ${R2_PUBLIC_URL}/firmware/$(basename "$f")"
           done
 
