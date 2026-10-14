@@ -662,7 +662,7 @@ function render() {
   $("m-base").textContent = state.device.base.length;
   $("m-selected").textContent = parsePkgInput(state.pkgInput).length;
   $("initHint").textContent = state.features.wwan ? "已勾选 WWAN：构建时会自动附加蜂窝配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
-  $("deviceNote").textContent = "共 " + state.devices.length + " 种设备，均可选旁路由模式。";
+  $("deviceNote").textContent = "共 " + state.devices.length + " 种设备";
   renderBaseChips();
   renderCommonChips();
   renderNetChips();
