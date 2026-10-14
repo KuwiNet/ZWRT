@@ -551,6 +551,7 @@ async function apiJson(res) {
   const t = await res.text();
   let j; try { j = JSON.parse(t); } catch (e) { j = null; }
   if (!res.ok) throw new Error((j && j.message) || ("HTTP " + res.status));
+  if (j === null) throw new Error("非 JSON 响应（可能未登录或登录已过期，请重新登录）");
   return j;
 }
 
@@ -684,7 +685,7 @@ async function resumeProgress() {
       const runs = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs?event=workflow_dispatch&per_page=5"));
       mine = (runs.workflow_runs || []).find((r) => r.path === ".github/workflows/build-openwrt.yml");
     } catch (e) {
-      logc("查询定制进度失败：" + (e && e.message ? e.message : String(e)) + "（请确认 Cloudflare 项目 zwrt 已配置 GH_TOKEN）", "err");
+      logc("查询定制进度失败：" + (e && e.message ? e.message : String(e)) + "（如提示未登录请重新登录；并确认 Cloudflare 项目 zwrt 已配置 GH_TOKEN）", "err");
       return;
     }
   }
