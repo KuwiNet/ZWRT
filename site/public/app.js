@@ -329,12 +329,22 @@ function autoGrow(el) {
   el.style.height = (Math.max(sh, cur + 2)) + "px";
 }
 
-/* 常用软件包：点击包名添加到可选包；已添加的标勾选态 */
-function addCommonPkg(name) {
-  if (state.pkgInput.match(new RegExp("(?:^|\\s)-" + name + "(?=\\s|$)"))) {
-    state.pkgInput = state.pkgInput.replace(new RegExp("(?:^|\\s)-" + name + "(?=\\s|$)"), " ").replace(/\s{2,}/g, " ").trim();
+/* 常用软件包：与输入框联动——未选中点击添加（标✓），已选中点击从输入框移除 */
+function toggleCommonPkg(name) {
+  const chosen = parsePkgInput(state.pkgInput);
+  if (chosen.includes(name)) {
+    // 已在输入框：移除该包（并去掉可能存在的 -剔除标记）
+    state.pkgInput = state.pkgInput
+      .replace(new RegExp("(?:^|\\s)-" + name + "(?=\\s|$)"), " ")
+      .replace(new RegExp("(?:^|\\s)" + name + "(?=\\s|$)"), " ")
+      .replace(/\s{2,}/g, " ").trim();
+  } else {
+    // 未在：去掉 -剔除标记后添加
+    state.pkgInput = state.pkgInput
+      .replace(new RegExp("(?:^|\\s)-" + name + "(?=\\s|$)"), " ")
+      .replace(/\s{2,}/g, " ").trim();
+    state.pkgInput = (state.pkgInput + " " + name).trim();
   }
-  if (!parsePkgInput(state.pkgInput).includes(name)) state.pkgInput = (state.pkgInput + " " + name).trim();
   render();
 }
 function renderCommonChips() {
@@ -347,7 +357,7 @@ function renderCommonChips() {
     tag.title = desc || name;
     tag.appendChild(el("span", "cn", name));
     if (chosen.has(name)) tag.appendChild(el("em", "ck", "✓"));
-    tag.addEventListener("click", () => addCommonPkg(name));
+    tag.addEventListener("click", () => toggleCommonPkg(name));
     box.appendChild(tag);
   });
 }
