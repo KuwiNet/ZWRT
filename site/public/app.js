@@ -525,6 +525,7 @@ function composeInputs() {
     packages_common: common.join(" "),
     packages_wh3000: wh3000.join(" "),
     init_script: composeInitScript(),
+    init_script_b64: btoa(unescape(encodeURIComponent(composeInitScript() || ""))),
   };
   return { inputs, meta: { base: base.length, sel: sel.length, wwan: wwan.length, role: state.features.bypass ? "bypass" : "main" } };
 }
