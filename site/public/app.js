@@ -258,7 +258,7 @@ function renderBaseChips() {
   if (!state.device || !state.device.base) return;
   const excl = new Set((state.pkgInput.match(/-([^\s]+)/g) || []).map((t) => t.slice(1)));
   const cuttable = state.device.base.filter((p) => !isProtected(p)).sort();
-  $("m-cut").textContent = cuttable.length;
+  const mc = $("m-cut"); if (mc) mc.textContent = cuttable.length;
   if (!cuttable.length) { box.appendChild(el("p", "dim", "无可剔除项")); return; }
   cuttable.forEach((p) => {
     const tag = el("span", "btag" + (excl.has(p) ? " out" : ""));
