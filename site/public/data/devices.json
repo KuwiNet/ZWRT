@@ -26,7 +26,6 @@
       },
       "base": [
         "luci-app-advancedplus",
-        "luci-app-afrp",
         "luci-app-fan",
         "luci-app-firewall",
         "luci-app-footstrap-files",
@@ -370,7 +369,6 @@
         "wifi-scripts",
         "wireless-regdb",
         "wpad-basic-mbedtls",
-        "wwan",
         "xtables-legacy",
         "xtables-nft",
         "yq",
@@ -382,11 +380,11 @@
         "luci-app-ttyd",
         "luci-app-ddns-go",
         "luci-app-diskman",
-        "luci-app-ddnsto",
         "luci-app-timedreboot",
         "luci-proto-ipv6",
         "wpa-supplicant",
-        "hostapd"
+        "hostapd",
+        "luci-app-afrp"
       ],
       "whExtra": [],
       "note": "软路由/虚拟机通用镜像 (UEFI+Legacy)。可勾选旁路由/IPv6/无线/蜂窝上网。"
@@ -412,7 +410,6 @@
       },
       "base": [
         "luci-app-advancedplus",
-        "luci-app-afrp",
         "luci-app-fan",
         "luci-app-firewall",
         "luci-app-footstrap-files",
@@ -756,7 +753,6 @@
         "wifi-scripts",
         "wireless-regdb",
         "wpad-basic-mbedtls",
-        "wwan",
         "xtables-legacy",
         "xtables-nft",
         "yq",
@@ -768,11 +764,11 @@
         "luci-app-ttyd",
         "luci-app-ddns-go",
         "luci-app-diskman",
-        "luci-app-ddnsto",
         "luci-app-timedreboot",
         "luci-proto-ipv6",
         "wpa-supplicant",
-        "hostapd"
+        "hostapd",
+        "luci-app-afrp"
       ],
       "whExtra": [
         "fitblk",
@@ -804,7 +800,8 @@
     "kmod-usb-net-rndis",
     "kmod-usb-serial",
     "kmod-usb-serial-option",
-    "kmod-usb-serial-qualcomm"
+    "kmod-usb-serial-qualcomm",
+    "wwan"
   ],
   "build_note": "base=固定必装; default=默认可选(可增删); wwan_packages=勾选蜂窝上网后追加。旁路由=关WAN/关DHCP, 需填网关/DNS。"
 }
