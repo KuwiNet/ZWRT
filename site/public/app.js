@@ -649,9 +649,9 @@ function stepMark(st) {
 /* ---------- 主题（深/浅），右上角切换，localStorage 记忆 ---------- */
 function initTheme() {
   const root = document.documentElement;
-  let cur = "light";
-  try { cur = localStorage.getItem("zwrt-theme") || "light"; } catch (e) {}
-  if (cur !== "light" && cur !== "dark") cur = "light";
+  let cur = "dark";
+  try { cur = localStorage.getItem("zwrt-theme") || "dark"; } catch (e) {}
+  if (cur !== "light" && cur !== "dark") cur = "dark";
   root.setAttribute("data-theme", cur);
   const btn = $("#themeBtn");
   if (btn) btn.addEventListener("click", () => {
