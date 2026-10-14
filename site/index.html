@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZWRT 固件构建器 · OpenWrt 25.12 定制</title>
+<meta name="description" content="在线配置并构建 ZWRT 定制 OpenWrt 固件: x86_64 主/旁路由, WH3000 Pro; 可选软件包, 自定义初始化脚本">
+<style>
+:root{
+  --bg:#070c17; --bg2:#0b1220; --panel:#0e1730; --panel2:#111c38; --line:#1c2a4a;
+  --line2:#24365f; --txt:#e6edf7; --mut:#8ea3c4; --dim:#5d7399;
+  --acc:#38bdf8; --acc2:#22d3ee; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}
+a:hover{text-decoration:underline}
+.mono{font-family:var(--mono)}
+
+/* ---------- 头部 ---------- */
+header{position:sticky;top:0;z-index:50;background:rgba(7,12,23,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.hwrap{max-width:1200px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;gap:16px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo .mark{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#0ea5e9,#22d3ee);display:grid;place-items:center;box-shadow:0 4px 18px rgba(14,165,233,.35)}
+.logo .mark svg{width:24px;height:24px}
+.logo h1{font-size:19px;letter-spacing:.5px}
+.logo h1 em{font-style:normal;color:var(--acc2)}
+.logo p{font-size:12px;color:var(--mut)}
+.hnav{margin-left:auto;display:flex;align-items:center;gap:10px}
+.hnav .btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:9px;border:1px solid var(--line2);color:var(--txt);font-size:13px;background:var(--panel);cursor:pointer;transition:.18s}
+.hnav .btn:hover{border-color:var(--acc);color:var(--acc)}
+.hnav .btn.primary{background:linear-gradient(135deg,#0ea5e9,#22d3ee);border:none;color:#04121f;font-weight:700}
+.hnav .btn.primary:hover{filter:brightness(1.1)}
+
+/* ---------- 主布局 ---------- */
+main{max-width:1200px;margin:0 auto;padding:26px 22px 60px}
+.hero{display:flex;flex-wrap:wrap;align-items:flex-end;gap:18px;padding:22px 0 30px}
+.hero h2{font-size:27px;line-height:1.3;letter-spacing:.3px}
+.hero h2 span{background:linear-gradient(90deg,#38bdf8,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--mut);margin-top:8px;max-width:680px;font-size:14px}
+.stats{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 16px;text-align:center;min-width:88px}
+.stat b{display:block;font-size:19px;color:var(--acc2);font-family:var(--mono)}
+.stat span{font-size:11.5px;color:var(--mut)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+@media(max-width:980px){.grid{grid-template-columns:1fr}.aside{position:static!important}}
+
+/* ---------- 步骤卡片 ---------- */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:22px 24px;margin-bottom:18px}
+.cardhead{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.stepnum{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#0ea5e9,#22d3ee);color:#04121f;font-weight:800;display:grid;place-items:center;font-size:14px;flex:none}
+.cardhead h3{font-size:16.5px}
+.cardhead .hint{margin-left:auto;font-size:12px;color:var(--dim)}
+
+/* 设备卡片 */
+.devgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.dev{position:relative;background:var(--panel2);border:1px solid var(--line2);border-radius:13px;padding:16px;cursor:pointer;transition:.18s;border-top:3px solid transparent}
+.dev:hover{border-color:var(--acc);transform:translateY(-2px)}
+.dev.sel{border-color:var(--acc);border-top-color:var(--acc2);box-shadow:0 6px 24px rgba(14,165,233,.16)}
+.dev .ic{width:38px;height:38px;border-radius:10px;background:#0d1a33;display:grid;place-items:center;margin-bottom:10px}
+.dev .ic svg{width:21px;height:21px;stroke:var(--acc)}
+.dev b{font-size:15px;display:block}
+.dev .ar{font-family:var(--mono);font-size:11.5px;color:var(--acc2);margin-top:2px}
+.dev .de{font-size:12px;color:var(--mut);margin-top:7px;min-height:34px}
+.dev .chk{position:absolute;top:12px;right:12px;width:19px;height:19px;border-radius:50%;border:2px solid var(--line2)}
+.dev.sel .chk{background:var(--acc2);border-color:var(--acc2)}
+.dev.sel .chk::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#04121f;font-size:12px;font-weight:900}
+
+/* 参数表单 */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:13px}
+.fld label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px}
+.fld input[type=text],.fld input[type=password]{width:100%;background:#0a1222;border:1px solid var(--line2);border-radius:9px;padding:9px 12px;color:var(--txt);font-family:var(--mono);font-size:13.5px;outline:none;transition:.15s}
+.fld input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(56,189,248,.14)}
+.fld input:disabled{opacity:.45;cursor:not-allowed}
+.fld .note{font-size:11px;color:var(--dim);margin-top:4px}
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.switch input{display:none}
+.switch .tr{width:42px;height:23px;border-radius:20px;background:#16233f;border:1px solid var(--line2);position:relative;transition:.2s}
+.switch .tr::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#64748b;transition:.2s}
+.switch input:checked+.tr{background:linear-gradient(135deg,#0ea5e9,#22d3ee);border-color:transparent}
+.switch input:checked+.tr::after{left:21px;background:#04121f}
+.switch .lb{font-size:13px;color:var(--txt)}
+.fld .tw{display:flex;gap:8px}
+.tbtn{background:#0d1a33;border:1px solid var(--line2);color:var(--mut);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer}
+.tbtn:hover{color:var(--acc);border-color:var(--acc)}
+
+/* 软件包 */
+.pkbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+.pkbar .search{flex:1;min-width:200px;background:#0a1222;border:1px solid var(--line2);border-radius:9px;padding:9px 13px;color:var(--txt);font-size:13.5px;outline:none}
+.pkbar .search:focus{border-color:var(--acc)}
+.pkbar .cnt{font-size:12.5px;color:var(--mut)}
+.pkbar .cnt b{color:var(--acc2);font-family:var(--mono)}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{padding:7px 15px;border-radius:9px;border:1px solid var(--line2);background:transparent;color:var(--mut);font-size:13px;cursor:pointer}
+.tab.on{background:#0d1a33;border-color:var(--acc);color:var(--acc)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;max-height:330px;overflow:auto;padding:2px}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:5px 10px;font-size:12.5px;font-family:var(--mono);color:var(--mut);cursor:pointer;transition:.14s;user-select:none}
+.chip:hover{border-color:var(--acc);color:var(--txt)}
+.chip.on{background:#0c2438;border-color:var(--acc2);color:var(--acc2)}
+.chip .dot{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--line2);flex:none}
+.chip.on .dot{background:var(--acc2);border-color:var(--acc2)}
+.pkacts{display:flex;gap:8px;margin-top:12px}
+.empty{color:var(--dim);font-size:13px;padding:12px 2px}
+
+/* 初始化脚本 */
+#initScript{width:100%;min-height:150px;background:#0a1222;border:1px solid var(--line2);border-radius:11px;color:var(--txt);font-family:var(--mono);font-size:13px;padding:13px;resize:vertical;outline:none;line-height:1.65}
+#initScript:focus{border-color:var(--acc)}
+.snip{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+.snip .tbtn{font-family:var(--mono);font-size:11.5px}
+
+/* ---------- 侧栏 ---------- */
+.aside{position:sticky;top:76px}
+.asum{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:15px;padding:20px}
+.asum h4{font-size:14px;letter-spacing:.5px;color:var(--mut);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.asum h4 svg{width:16px;height:16px}
+.arow{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.arow:last-of-type{border-bottom:none}
+.arow .k{color:var(--mut)}
+.arow .v{color:var(--txt);font-family:var(--mono);font-size:12.5px;text-align:right;word-break:break-all;max-width:200px}
+.afld{margin-top:14px}
+.afld label{font-size:12px;color:var(--mut);display:block;margin-bottom:5px}
+.afld input{width:100%;background:#0a1222;border:1px solid var(--line2);border-radius:9px;padding:9px 12px;color:var(--txt);font-size:13px;outline:none}
+.afld input:focus{border-color:var(--acc)}
+.atok{display:flex;gap:8px}
+.atok input{flex:1}
+.atok .eye{width:38px;border:1px solid var(--line2);border-radius:9px;background:#0d1a33;color:var(--mut);cursor:pointer;display:grid;place-items:center}
+.atok .eye:hover{color:var(--acc)}
+.abtns{display:flex;flex-direction:column;gap:9px;margin-top:14px}
+.abtn{padding:12px;border-radius:10px;font-size:14.5px;font-weight:700;cursor:pointer;border:none;transition:.18s;display:flex;align-items:center;justify-content:center;gap:8px}
+.abtn.build{background:linear-gradient(135deg,#0ea5e9,#22d3ee);color:#04121f}
+.abtn.build:hover{filter:brightness(1.12)}
+.abtn.build:disabled{opacity:.5;cursor:not-allowed;filter:none}
+.abtn.ghost{background:#0d1a33;border:1px solid var(--line2);color:var(--mut);font-weight:600;font-size:13px}
+.abtn.ghost:hover{border-color:var(--acc);color:var(--acc)}
+.ares{margin-top:13px;font-size:12.5px;border-radius:10px;padding:10px 12px;display:none}
+.ares.ok{display:block;background:#06231a;border:1px solid #14532d;color:var(--ok)}
+.ares.err{display:block;background:#2a0e12;border:1px solid #7f1d1d;color:var(--err);white-space:pre-wrap;word-break:break-all}
+.ares.info{display:block;background:#0c1a2e;border:1px solid #1e3a5f;color:var(--acc)}
+.anote{margin-top:11px;font-size:11.5px;color:var(--dim);line-height:1.7}
+
+/* 最近发布 */
+.rel h3{display:flex;align-items:center;gap:10px;font-size:16.5px;margin-bottom:14px}
+.rel .it{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px 15px;margin-bottom:9px;font-family:var(--mono);font-size:12.5px}
+.rel .it .nm{flex:1;color:var(--txt);word-break:break-all}
+.rel .it .sz{color:var(--dim)}
+.rel .dl{color:var(--acc2);font-family:var(--mono);font-size:12.5px}
+.rel .none{color:var(--dim);font-size:13px}
+
+/* ---------- 页脚 ---------- */
+footer{border-top:1px solid var(--line);padding:26px 0 34px;text-align:center;color:var(--dim);font-size:13px}
+footer b{color:var(--txt)}
+footer a{color:var(--acc2)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#1c2a4a;border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hwrap">
+    <div class="logo">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#04121f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="11" rx="2.4"/><path d="M6.5 10.5h2.6M6.5 14h2.6M14.5 10.5h3M14.5 14h3M17 7V5.4M8 7V5.4"/></svg>
+      </div>
+      <div>
+        <h1>ZWRT<em> Builder</em></h1>
+        <p>OpenWrt 25.12 · ImmortalWrt 内核 6.12 · opkg</p>
+      </div>
+    </div>
+    <nav class="hnav">
+      <a class="btn" href="https://dl.zwrt.de/firmware/" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>下载固件
+      </a>
+      <a class="btn" href="https://github.com/KuWiNet/ZWRT" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.42-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>GitHub 源码
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <h2>在线定制你的 <span>ZWRT</span> 固件</h2>
+      <p>选择设备、调整网络参数、勾选软件包、写入初始化脚本，一键触发 GitHub Actions 编译。构建完成自动发布 Release 并同步到 Cloudflare R2。</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>6.12</b><span>内核版本</span></div>
+      <div class="stat"><b>3</b><span>目标设备</span></div>
+      <div class="stat"><b id="statPkg">0</b><span>可选软件包</span></div>
+      <div class="stat"><b>opkg</b><span>包管理器</span></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <!-- ============ 左侧: 配置 ============ -->
+    <div class="cfg">
+
+      <!-- 1. 设备 -->
+      <section class="card">
+        <div class="cardhead"><div class="stepnum">1</div><h3>选择设备型号</h3><span class="hint">决定架构与固件镜像类型</span></div>
+        <div class="devgrid" id="devGrid"></div>
+      </section>
+
+      <!-- 2. 参数 -->
+      <section class="card">
+        <div class="cardhead"><div class="stepnum">2</div><h3>基础参数配置</h3><span class="hint">留空则使用设备默认值</span></div>
+        <div class="fgrid">
+          <div class="fld"><label>主机名</label><input type="text" id="hostname" value="ZWRT" spellcheck="false"><div class="note">默认 ZWRT</div></div>
+          <div class="fld"><label>LAN IP 地址</label><input type="text" id="lan_ip" value="192.168.100.1" spellcheck="false"></div>
+          <div class="fld"><label>子网掩码</label><input type="text" id="lan_mask" value="255.255.255.0" spellcheck="false"></div>
+          <div class="fld"><label>网关 <span style="color:var(--dim)">(旁路由生效)</span></label><input type="text" id="gateway" value="192.168.100.1" spellcheck="false"></div>
+          <div class="fld"><label>DNS <span style="color:var(--dim)">(旁路由生效)</span></label><input type="text" id="dns" value="192.168.100.1" spellcheck="false"></div>
+          <div class="fld">
+            <label>IPv6</label>
+            <label class="switch"><input type="checkbox" id="ipv6"><span class="tr"></span><span class="lb">启用 IPv6 分发</span></label>
+            <div class="note">WH3000 Pro 默认开启</div>
+          </div>
+          <div class="fld" id="fldWifi" style="display:none">
+            <label>无线 (仅 WH3000 Pro)</label>
+            <label class="switch"><input type="checkbox" id="wifi"><span class="tr"></span><span class="lb">启用无线</span></label>
+          </div>
+          <div class="fld" id="fldSsid" style="display:none"><label>无线 SSID</label><input type="text" id="wifi_ssid" value="ZWRT" spellcheck="false"></div>
+          <div class="fld" id="fldKey" style="display:none"><label>无线密码 <span style="color:var(--dim)">(空 = 无密码)</span></label><input type="text" id="wifi_key" placeholder="留空为无密码" spellcheck="false"></div>
+          <div class="fld" id="allNote" style="display:none;grid-column:1/-1"><div class="note" style="color:var(--warn)">全部构建: 网络参数按各设备默认值 (主路由 .100.1 / 旁路由 .100.10 / WH3000 Pro), 仅主机名、软件包与初始化脚本对本构建生效。</div></div>
+        </div>
+        <div class="pkacts"><button class="tbtn" id="btnResetParam">恢复设备默认参数</button></div>
+      </section>
+
+      <!-- 3. 软件包 -->
+      <section class="card">
+        <div class="cardhead"><div class="stepnum">3</div><h3>选择软件包</h3><span class="hint">默认全选 = 仓库标准清单</span></div>
+        <div class="pkbar">
+          <input class="search" id="pkgSearch" type="text" placeholder="🔍 搜索软件包名... (如 luci-app)">
+          <span class="cnt">通用 <b id="commonCnt">0</b> / <b id="commonTotal">0</b> · WH3000 <b id="wh3000Cnt">0</b> / <b id="wh3000Total">0</b></span>
+        </div>
+        <div class="tabs">
+          <button class="tab on" id="tabCommon">通用软件包 (x86_64 + WH3000)</button>
+          <button class="tab" id="tabWh3000">WH3000 Pro 专属</button>
+        </div>
+        <div class="chips" id="commonGrid"></div>
+        <div class="chips" id="wh3000Grid" style="display:none"></div>
+        <div class="pkacts">
+          <button class="tbtn" id="btnAll">当前页全选</button>
+          <button class="tbtn" id="btnClear">当前页清空</button>
+          <span style="margin-left:auto;font-size:11.5px;color:var(--dim)">基础系统包(内核/引导/opkg)固定必装, 此处为附加包</span>
+        </div>
+      </section>
+
+      <!-- 4. 初始化脚本 -->
+      <section class="card">
+        <div class="cardhead"><div class="stepnum">4</div><h3>系统初始化脚本</h3><span class="hint">可选 · 写入 /etc/uci-defaults, 首次启动执行</span></div>
+        <textarea id="initScript" spellcheck="false" placeholder="#!/bin/sh&#10;# 示例: 首次开机自动执行, 建议以 uci set/uci commit 结尾&#10;# 注意: 脚本内容请勿包含 ZWRTSH 字样"></textarea>
+        <div class="snip">
+          <button class="tbtn" data-snip="ntp">插入: 自定义 NTP</button>
+          <button class="tbtn" data-snip="ssh">插入: 修改 SSH 端口</button>
+          <button class="tbtn" data-snip="wan">插入: WAN 拨号 PPPoE</button>
+          <button class="tbtn" data-snip="clear">清空</button>
+        </div>
+      </section>
+
+      <!-- 最近发布 -->
+      <section class="card rel">
+        <div class="cardhead"><div class="stepnum">✓</div><h3>最近发布</h3><span class="hint">GitHub Release · 构建完成后自动更新</span></div>
+        <div id="latestList"><div class="none">加载中...</div></div>
+      </section>
+    </div>
+
+    <!-- ============ 右侧: 摘要 ============ -->
+    <aside class="aside">
+      <div class="asum">
+        <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>构建摘要</h4>
+        <div class="arow"><span class="k">设备</span><span class="v" id="sDev">-</span></div>
+        <div class="arow"><span class="k">主机名</span><span class="v" id="sHost">ZWRT</span></div>
+        <div class="arow"><span class="k">LAN IP</span><span class="v" id="sIp">-</span></div>
+        <div class="arow"><span class="k">IPv6</span><span class="v" id="sIpv6">-</span></div>
+        <div class="arow"><span class="k">无线</span><span class="v" id="sWifi">-</span></div>
+        <div class="arow"><span class="k">软件包</span><span class="v" id="sPkg">-</span></div>
+        <div class="arow"><span class="k">初始化脚本</span><span class="v" id="sScript">-</span></div>
+
+        <div class="afld">
+          <label>GitHub 仓库</label>
+          <input type="text" id="repo" value="KuWiNet/ZWRT" spellcheck="false">
+        </div>
+        <div class="afld">
+          <label>GitHub Token <span style="color:var(--dim)">(需 repo 权限, 仅存本浏览器)</span></label>
+          <div class="atok">
+            <input type="password" id="token" placeholder="ghp_..." autocomplete="off">
+            <button class="eye" id="eye" title="显示/隐藏">👁</button>
+          </div>
+        </div>
+
+        <div class="abtns">
+          <button class="abtn build" id="btnBuild">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            开始构建
+          </button>
+          <button class="abtn ghost" id="btnPreview">预览提交 JSON</button>
+        </div>
+        <div class="ares" id="result"></div>
+        <div class="anote">
+          · Token 仅保存在浏览器 localStorage, 不会上传到本站服务器<br>
+          · 提交后自动跳转 GitHub Actions 查看进度<br>
+          · 构建约 1~3 小时, 完成自动发布到 <a href="https://dl.zwrt.de/firmware/" target="_blank" rel="noopener">dl.zwrt.de/firmware</a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer>
+  <b>ZWRT</b> · Support by <b>KuWi</b> · <a href="https://www.kuwi.net" target="_blank" rel="noopener">www.kuwi.net</a> · OpenWrt 25.12 / ImmortalWrt 内核 6.12 · 固件默认主题 ZWRT
+</footer>
+
+<script>
+/* ================= 数据 ================= */
+const PKG_COMMON = [["atinout","autocore","automount","base-files","bash","bc","blkid","block-mount","btrfs-progs","busybox","ca-bundle","cgi-io","chat","coremark","coreutils","coreutils-stat","coreutils-stty","curl","dbus","ddns-go","dnsmasq-full","dosfstools","dropbear","ds-lite","e2fsprogs","eip197-mini-firmware","exfat-fsck","exfat-mkfs","f2fs-tools","f2fsck","fdisk","firewall4","fit-check-sign","frpc","fstools","fwtool","getrandom","glib2","hostapd-common","htop","ip-full","ip6tables-zz-legacy","iptables-nft","iw","jansson4","jshn","jsonfilter","kernel","kmod-cfg80211","kmod-crypto-acompress","kmod-crypto-aead","kmod-crypto-arc4","kmod-crypto-authenc","kmod-crypto-blake2b","kmod-crypto-ccm","kmod-crypto-cmac","kmod-crypto-crc32c","kmod-crypto-ctr","kmod-crypto-des","kmod-crypto-ecb","kmod-crypto-gcm","kmod-crypto-geniv","kmod-crypto-gf128","kmod-crypto-ghash","kmod-crypto-hash","kmod-crypto-hmac","kmod-crypto-manager","kmod-crypto-md5","kmod-crypto-null","kmod-crypto-rng","kmod-crypto-seqiv","kmod-crypto-sha1","kmod-crypto-sha256","kmod-crypto-sha3","kmod-crypto-sha512","kmod-crypto-user","kmod-crypto-xxhash","kmod-dummy","kmod-fs-btrfs","kmod-fs-exfat","kmod-fs-ext4","kmod-fs-msdos","kmod-fs-ntfs3","kmod-fs-vfat","kmod-gpio-button-hotplug","kmod-hwmon-core","kmod-i2c-core","kmod-inet-diag","kmod-ip6-tunnel","kmod-ip6tables","kmod-ipt-conntrack","kmod-ipt-core","kmod-ipt-ipset","kmod-ipt-nat","kmod-ipt-nat6","kmod-iptunnel6","kmod-leds-gpio","kmod-lib-crc-ccitt","kmod-lib-crc16","kmod-lib-crc32c","kmod-lib-lzo","kmod-lib-raid6","kmod-lib-xor","kmod-lib-xxhash","kmod-lib-zlib-deflate","kmod-lib-zlib-inflate","kmod-lib-zstd","kmod-loop","kmod-mac80211","kmod-macvlan","kmod-mii","kmod-mppe","kmod-mt76-connac","kmod-mt76-core","kmod-mt7915-firmware","kmod-mt7915e","kmod-nf-conntrack","kmod-nf-conntrack-netlink","kmod-nf-conntrack6","kmod-nf-flow","kmod-nf-ipt","kmod-nf-ipt6","kmod-nf-log","kmod-nf-log6","kmod-nf-nat","kmod-nf-nat6","kmod-nf-reject","kmod-nf-reject6","kmod-nf-socket","kmod-nf-tproxy","kmod-nfnetlink","kmod-nft-compat","kmod-nft-core","kmod-nft-fib","kmod-nft-fullcone","kmod-nft-nat","kmod-nft-offload","kmod-nft-socket","kmod-nft-tproxy","kmod-nls-base","kmod-nls-cp437","kmod-nls-cp932","kmod-nls-cp936","kmod-nls-cp950","kmod-nls-iso8859-1","kmod-nls-utf8","kmod-ppp","kmod-pppoe","kmod-pppox","kmod-scsi-core","kmod-slhc","kmod-tcp-bbr","kmod-thermal","kmod-tun","kmod-usb-acm","kmod-usb-common","kmod-usb-core","kmod-usb-net","kmod-usb-net-cdc-ether","kmod-usb-net-cdc-ncm","kmod-usb-serial-sierrawireless","kmod-usb-serial-wwan","kmod-usb-storage","kmod-usb-storage-extras","kmod-usb-storage-uas","kmod-usb-wdm","kmod-usb-xhci-hcd","kmod-usb3","kmod-zram","libatomic1","libattr","libblkid1","libblobmsg-json20260213","libbpf1","libc","libcap","libcap-ng","libcares","libcomerr0","libcurl4","libdbus","libe2p2","libelf1","libexpat","libext2fs2","libf2fs6","libfdisk1","libffi","libgcc1","libgmp10","libip4tc2","libip6tc2","libiptext-nft0","libiptext0","libiptext6-0","libiwinfo-data","libiwinfo20230701","libjson-c5","libjson-script20260213","liblua5.1.5","liblucihttp-lua","liblucihttp-ucode","liblucihttp0","liblzo2","libmbedtls21","libmnl0","libmount1","libncurses6","libnetfilter-conntrack3","libnettle8","libnfnetlink0","libnftnl11","libnghttp2-14","libnl-tiny1","libopenssl3","libparted","libpcre2","libpthread","libqrtr-glib","libreadline8","librt","libsmartcols1","libss2","libstdcpp6","libubox20260213","libubus-lua","libubus20251202","libuci20250120","libuclient20201210","libucode20230711","libudebug","libusb-1.0-0","libustream-mbedtls20201210","libuuid1","libuv1","libwebsockets-full","libxml2-16","libxtables12","logd","losetup","lsblk","lua","luci","luci-app-advancedplus","luci-app-afrp","luci-app-ddns-go","luci-app-diskman","luci-app-fan","luci-app-firewall","luci-app-footstrap-files","luci-app-nikki","luci-app-oui","luci-app-package-manager","luci-app-partexp","luci-app-syscontrol","luci-app-sysctl","luci-app-timedreboot","luci-app-ttyd","luci-app-unblockneteasemusic","luci-app-upnp","luci-app-wifihistory","luci-app-wizard","luci-base","luci-compat","luci-lib-base","luci-lib-fs","luci-lib-ip","luci-lib-ipkg","luci-lib-jsonc","luci-lib-nixio","luci-lib-uqr","luci-light","luci-lua-runtime","luci-mod-admin-full","luci-mod-dashboard","luci-mod-network","luci-mod-status","luci-mod-system","luci-nginx","luci-proto-ipv6","luci-proto-ppp","luci-theme-bootstrap","luci-theme-zwrt","mihomo","minicom","miniupnpd-nftables","mkf2fs","mt7981-wo-firmware","mtd","my-default-settings","nano","netifd","nftables-json","nginx-mod-luci","nginx-mod-ubus","nginx-ssl","nginx-ssl-util","nikki","node127","ntfs3-mount","odhcp6c","odhcpd-ipv6only","openssh-sftp-server","opkg","parted","ppp","ppp-mod-pppoe","procd","procd-seccomp","resize2fs","resolveip","rpcd","rpcd-mod-file","rpcd-mod-iwinfo","rpcd-mod-luci","rpcd-mod-rrdns","rpcd-mod-ucode","shellsync","smartmontools","swconfig","terminfo","ttyd","uboot-envtools","ubox","ubus","ubusd","uci","uclient-fetch","ucode","ucode-mod-digest","ucode-mod-fs","ucode-mod-html","ucode-mod-log","ucode-mod-lua","ucode-mod-math","ucode-mod-nl80211","ucode-mod-rtnl","ucode-mod-socket","ucode-mod-ubus","ucode-mod-uci","ucode-mod-uloop","uhttpd","uhttpd-mod-ubus","urandom-seed","urngd","uwsgi","uwsgi-cgi-plugin","uwsgi-luci-support","uwsgi-syslog-plugin","wget-ssl","wifi-scripts","wireless-regdb","wpad-basic-mbedtls","wwan","xtables-legacy","xtables-nft","yq","zlib","zram-swap"]];
+const PKG_WH3000 = [["luci-app-5gmodem","luci-i18n-5gmodem-zh-cn","sms-tool","comgt","qmi-utils","libqmi","uqmi","mbim-utils","libmbim","umbim","modemmanager","luci-proto-mbim","luci-proto-qmi","luci-proto-modemmanager","quectel-cm","kmod-usb-serial","kmod-usb-serial-option","kmod-usb-serial-qualcomm","kmod-usb-net-qmi-wwan","kmod-usb-net-cdc-mbim","kmod-usb-net-rndis","usb-modeswitch","fitblk","ubi-utils","kmod-crypto-hw-safexcel","kmod-hwmon-pwmfan","kmod-mt7981-firmware","kmod-usb-xhci-mtk"]];
+
+const DEVICES = {
+  'x86-64-main': {name:'x86_64 主路由', ar:'x86_64 · generic', ic:'cpu',
+    de:'软路由/虚拟机通用镜像 (UEFI+Legacy), 开启 DHCP 主路由模式', lan_ip:'192.168.100.1', lan_mask:'255.255.255.0', gateway:'192.168.100.1', dns:'192.168.100.1', ipv6:false, wifi:false, wifi_ssid:'', wifi_key:''},
+  'x86-64-bypass': {name:'x86_64 旁路由', ar:'x86_64 · generic', ic:'cpu2',
+    de:'旁路由模式: 关闭 DHCP/WAN, 网关 DNS 指向主路由', lan_ip:'192.168.100.10', lan_mask:'255.255.255.0', gateway:'192.168.100.1', dns:'192.168.100.1', ipv6:false, wifi:false, wifi_ssid:'', wifi_key:''},
+  'wh3000pro': {name:'WH3000 Pro', ar:'MT7981B · aarch64', ic:'wifi',
+    de:'Huasifei WH3000 Pro (eMMC+NAND), 默认开启 WiFi/IPv6', lan_ip:'192.168.100.1', lan_mask:'255.255.255.0', gateway:'192.168.100.1', dns:'192.168.100.1', ipv6:true, wifi:true, wifi_ssid:'ZWRT', wifi_key:''},
+  'all': {name:'全部构建', ar:'x86_64 + MT7981B', ic:'grid',
+    de:'一次构建全部设备: 主路由 + 旁路由 + WH3000 Pro', lan_ip:'', lan_mask:'', gateway:'', dns:'', ipv6:false, wifi:false, wifi_ssid:'', wifi_key:''}
+};
+const ICONS = {
+  cpu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
+  cpu2:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/><path d="M9.5 9.5h5v5h-5z"/></svg>',
+  wifi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 9a15 15 0 0 1 20 0M5.5 13a10 10 0 0 1 13 0M9 17a5 5 0 0 1 6 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>'
+};
+
+const SNIPPETS = {
+  ntp: `#!/bin/sh
+# 自定义 NTP 时间服务器
+uci set system.ntp.server='ntp.aliyun.com'
+uci commit system
+exit 0`,
+  ssh: `#!/bin/sh
+# 修改 SSH 端口为 2222
+uci set dropbear.@dropbear[0].Port='2222'
+uci commit dropbear
+exit 0`,
+  wan: `#!/bin/sh
+# WAN 口 PPPoE 拨号
+uci set network.wan.proto='pppoe'
+uci set network.wan.username='你的宽带账号'
+uci set network.wan.password='你的宽带密码'
+uci commit network
+exit 0`
+};
+
+/* ================= 状态 ================= */
+let device = 'x86-64-main';
+let curTab = 'common';
+const checked = { common: new Set(PKG_COMMON), wh3000: new Set(PKG_WH3000) };
+
+const $ = id => document.getElementById(id);
+
+/* ================= 设备卡片 ================= */
+function renderDevices(){
+  const g = $('devGrid'); g.innerHTML = '';
+  Object.entries(DEVICES).forEach(([k,v])=>{
+    const d = document.createElement('div');
+    d.className = 'dev' + (k===device?' sel':'');
+    d.dataset.dev = k;
+    d.innerHTML = `<div class="ic">${ICONS[v.ic]}</div><b>${v.name}</b><div class="ar">${v.ar}</div><div class="de">${v.de}</div><span class="chk"></span>`;
+    d.onclick = ()=> selectDevice(k);
+    g.appendChild(d);
+  });
+}
+function selectDevice(k){
+  device = k;
+  document.querySelectorAll('.dev').forEach(x=>x.classList.toggle('sel', x.dataset.dev===k));
+  const v = DEVICES[k];
+  // 单设备: 填充默认参数; 全部构建: 保留当前参数
+  if(k !== 'all'){
+    $('lan_ip').value = v.lan_ip; $('lan_mask').value = v.lan_mask;
+    $('gateway').value = v.gateway; $('dns').value = v.dns;
+    $('ipv6').checked = v.ipv6; $('wifi').checked = v.wifi;
+    $('wifi_ssid').value = v.wifi_ssid; $('wifi_key').value = v.wifi_key;
+  }
+  toggleWifiFields();
+  updateSummary();
+}
+
+/* ================= 参数 ================= */
+function toggleWifiFields(){
+  const show = device === 'wh3000pro';
+  $('fldWifi').style.display = show ? 'block' : 'none';
+  $('fldSsid').style.display = show ? 'block' : 'none';
+  $('fldKey').style.display = show ? 'block' : 'none';
+  $('allNote').style.display = device === 'all' ? 'block' : 'none';
+}
+$('btnResetParam').onclick = ()=>{
+  if(device==='all'){ alert('请先选择具体设备以恢复默认参数'); return; }
+  selectDevice(device);
+};
+
+/* ================= 软件包 ================= */
+function renderPkgs(){
+  const list = curTab==='common' ? PKG_COMMON : PKG_WH3000;
+  const set = checked[curTab];
+  const grid = $(curTab==='common'?'commonGrid':'wh3000Grid');
+  const q = $('pkgSearch').value.trim().toLowerCase();
+  grid.innerHTML = '';
+  list.filter(p=>!q || p.toLowerCase().includes(q)).forEach(p=>{
+    const c = document.createElement('div');
+    c.className = 'chip' + (set.has(p)?' on':'');
+    c.innerHTML = `<span class="dot"></span>${p}`;
+    c.onclick = ()=>{ set.has(p)? set.delete(p) : set.add(p); c.classList.toggle('on'); updatePkg(); };
+    grid.appendChild(c);
+  });
+  if(!grid.children.length) grid.innerHTML = '<div class="empty">无匹配软件包</div>';
+  updatePkg();
+}
+function updatePkg(){
+  $('commonCnt').textContent = checked.common.size;
+  $('commonTotal').textContent = PKG_COMMON.length;
+  $('wh3000Cnt').textContent = checked.wh3000.size;
+  $('wh3000Total').textContent = PKG_WH3000.length;
+  updateSummary();
+}
+$('pkgSearch').oninput = renderPkgs;
+$('tabCommon').onclick = ()=>{ curTab='common'; $('tabCommon').classList.add('on'); $('tabWh3000').classList.remove('on'); $('commonGrid').style.display='flex'; $('wh3000Grid').style.display='none'; renderPkgs(); };
+$('tabWh3000').onclick = ()=>{ curTab='wh3000'; $('tabWh3000').classList.add('on'); $('tabCommon').classList.remove('on'); $('wh3000Grid').style.display='flex'; $('commonGrid').style.display='none'; renderPkgs(); };
+$('btnAll').onclick = ()=>{ checked[curTab] = new Set(curTab==='common'?PKG_COMMON:PKG_WH3000); renderPkgs(); };
+$('btnClear').onclick = ()=>{ checked[curTab].clear(); renderPkgs(); };
+
+/* ================= 初始化脚本 ================= */
+document.querySelectorAll('.snip .tbtn').forEach(b=>{
+  b.onclick = ()=>{
+    const s = b.dataset.snip;
+    if(s==='clear'){ $('initScript').value=''; }
+    else { const cur=$('initScript').value.trim(); $('initScript').value = cur? cur+'\n\n'+SNIPPETS[s] : SNIPPETS[s]; }
+    updateSummary();
+  };
+});
+$('initScript').oninput = updateSummary;
+
+/* ================= 摘要 ================= */
+function updateSummary(){
+  const v = DEVICES[device];
+  $('sDev').textContent = v.name;
+  $('sHost').textContent = $('hostname').value || 'ZWRT';
+  $('sIp').textContent = $('lan_ip').value || '(默认)';
+  $('sIpv6').textContent = $('ipv6').checked ? '开启' : '关闭';
+  $('sWifi').textContent = device==='wh3000pro' ? ($('wifi').checked ? ($('wifi_ssid').value||'ZWRT') : '关闭') : '—';
+  $('sPkg').textContent = `通用 ${checked.common.size} / WH3000 ${checked.wh3000.size}`;
+  const n = $('initScript').value.trim().split('\n').filter(x=>x.trim()).length;
+  $('sScript').textContent = n ? n + ' 行' : '无';
+}
+
+/* ================= 提交构建 ================= */
+function buildInputs(){
+  const cCommon = [...checked.common], cWh = [...checked.wh3000];
+  const isAll = device === 'all';
+  const isX86 = device === 'x86-64-main' || device === 'x86-64-bypass';
+  return {
+    device,
+    hostname: $('hostname').value.trim() || 'ZWRT',
+    lan_ip: isAll ? '' : $('lan_ip').value.trim(),
+    lan_mask: isAll ? '' : $('lan_mask').value.trim(),
+    gateway: isAll ? '' : $('gateway').value.trim(),
+    dns: isAll ? '' : $('dns').value.trim(),
+    ipv6: isAll ? 'false' : ($('ipv6').checked ? 'true' : 'false'),
+    wifi: isAll ? 'false' : ($('wifi').checked ? 'true' : 'false'),
+    wifi_ssid: isAll ? '' : $('wifi_ssid').value.trim(),
+    wifi_key: isAll ? '' : $('wifi_key').value.trim(),
+    packages_common: cCommon.length ? cCommon.join(' ') : '__none__',
+    packages_wh3000: isX86 ? '' : (cWh.length ? cWh.join(' ') : '__none__'),
+    init_script: $('initScript').value.trim()
+  };
+}
+function payload(){
+  return { ref: 'main', inputs: buildInputs() };
+}
+function repoName(){
+  let r = $('repo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'');
+  return r || 'KuWiNet/ZWRT';
+}
+function showResult(cls, html){ const r=$('result'); r.className='ares '+cls; r.innerHTML=html; }
+
+$('btnPreview').onclick = ()=>{
+  showResult('info', '<b>提交载荷 (JSON):</b><br><span class="mono">' +
+    JSON.stringify(payload(), null, 2).replace(/</g,'&lt;') + '</span>');
+};
+
+$('btnBuild').onclick = async ()=>{
+  const token = $('token').value.trim();
+  if(!token){ showResult('err','请填写 GitHub Token (需 repo 权限)。\nToken 仅保存在本浏览器 localStorage。'); return; }
+  localStorage.setItem('zwrt_token', token);
+  const btn = $('btnBuild'); btn.disabled = true; btn.textContent = '提交中...';
+  showResult('info','正在触发 GitHub Actions 构建...');
+  try{
+    const res = await fetch(`https://api.github.com/repos/${encodeURIComponent(repoName())}/actions/workflows/build-openwrt.yml/dispatches`, {
+      method:'POST',
+      headers:{ 'Accept':'application/vnd.github+json', 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json', 'User-Agent':'zwrt-builder' },
+      body: JSON.stringify(payload())
+    });
+    if(res.status === 204){
+      showResult('ok','✅ 构建已触发! <a href="https://github.com/'+repoName()+'/actions" target="_blank" rel="noopener">点击查看构建进度 →</a><br>完成后自动发布到 <a href="https://dl.zwrt.de/firmware/" target="_blank" rel="noopener">dl.zwrt.de/firmware</a>');
+      setTimeout(loadLatest, 1500);
+    } else {
+      const t = await res.text().catch(()=> '');
+      let msg = 'HTTP ' + res.status;
+      if(res.status===401) msg = 'Token 无效或已过期';
+      if(res.status===403) msg = 'Token 权限不足 (需要 repo / workflow 权限)';
+      if(res.status===404) msg = '仓库或 workflow 不存在, 请检查仓库名';
+      if(res.status===422) msg = '参数校验失败 (可能是脚本中含特殊字符)';
+      showResult('err', '❌ 触发失败: ' + msg + '\n' + (t? t.slice(0,400) : ''));
+    }
+  }catch(e){
+    showResult('err', '❌ 网络错误: ' + e.message);
+  }finally{
+    btn.disabled = false; btn.textContent = '⚡ 开始构建';
+  }
+};
+
+/* ================= Token 记忆 ================= */
+if(localStorage.getItem('zwrt_token')) $('token').value = localStorage.getItem('zwrt_token');
+$('eye').onclick = ()=>{ const i=$('token'); i.type = i.type==='password'?'text':'password'; };
+
+/* ================= 最近发布 ================= */
+async function loadLatest(){
+  try{
+    const res = await fetch('https://api.github.com/repos/KuWiNet/ZWRT/releases/latest', { headers:{ 'User-Agent':'zwrt-builder' } });
+    if(res.status===404){ $('latestList').innerHTML='<div class="none">暂无发布, 首次构建完成后自动出现</div>'; return; }
+    if(!res.ok) throw new Error(res.status);
+    const rel = await res.json();
+    if(!rel.assets || !rel.assets.length){ $('latestList').innerHTML=`<div class="none">${rel.tag_name}: 发布中, 稍后刷新</div>`; return; }
+    $('latestList').innerHTML = rel.assets.map(a=>
+      `<div class="it"><span class="nm">${a.name}</span><span class="sz">${(a.size/1048576).toFixed(1)} MB</span>`+
+      `<a class="dl" href="https://dl.zwrt.de/firmware/${encodeURIComponent(a.name)}" target="_blank" rel="noopener">R2 下载 ↓</a>`+
+      `<a class="dl" href="${a.browser_download_url}" target="_blank" rel="noopener">GitHub ↓</a></div>`).join('');
+  }catch(e){
+    $('latestList').innerHTML='<div class="none">发布信息加载失败</div>';
+  }
+}
+
+/* ================= 初始化 ================= */
+document.addEventListener('input', updateSummary);
+renderDevices();
+renderPkgs();
+updateSummary();
+$('statPkg').textContent = PKG_COMMON.length + PKG_WH3000.length;
+loadLatest();
+</script>
+</body>
+</html>

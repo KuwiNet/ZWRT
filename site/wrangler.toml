@@ -1,0 +1,12 @@
+# =============================================================
+# Cloudflare Pages 部署配置 (ZWRT 构建配置器)
+# 方式一(推荐): CF 控制台 -> Workers 和 Pages -> 创建 -> Pages ->
+#   "连接到 Git" -> 选择 KuWiNet/ZWRT -> 构建输出目录填 site -> 保存部署
+# 方式二(CLI): 先设置 CLOUDFLARE_API_TOKEN 环境变量, 再:
+#   npx wrangler pages deploy site --project-name zwrt-builder
+# =============================================================
+name = "zwrt-builder"
+compatibility_date = "2026-01-01"
+
+[env.production]
+name = "zwrt-builder"
