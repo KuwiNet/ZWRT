@@ -152,16 +152,25 @@ echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 # immortalwrt 引擎: 剔除官方+自定义 apk 源尚未提供的包 (plugins/immortalwrt-drop.txt, 可编辑)
 # 你在自定义源补齐 apk 后, 把对应包名从该文件删除即可自动纳入
 if [ "$ENGINE" = "immortalwrt" ]; then
-  if [ -f "$ZWRT_DIR/plugins/immortalwrt-drop.txt" ]; then
-    DROP="$(sed '1s/^\xEF\xBB\xBF//' "$ZWRT_DIR/plugins/immortalwrt-drop.txt" | grep -vE '^[[:space:]]*#|^[[:space:]]*$' | tr -d '\r' | tr '\n' ' ')"
-    echo ">> immortalwrt 剔除缺包: $DROP" >&2
-    for p in $DROP; do
-      PACKAGES=" $(echo " $PACKAGES " | sed "s/ $p / /g" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') "
-    done
-    PACKAGES="$(echo "$PACKAGES" | tr ' ' '\n' | sed '/^$/d' | tr '\n' ' ')"
-    echo ">> immortalwrt 剔除后 PACKAGES ($(echo "$PACKAGES" | wc -w) 个)" >&2
+  DROP_FILE="$ZWRT_DIR/plugins/immortalwrt-drop.txt"
+  if [ -f "$DROP_FILE" ]; then
+    DROP_PAT="$(sed '1s/^\xEF\xBB\xBF//' "$DROP_FILE" | grep -vE '^[[:space:]]*#|^[[:space:]]*$' | tr -d '\r')"
+    echo ">> immortalwrt 剔除缺包清单:"
+    echo "$DROP_PAT"
+    if [ -n "$DROP_PAT" ]; then
+      KEPT=""
+      for p in $PACKAGES; do
+        if echo "$DROP_PAT" | grep -qx "$p"; then
+          echo "  (immortalwrt) 剔除: $p"
+        else
+          KEPT="$KEPT $p"
+        fi
+      done
+      PACKAGES="$(echo "$KEPT" | sed 's/^ *//;s/ *$//')"
+    fi
+    echo ">> immortalwrt 剔除后 PACKAGES ($(echo "$PACKAGES" | wc -w) 个)"
   else
-    echo "!! immortalwrt-drop.txt 不存在: $ZWRT_DIR/plugins/immortalwrt-drop.txt" >&2
+    echo "!! immortalwrt-drop.txt 不存在: $DROP_FILE"
   fi
 fi
 
