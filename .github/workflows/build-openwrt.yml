@@ -9,6 +9,7 @@
 #   - 产物: Artifact + 单个 GitHub Release (ZWRT-日期) + Cloudflare R2 (dl.zwrt.de/firmware, 只保留最近2版)
 # =============================================================
 name: Build OpenWrt ZWRT
+run-name: Build OpenWrt ZWRT
 
 on:
   workflow_dispatch:
