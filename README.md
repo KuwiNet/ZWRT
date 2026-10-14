@@ -98,8 +98,8 @@
 | `R2_ACCESS_KEY_ID` | Secret | R2 S3 Access Key ID | 要上传则必需 |
 | `R2_SECRET_ACCESS_KEY` | Secret | R2 S3 Secret Access Key | 要上传则必需 |
 | `R2_BUCKET` | Secret | 桶名称（如 `zwrt`） | 要上传则必需 |
-| `R2_PUBLIC_URL` | Variable | 桶公开下载前缀（如 `https://你的域名`） | 要上传则必需（无它无法给出下载地址） |
-| `R2_ENDPOINT` | Secret | 自定义 S3 端点 `https://<account_id>.r2.cloudflarestorage.com` | 可选（缺省按 `R2_ACCOUNT_ID` 推导） |
+| `R2_PUBLIC_URL` | Variable | 桶公开下载前缀（如 `https://你的域名`） | 要上传则必需 |
+| `R2_ENDPOINT` | Secret | 自定义 S3 端点 `https://<account_id>.r2.cloudflarestorage.com` | 可选 |
 
 获取位置（Cloudflare 控制台）：Access Key → `R2` 管理 API 令牌；Account ID → 控制台首页右上角；Bucket → `R2` 创建桶；公开前缀 → 桶 `Settings → Public access`（或默认 `https://pub-<hash>.r2.dev`）。
 
