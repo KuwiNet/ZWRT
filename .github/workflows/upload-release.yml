@@ -27,12 +27,15 @@ jobs:
           test -n "$RUN_ID"
 
       - name: 下载固件 Artifact
-        uses: actions/download-artifact@v4
-        with:
-          run-id: ${{ steps.recent.outputs.run_id }}
-          pattern: zwrt-*
-          path: firmware/
-          merge-multiple: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p firmware/
+          gh run download "${{ steps.recent.outputs.run_id }}" --pattern 'zwrt-*' --dir firmware/ || true
+          find firmware -type f -name 'zwrt-*' -exec cp {} firmware/ \; 2>/dev/null || true
+          find firmware -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} \; 2>/dev/null || true
+          ls -lh firmware/
+          test -n "$(ls firmware/zwrt-* 2>/dev/null)"
 
       - name: 计算日期并发布 Release
         id: date
