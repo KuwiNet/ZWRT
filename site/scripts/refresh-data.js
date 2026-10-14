@@ -86,12 +86,13 @@ const dedup = (a) => [...new Set(a)];
   const devices = [
     { id: "x86-64", name: "Generic x86/64", arch: "x86_64", archLabel: "x86_64",
       wfDeviceMain: "x86-64-main", wfDeviceBypass: "x86-64-bypass",
-      defaults: { hostname: "ZWRT", lan_ip: "192.168.100.1", lan_mask: "255.255.255.0", gateway: "", dns: "", ipv6: false, wifi: false, wifi_ssid: "", wifi_key: "", wwan: false },
+      defaults: { hostname: "ZWRT", lan_ip: "192.168.100.1", lan_mask: "255.255.255.0", gateway: "192.168.100.1", dns: "192.168.100.1", ipv6: false, wifi: false, wifi_ssid: "", wifi_key: "", wwan: false },
+      bypassDefaults: { lan_ip: "192.168.100.10", gateway: "192.168.100.1", dns: "192.168.100.1" },
       base: baseX, default: DEFAULT_APPS, whExtra: [],
       note: "软路由/虚拟机通用镜像 (UEFI+Legacy)。可勾选旁路由/IPv6/无线/蜂窝上网。" },
     { id: "wh3000pro", name: "Huasifei WH3000 Pro · MT7981", arch: "aarch64_cortex-a53", archLabel: "aarch64_cortex-a53",
       wfDeviceMain: "wh3000pro", wfDeviceBypass: "",
-      defaults: { hostname: "ZWRT", lan_ip: "192.168.100.1", lan_mask: "255.255.255.0", gateway: "", dns: "", ipv6: true, wifi: true, wifi_ssid: "ZWRT", wifi_key: "", wwan: false },
+      defaults: { hostname: "ZWRT", lan_ip: "192.168.100.1", lan_mask: "255.255.255.0", gateway: "192.168.100.1", dns: "192.168.100.1", ipv6: true, wifi: true, wifi_ssid: "ZWRT", wifi_key: "", wwan: false },
       base: baseX, default: DEFAULT_APPS, whExtra,
       note: "MT7981B (eMMC+NAND)。默认开 IPv6 与无线 (SSID=ZWRT)。" },
   ];

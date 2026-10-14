@@ -89,9 +89,11 @@ function selectDevice(d) {
 /* ---------- features ---------- */
 function setFeature(name, on) {
   state.features[name] = !!on;
-  if (name === "bypass" && on) {
-    // 旁路由仅适用于 x86/64；启用时确保有网关/DNS
-    if (state.device && state.device.arch !== "x86_64") { state.features.bypass = false; $("f-bypass").checked = false; toast("旁路由仅适用于 x86/64 设备"); return; }
+  if (name === "bypass") {
+    if (on && state.device && state.device.arch !== "x86_64") { state.features.bypass = false; $("f-bypass").checked = false; toast("旁路由仅适用于 x86/64 设备"); return; }
+    const b = on ? (state.device && state.device.bypassDefaults) : null;
+    if (b) { state.params.lan_ip = b.lan_ip; state.params.gateway = b.gateway || ""; state.params.dns = b.dns || ""; }
+    else if (state.device) { state.params.lan_ip = state.device.defaults.lan_ip; state.params.gateway = state.device.defaults.gateway || ""; state.params.dns = state.device.defaults.dns || ""; }
   }
   render();
 }
