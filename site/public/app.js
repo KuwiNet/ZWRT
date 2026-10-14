@@ -585,6 +585,7 @@ async function startPoll(a) {
       const mine = runs.workflow_runs.find((r) => r.path === ".github/workflows/build-openwrt.yml" && new Date(r.created_at).getTime() >= t0 - 60000);
       if (mine) {
         state.runId = mine.id;
+        try { localStorage.setItem("zwrt_run", JSON.stringify({ owner: a.owner, repo: a.repo, runId: mine.id, ts: Date.now() })); } catch (e) {}
         renderSteps(a, mine.id);
         const s = mine.status, c = mine.conclusion;
         const statusCN = { queued: "排队中", in_progress: "构建中", completed: "已完成", success: "成功", failure: "失败", cancelled: "已取消", skipped: "已跳过", timed_out: "超时", neutral: "无结果" };
@@ -597,6 +598,7 @@ async function startPoll(a) {
         if (s === "completed") {
           clearInterval(state.pollTimer);
           setBusy(false);
+          try { localStorage.removeItem("zwrt_run"); } catch (e) {}
           if (c === "success") { logc("构建成功！刷新固件列表…", "ok"); loadDownloads(a.owner, a.repo, a.token); }
           else logc("构建未成功 (" + c + ")，请查看 Actions 日志", "err");
         }
@@ -783,4 +785,16 @@ function bindStatic() {
     $("deviceSearch").value = "";
     $("deviceNote").textContent = "无法加载设备/包数据：请通过 https 访问本站（直接打开本地 html 会被浏览器拦截数据请求）。";
   }
+  // 刷新后恢复上次构建进度
+  try {
+    const rr = JSON.parse(localStorage.getItem("zwrt_run") || "null");
+    if (rr && rr.runId && rr.owner && rr.repo) {
+      if (state.account.token) {
+        logc("检测到上次构建 Run #" + rr.runId + "，正在恢复跟踪进度…", "muted");
+        startPoll({ owner: rr.owner, repo: rr.repo, token: state.account.token });
+      } else {
+        logc("检测到上次构建 Run #" + rr.runId + "，请填写 GitHub Token 并勾选「保存 Token」以继续跟踪进度", "err");
+      }
+    }
+  } catch (e) {}
 })();
