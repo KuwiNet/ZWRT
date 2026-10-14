@@ -680,8 +680,13 @@ async function resumeProgress() {
     }
   } catch (e) {}
   if (!mine) {
-    const runs = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs?event=workflow_dispatch&per_page=5"));
-    mine = (runs.workflow_runs || []).find((r) => r.path === ".github/workflows/build-openwrt.yml");
+    try {
+      const runs = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs?event=workflow_dispatch&per_page=5"));
+      mine = (runs.workflow_runs || []).find((r) => r.path === ".github/workflows/build-openwrt.yml");
+    } catch (e) {
+      logc("查询定制进度失败：" + (e && e.message ? e.message : String(e)) + "（请确认 Cloudflare 项目 zwrt 已配置 GH_TOKEN）", "err");
+      return;
+    }
   }
   if (!mine) { logc("未找到该仓库最近的定制构建记录", "err"); return; }
   const s = mine.status, c = mine.conclusion;
