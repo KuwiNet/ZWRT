@@ -3,10 +3,10 @@
 #   - 跟踪源码稳定分支 (默认 immortalwrt/immortalwrt openwrt-25.12 = 最新25.12 + opkg + 6.12内核, 支持 WH3000 Pro)
 #     可用仓库变量 OPENWRT_REPO / OPENWRT_BRANCH 覆盖
 #   - 稳定分支有新提交时自动编译, 无新提交则跳过 (避免空跑)
-#   - 按设备矩阵构建, 每个设备一个 job
+#   - 按设备矩阵构建, 每个设备一个 job; workflow_dispatch 可指定设备/参数/软件包/初始化脚本
 #   - 主机名统一 ZWRT, 固件命名 zwrt-YYYYMMDD-架构-设备
-#   - 固件内 opkg 软件源: 全部使用 dl.openwrt.ai (Kwrt)
-#   - 产物: Artifact + GitHub Release + Cloudflare R2 (dl.zwrt.de/firmware)
+#   - 固件内 opkg 软件源: 全部使用 dl.openwrt.ai (Kwrt) + luci.zwrt.de
+#   - 产物: Artifact + 单个 GitHub Release (ZWRT-日期) + Cloudflare R2 (dl.zwrt.de/firmware, 只保留最近2版)
 # =============================================================
 name: Build OpenWrt ZWRT
 
@@ -14,79 +14,71 @@ on:
   workflow_dispatch:
     inputs:
       device:
-        description: '设备/变体（x86-64-main 主路由 / x86-64-bypass 旁路由 / wh3000pro）'
-        required: true
-        default: x86-64-main
+        description: '构建目标 (all = 全部设备)'
         type: choice
+        required: true
         options:
+          - all
           - x86-64-main
           - x86-64-bypass
           - wh3000pro
+        default: all
       hostname:
-        description: '主机名'
-        required: false
-        default: ZWRT
+        description: '主机名 (默认 ZWRT)'
         type: string
+        default: ''
       lan_ip:
-        description: 'LAN IP'
-        required: false
-        default: 192.168.100.1
+        description: 'LAN IP (空 = 设备默认)'
         type: string
+        default: ''
       lan_mask:
-        description: '子网掩码'
-        required: false
-        default: 255.255.255.0
+        description: '子网掩码 (空 = 设备默认)'
         type: string
+        default: ''
       gateway:
-        description: '网关（旁路由必填）'
-        required: false
-        default: ''
+        description: '网关 (旁路由生效; 空 = 设备默认)'
         type: string
+        default: ''
       dns:
-        description: 'DNS（旁路由=网关）'
-        required: false
-        default: ''
+        description: 'DNS (旁路由生效; 空 = 设备默认)'
         type: string
-      password:
-        description: '管理密码（空=无密码）'
-        required: false
         default: ''
-        type: string
       ipv6:
         description: '启用 IPv6'
-        required: false
-        default: false
         type: boolean
+        default: false
       wifi:
-        description: '启用无线'
-        required: false
-        default: false
+        description: '启用无线 (WH3000 Pro 默认开)'
         type: boolean
+        default: false
       wifi_ssid:
-        description: '无线 SSID'
-        required: false
-        default: ZWRT
+        description: '无线 SSID (空 = 设备默认)'
         type: string
+        default: ''
       wifi_key:
-        description: '无线密码（空=无密码）'
-        required: false
-        default: ''
+        description: '无线密码 (空 = 无密码)'
         type: string
+        default: ''
+      password:
+        description: '管理密码 (root 密码; 空 = 无密码)'
+        type: string
+        default: ''
       packages_common:
-        description: '通用软件包清单（空格分隔）'
-        required: false
-        default: ''
+        description: '通用软件包清单 (空格分隔; 空 = 仓库默认全部; __none__ = 不装)'
         type: string
+        default: ''
       packages_wh3000:
-        description: 'WH3000 附加包清单（空格分隔）'
-        required: false
-        default: ''
+        description: 'WH3000 Pro 专属软件包清单 (空格分隔; 空 = 仓库默认; __none__ = 不装)'
         type: string
+        default: ''
+      init_script:
+        description: '自定义系统初始化脚本 (写入 /etc/uci-defaults, 可空)'
+        type: string
+        default: ''
       init_script_b64:
-        description: '初始化脚本（base64 编码）'
-        required: false
-        default: ''
+        description: '自定义系统初始化脚本 (base64 编码, 推荐以规避多行转义问题)'
         type: string
+        default: ''
   schedule:
     # 每天 22:30 UTC (= 北京时间次日 06:30) 检测稳定分支更新
     - cron: '30 22 * * *'
@@ -94,6 +86,8 @@ on:
     branches: [ main ]
     paths-ignore:
       - '.cache/**'
+      - 'site/**'
+      - '.github/workflows/pages.yml'
 
 concurrency:
   group: zwrt-openwrt-build
@@ -107,13 +101,14 @@ permissions:
   contents: write
 
 jobs:
-  # ---- 检测稳定分支是否有新提交 ----
+  # ---- 检测稳定分支是否有新提交 + 生成构建矩阵 (支持 dispatch 筛选/覆盖) ----
   check:
     name: 检测稳定分支更新
     runs-on: ubuntu-latest
     outputs:
       rev: ${{ steps.src.outputs.rev }}
       skip: ${{ steps.skip.outputs.skip }}
+      matrix: ${{ steps.mtx.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - name: 读取稳定分支最新提交
@@ -136,70 +131,57 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
             echo "检测到稳定分支更新, 开始构建"
           fi
+      - name: 生成构建矩阵 (dispatch 设备筛选 + 参数覆盖)
+        id: mtx
+        run: |
+          MATRIX='[
+            {"device":"x86-64-main","bin_dir":"bin/targets/x86/64","arch":"x86_64","board":"main","identity":"x86-64-generic","tag":"x86_64-main","feed_arch":"x86_64","feed_target":"x86/64","family":"x86","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
+            {"device":"x86-64-bypass","bin_dir":"bin/targets/x86/64","arch":"x86_64","board":"bypass","identity":"x86-64-generic","tag":"x86_64-bypass","feed_arch":"x86_64","feed_target":"x86/64","family":"x86","lan_ip":"192.168.100.10","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"bypass","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
+            {"device":"wh3000pro","bin_dir":"bin/targets/mediatek/filogic","arch":"mt7981b","board":"wh3000pro","identity":"mediatek-filogic-huasifei_wh3000-pro","tag":"wh3000pro","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","family":"mtk","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""}
+          ]'
+          # 设备筛选 (仅 dispatch 且指定单设备)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.device }}" ] && [ "${{ inputs.device }}" != "all" ]; then
+            MATRIX=$(echo "$MATRIX" | jq --arg d "${{ inputs.device }}" '[.[] | select(.device==$d)]')
+          fi
+          # 参数覆盖 (非空才覆盖; 空值保持设备默认)
+          MATRIX=$(echo "$MATRIX" | jq \
+            --arg ip "${{ inputs.lan_ip }}" \
+            --arg mask "${{ inputs.lan_mask }}" \
+            --arg gw "${{ inputs.gateway }}" \
+            --arg dns "${{ inputs.dns }}" \
+            --arg ipv6 "${{ inputs.ipv6 }}" \
+            --arg wifi "${{ inputs.wifi }}" \
+            --arg ssid "${{ inputs.wifi_ssid }}" \
+            --arg key "${{ inputs.wifi_key }}" \
+            'map(
+              (.lan_ip = (if $ip != "" then $ip else .lan_ip end)) |
+              (.lan_mask = (if $mask != "" then $mask else .lan_mask end)) |
+              (.gateway = (if $gw != "" then $gw else .gateway end)) |
+              (.dns = (if $dns != "" then $dns else .dns end)) |
+              (.ipv6 = (if $ipv6 == "true" then "1" elif $ipv6 == "false" then "0" else .ipv6 end)) |
+              (.wifi = (if $wifi == "true" then "1" elif $wifi == "false" then "0" else .wifi end)) |
+              (.wifi_ssid = (if $ssid != "" then $ssid else .wifi_ssid end)) |
+              (.wifi_key = (if $key != "" then $key else .wifi_key end))
+            )')
+          # 多行输出: GITHUB_OUTPUT 只接受单行, 多行 JSON 须用 heredoc 定界符格式
+          {
+            echo "matrix<<ZWRTEOM"
+            echo "$MATRIX"
+            echo "ZWRTEOM"
+          } >> "$GITHUB_OUTPUT"
+          echo "==== 构建矩阵 ===="
+          echo "$MATRIX" | jq .
 
   # ---- 按设备构建 ----
   build:
     name: 构建 ${{ matrix.device }}
     needs: check
-    # workflow_dispatch 时只构建所选 device；schedule/push 全量构建
-    if: needs.check.outputs.skip != 'true' && (github.event_name != 'workflow_dispatch' || matrix.device == github.event.inputs.device)
+    if: needs.check.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 420
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - device: x86-64-main          # 主路由
-            bin_dir: bin/targets/x86/64
-            arch: x86_64
-            board: main
-            identity: x86-64-generic
-            tag: x86_64-main
-            feed_arch: x86_64
-            feed_target: x86/64
-            lan_ip: 192.168.100.1
-            lan_mask: 255.255.255.0
-            gateway: 192.168.100.1
-            dns: 192.168.100.1
-            role: main
-            ipv6: "0"
-            wifi: "0"
-            wifi_ssid: ""
-            wifi_key: ""
-          - device: x86-64-bypass       # 旁路由
-            bin_dir: bin/targets/x86/64
-            arch: x86_64
-            board: bypass
-            identity: x86-64-generic
-            tag: x86_64-bypass
-            feed_arch: x86_64
-            feed_target: x86/64
-            lan_ip: 192.168.100.10
-            lan_mask: 255.255.255.0
-            gateway: 192.168.100.1
-            dns: 192.168.100.1
-            role: bypass
-            ipv6: "0"
-            wifi: "0"
-            wifi_ssid: ""
-            wifi_key: ""
-          - device: wh3000pro
-            bin_dir: bin/targets/mediatek/filogic
-            arch: mt7981b
-            board: wh3000pro
-            identity: mediatek-filogic-huasifei_wh3000-pro
-            tag: wh3000pro
-            feed_arch: aarch64_cortex-a53
-            feed_target: mediatek/filogic
-            lan_ip: 192.168.100.1
-            lan_mask: 255.255.255.0
-            gateway: 192.168.100.1
-            dns: 192.168.100.1
-            role: main
-            ipv6: "1"
-            wifi: "1"
-            wifi_ssid: ZWRT
-            wifi_key: ""
+      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -221,14 +203,41 @@ jobs:
         working-directory: openwrt
         run: bash "$GITHUB_WORKSPACE/scripts/merge-feeds.sh" "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/openwrt"
 
-      - name: 生成 .config (目标 seed + 插件清单 + 前端包清单)
-        env:
-          ZWRT_EXTRA_PACKAGES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.packages_common || '' }}
-          ZWRT_EXTRA_WH3000: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.packages_wh3000 || '' }}
+      - name: 生成 .config (目标 seed + 插件清单)
         working-directory: openwrt
         run: bash "$GITHUB_WORKSPACE/scripts/merge-config.sh" "$GITHUB_WORKSPACE" "${{ matrix.device }}" .config
 
-      - name: 生成 opkg 软件源配置 (dl.openwrt.ai + opkg.zwrt.de)
+      - name: 应用自定义软件包清单 (workflow_dispatch)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        working-directory: openwrt
+        env:
+          PKG_COMMON: ${{ inputs.packages_common }}
+          PKG_WH3000: ${{ inputs.packages_wh3000 }}
+        run: |
+          # 按来源精确增删: 空 = 仓库默认; __none__ = 全不装; 其它 = 以该清单为准
+          apply_list() {
+            local src="$1" list="$2"
+            [ -z "$list" ] && return 0
+            [ -f .config.plugins ] || return 0
+            while read -r s p; do
+              [ "$s" = "$src" ] || continue
+              if [ "$list" = "__none__" ]; then
+                sed -i "/^CONFIG_PACKAGE_${p}=y/d" .config
+              else
+                case " $list " in *" $p "*) : ;; *) sed -i "/^CONFIG_PACKAGE_${p}=y/d" .config ;; esac
+              fi
+            done < .config.plugins
+            if [ "$list" != "__none__" ]; then
+              for p in $list; do
+                grep -q "^CONFIG_PACKAGE_${p}=y" .config || echo "CONFIG_PACKAGE_${p}=y" >> .config
+              done
+            fi
+          }
+          apply_list common "$PKG_COMMON"
+          apply_list wh3000pro "$PKG_WH3000"
+          echo "== 应用后 .config 软件包行数: $(grep -c '^CONFIG_PACKAGE_.*=y' .config)"
+
+      - name: 生成 opkg 软件源配置 (dl.openwrt.ai + luci.zwrt.de)
         run: |
           sed -e "s|__FEED_ARCH__|${{ matrix.feed_arch }}|g" \
               -e "s|__FEED_TARGET__|${{ matrix.feed_target }}|g" \
@@ -243,63 +252,52 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/files/"* ./
           echo "已复制 files/ 覆盖层"
 
-      - name: 按变体生成网络/无线/IPv6/LuCI 配置 (替换占位符)
-        env:
-          LAN_IP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.lan_ip || matrix.lan_ip }}
-          LAN_MASK: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.lan_mask || matrix.lan_mask }}
-          GATEWAY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.gateway || matrix.gateway }}
-          DNS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dns || matrix.dns }}
-          ROLE: ${{ matrix.role }}
-          IPV6: "${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.ipv6 == 'true' ? '1' : '0') || matrix.ipv6 }}"
-          WIFI: "${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.wifi == 'true' ? '1' : '0') || matrix.wifi }}"
-          WIFI_SSID: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.wifi_ssid || matrix.wifi_ssid }}
-          WIFI_KEY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.wifi_key || matrix.wifi_key }}
+      - name: 应用自定义主机名 (workflow_dispatch)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.hostname != '' && inputs.hostname != 'ZWRT' }}
         working-directory: openwrt
         run: |
-          sed -e "s|__LAN_IP__|${LAN_IP}|g" \
-              -e "s|__LAN_MASK__|${LAN_MASK}|g" \
-              -e "s|__GATEWAY__|${GATEWAY}|g" \
-              -e "s|__DNS__|${DNS}|g" \
-              -e "s|__ROLE__|${ROLE}|g" \
-              -e "s|__IPV6__|${IPV6}|g" \
-              -e "s|__WIFI__|${WIFI}|g" \
-              -e "s|__WIFI_SSID__|${WIFI_SSID}|g" \
-              -e "s|__WIFI_KEY__|${WIFI_KEY}|g" \
+          sed -i "s/option hostname '.*'/option hostname '${{ inputs.hostname }}'/" etc/config/system
+          echo "主机名已改为: ${{ inputs.hostname }}"
+
+      - name: 应用管理密码 (workflow_dispatch, 空=无密码)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.password != '' }}
+        working-directory: openwrt
+        env:
+          ROOT_PASS: ${{ inputs.password }}
+        run: |
+          printf '#!/bin/sh\n(echo "%s"; echo "%s") | passwd root 2>/dev/null || true\nexit 0\n' "$ROOT_PASS" "$ROOT_PASS" > etc/uci-defaults/89-zwrt-pass
+          chmod +x etc/uci-defaults/89-zwrt-pass
+          echo "已写入管理密码 uci-defaults (89-zwrt-pass)"
+
+      - name: 按变体生成网络/无线/IPv6/LuCI 配置 (替换占位符)
+        working-directory: openwrt
+        run: |
+          sed -e "s|__LAN_IP__|${{ matrix.lan_ip }}|g" \
+              -e "s|__LAN_MASK__|${{ matrix.lan_mask }}|g" \
+              -e "s|__GATEWAY__|${{ matrix.gateway }}|g" \
+              -e "s|__DNS__|${{ matrix.dns }}|g" \
+              -e "s|__ROLE__|${{ matrix.role }}|g" \
+              -e "s|__IPV6__|${{ matrix.ipv6 }}|g" \
+              -e "s|__WIFI__|${{ matrix.wifi }}|g" \
+              -e "s|__WIFI_SSID__|${{ matrix.wifi_ssid }}|g" \
+              -e "s|__WIFI_KEY__|${{ matrix.wifi_key }}|g" \
               etc/uci-defaults/99-zwrt-network > /tmp/zwrt-nw
           mv /tmp/zwrt-nw etc/uci-defaults/99-zwrt-network
           chmod +x etc/uci-defaults/99-zwrt-network
           echo "已生成变体配置 (${{ matrix.device }}):"
           cat etc/uci-defaults/99-zwrt-network
 
-      - name: 应用主机名与管理密码
-        env:
-          HOSTNAME: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.hostname || 'ZWRT' }}
-          ROOT_PASS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.password || '' }}
+      - name: 写入自定义初始化脚本 (workflow_dispatch, base64)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.init_script_b64 != '' }}
         working-directory: openwrt
-        run: |
-          sed -i "s|__HOSTNAME__|${HOSTNAME}|g" etc/config/system
-          echo "主机名: ${HOSTNAME}"
-          if [ -n "$ROOT_PASS" ]; then
-            printf '#!/bin/sh\n(echo "ZWRTROOTPASS"; echo "ZWRTROOTPASS") | passwd root 2>/dev/null || true\nexit 0\n' > etc/uci-defaults/98-zwrt-pass
-            sed -i "s|ZWRTROOTPASS|${ROOT_PASS}|g" etc/uci-defaults/98-zwrt-pass
-            chmod +x etc/uci-defaults/98-zwrt-pass
-            echo "已写入管理密码 uci-defaults"
-          else
-            echo "管理密码为空, 保持无密码"
-          fi
-
-      - name: 写入前端初始化脚本 (base64)
         env:
-          INIT_B64: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.init_script_b64 || '' }}
-        working-directory: openwrt
+          INIT_B64: ${{ inputs.init_script_b64 }}
         run: |
           if [ -n "$INIT_B64" ]; then
-            echo "$INIT_B64" | base64 -d > etc/uci-defaults/98-zwrt-custom
-            chmod +x etc/uci-defaults/98-zwrt-custom
-            echo "已写入 98-zwrt-custom ($(wc -l < etc/uci-defaults/98-zwrt-custom) 行)"
-            cat etc/uci-defaults/98-zwrt-custom
-          else
-            echo "无自定义初始化脚本"
+            echo "$INIT_B64" | base64 -d > etc/uci-defaults/90-zwrt-custom-init
+            chmod +x etc/uci-defaults/90-zwrt-custom-init
+            echo "已写入 etc/uci-defaults/90-zwrt-custom-init ($(wc -l < etc/uci-defaults/90-zwrt-custom-init) 行)"
+            cat etc/uci-defaults/90-zwrt-custom-init
           fi
 
       - name: 预下载源码包 (带重试)
@@ -335,7 +333,7 @@ jobs:
           name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.tag }}
           path: openwrt/${{ matrix.bin_dir }}/zwrt-*
 
-  # ---- 汇聚全部固件, 打单个 Release (zwrt-日期), 上传 R2 ----
+  # ---- 汇聚全部固件, 打单个 Release (ZWRT-日期), 上传 R2 (只保留最近2版) ----
   release:
     name: 发布 Release + 上传 R2
     needs: [ check, build ]
