@@ -84,7 +84,12 @@
 任何人可 fork 本项目，用**自己的 GitHub 账号**构建，不占用本项目配额：
 
 1. **Fork**：GitHub → KuWiNet/ZWRT → Fork。
-2. **设为私有（推荐）**：Settings → General → Danger Zone → Change visibility → **Private**。私有库的 Actions run 对外不可见，dispatch 参数（含密码）不会公开。
+2. **设为私有（推荐）**：fork 出于 GitHub 安全原因**不能直接更改可见性**（按钮灰色不可点），需：
+   - 先在 Settings → Danger Zone 点「离开复刻网络」（Leave fork network），把仓库变为**独立仓库**；
+   - 再点「更改仓库可见性」→ **Private**。
+   - 私有库的 Actions run 对外不可见，dispatch 参数（含密码）不会公开。
+   - 注意：「离开复刻网络」后失去与上游的 fork 关联——不能自动同步上游更新、不能直接向上游提 PR；但仓库 / Actions / Release / Secrets 全部保留，用于私用构建无影响。
+   - 若不想离开复刻网络，也可**保留公开 fork**，但请遵守下方「安全事项」（管理密码留空、初始化脚本不写敏感信息）。
 3. **（可选）固件上传到自己的 R2/B2 对象存储**（不配置则自动跳过上传，构建与 Release 照常成功）：
 
 | 配置项 | 类型 | 用途 | 是否必需 |
