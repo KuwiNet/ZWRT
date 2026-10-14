@@ -219,6 +219,13 @@ function updateGHA() {
   if (!a) return;
   a.href = "https://github.com/" + accountOwner() + "/" + accountRepo() + "/actions";
 }
+function setBottomBtn(mode) {
+  const r = $("btnResume"), g = $("btnGHA");
+  if (!r || !g) return;
+  const gha = mode === "gha";
+  r.hidden = gha;
+  g.hidden = !gha;
+}
 function applyDeviceDefaults() {
   const dd = state.device.defaults;
   state.features.bypass = false;
@@ -572,6 +579,7 @@ async function triggerBuild() {
     const res = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/actions/workflows/build-openwrt.yml/dispatches", token, { ref: "main", inputs });
     if (res.status !== 204 && res.status !== 201) throw new Error(await res.text());
     logc("已提交，等待调度…", "ok");
+    setBottomBtn("gha");
     startPoll({ owner, repo, token });
   } catch (e) {
     logc("触发失败: " + e.message, "err");
@@ -673,6 +681,7 @@ async function resumeProgress() {
   const statusCN = { queued: "排队中", in_progress: "构建中", completed: "已完成", success: "成功", failure: "失败", cancelled: "已取消", skipped: "已跳过", timed_out: "超时", neutral: "无结果" };
   const label = statusCN[c] || statusCN[s] || s || "";
   logc("上次构建 Run #" + mine.id + " 状态: " + label, c === "success" ? "ok" : c === "failure" || c === "cancelled" ? "err" : s === "in_progress" ? "warn" : "muted");
+  setBottomBtn("gha");
   if (s === "completed") {
     if (c === "success") { logc("上次构建已完成，正在加载固件下载…", "ok"); loadDownloads(owner, repo, token); }
     else logc("上次构建未成功 (" + c + ")，请查看 GitHub Actions 日志", "err");
@@ -815,6 +824,7 @@ function bindStatic() {
   initTheme();
   bindStatic();
   updateGHA();
+  setBottomBtn("resume");
   try { await loadData(); }
   catch (e) {
     console.error(e);
@@ -826,6 +836,7 @@ function bindStatic() {
     const rr = JSON.parse(localStorage.getItem("zwrt_run") || "null");
     if (rr && rr.runId && rr.owner && rr.repo) {
       if (state.account.token) {
+        setBottomBtn("gha");
         logc("检测到上次构建 Run #" + rr.runId + "，正在恢复跟踪进度…", "muted");
         startPoll({ owner: rr.owner, repo: rr.repo, token: state.account.token });
       } else {
