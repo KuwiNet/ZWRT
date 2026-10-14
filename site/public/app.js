@@ -258,8 +258,13 @@ function renderThemeSelect() {
   });
   sel.value = state.defaultTheme;
 }
-/* textarea 高度自适应：显示全部内容、无滚动条 */
-function autoGrow(el) { el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
+/* textarea 高度自适应：默认全显内容、无滚动条；用户手动拉大后保持，不缩回 */
+function autoGrow(el) {
+  const cur = parseInt(el.style.height, 10) || 0;
+  el.style.height = "auto";
+  const sh = el.scrollHeight;
+  el.style.height = (Math.max(sh, cur + 2)) + "px";
+}
 
 function renderPkgSuggest(kw) {
   const box = $("pkgSuggest");
