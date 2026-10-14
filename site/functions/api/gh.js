@@ -9,8 +9,12 @@ export async function onRequest(context) {
   const path = url.searchParams.get('p') || '';
   if (!path) return new Response(JSON.stringify({ error: '缺少 path' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
 
+  const tk = env.GH_TOKEN || '';
+  if (!tk) {
+    return new Response(JSON.stringify({ error: 'GH_TOKEN 未配置（Cloudflare 项目 zwrt → Settings → Variables and Secrets → 添加 GH_TOKEN）' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
   const headers = {
-    'Authorization': 'Bearer ' + (env.GH_TOKEN || ''),
+    'Authorization': 'Bearer ' + tk,
     'User-Agent': 'zwrt-builder',
     'Accept': 'application/vnd.github+json',
   };
