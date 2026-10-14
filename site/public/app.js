@@ -281,20 +281,20 @@ function renderBaseChips() {
         state.pkgInput = state.pkgInput.replace(new RegExp("(?:^|\\s)-" + p + "(?=\\s|$)"), " ").replace(/\s{2,}/g, " ").trim();
         render();
       });
+      const x = document.createElement("button");
+      x.type = "button"; x.className = "bx"; x.textContent = "×"; x.title = "恢复";
+      x.addEventListener("click", (e) => {
+        e.stopPropagation();
+        state.pkgInput = state.pkgInput.replace(new RegExp("(?:^|\\s)-" + p + "(?=\\s|$)"), " ").replace(/\s{2,}/g, " ").trim();
+        render();
+      });
+      tag.appendChild(x);
     } else {
       tag.title = "点击剔除";
       tag.addEventListener("click", () => {
         state.pkgInput = (state.pkgInput + " -" + p).trim();
         render();
       });
-      const x = document.createElement("button");
-      x.type = "button"; x.className = "bx"; x.textContent = "×"; x.title = "剔除";
-      x.addEventListener("click", (e) => {
-        e.stopPropagation();
-        state.pkgInput = (state.pkgInput + " -" + p).trim();
-        render();
-      });
-      tag.appendChild(x);
     }
     box.appendChild(tag);
   });
