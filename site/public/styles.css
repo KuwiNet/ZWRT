@@ -6,6 +6,12 @@
   --mono:"SFMono-Regular",ui-monospace,Consolas,"Liberation Mono",Menlo,monospace;
   --sans:-apple-system,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
 }
+[data-theme="light"]{
+  --bg:#f4f7fb; --bg2:#eef2f8; --card:#ffffff; --card2:#f0f4fa;
+  --line:#d5e0ee; --line2:#c2d1e6;
+  --txt:#0e1a2c; --dim:#42566f; --faint:#8295ad;
+  --accent:#0d9488; --accent2:#0284c7; --warn:#b45309; --danger:#dc2626;
+}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:15px;line-height:1.55}
@@ -22,7 +28,13 @@ h1,h2,h3{margin:0;line-height:1.2}
 .brand h1{font-size:20px;font-weight:800;letter-spacing:.5px}
 .brand h1 em{font-style:normal;color:var(--accent)}
 .brand p{font-size:11px;color:var(--faint);margin:2px 0 0}
-.toplinks{display:flex;gap:14px;font-size:13px}
+.toplinks{display:flex;gap:14px;font-size:13px;align-items:center}
+.theme-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--txt);cursor:pointer;padding:0;line-height:1;flex:none}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+.theme-btn svg{display:block}
+.theme-ico .ico-sun,.theme-ico .ico-moon{display:none}
+[data-theme="dark"] .theme-ico .ico-moon{display:block}
+[data-theme="light"] .theme-ico .ico-sun{display:block}
 
 /* ---- hero ---- */
 .hero{padding:28px 16px 20px;max-width:1200px;margin:0 auto}
@@ -136,7 +148,7 @@ button.ghost{background:none;border-color:var(--line2);color:var(--dim)}
 .dl-item .links{display:flex;gap:10px;font-size:12px}
 
 /* ---- toast ---- */
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#06121f;border:1px solid var(--accent);color:var(--txt);padding:10px 16px;border-radius:10px;font-size:14px;z-index:99;max-width:88vw;display:none;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--accent);color:var(--txt);padding:10px 16px;border-radius:10px;font-size:14px;z-index:99;max-width:88vw;display:none;box-shadow:0 6px 24px rgba(0,0,0,.4)}
 #toast.show{display:block}
 
 .foot{text-align:center;color:var(--faint);font-size:12px;padding:20px;border-top:1px solid var(--line);max-width:1200px;margin:0 auto}

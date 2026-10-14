@@ -603,6 +603,21 @@ async function startPoll(a) {
   state.pollTimer = setInterval(probe, 12000);
 }
 
+/* ---------- 主题（深/浅），右上角切换，localStorage 记忆 ---------- */
+function initTheme() {
+  const root = document.documentElement;
+  let cur = "dark";
+  try { cur = localStorage.getItem("zwrt-theme") || "dark"; } catch (e) {}
+  if (cur !== "light" && cur !== "dark") cur = "dark";
+  root.setAttribute("data-theme", cur);
+  const btn = $("#themeBtn");
+  if (btn) btn.addEventListener("click", () => {
+    cur = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+    root.setAttribute("data-theme", cur);
+    try { localStorage.setItem("zwrt-theme", cur); } catch (e) {}
+  });
+}
+
 /* ---------- downloads ---------- */
 async function loadDownloads(owner, repo, token) {
   const box = $("downloads");
@@ -717,6 +732,7 @@ function bindStatic() {
 }
 
 (async function init() {
+  initTheme();
   bindStatic();
   try { await loadData(); }
   catch (e) {
