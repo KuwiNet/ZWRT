@@ -190,13 +190,24 @@ function parsePkgInput(str) {
   removed.forEach((r) => out.delete(r));
   return [...out];
 }
-/* 基础包标签云：点 × 剔除（可选包输入框追加 -包名），已剔除点击恢复 */
+/* 影响固件使用的核心包：不显示、不可剔除 */
+const PROTECTED_EXACT = new Set([
+  "base-files", "busybox", "libc", "libgcc", "uci", "opkg", "mtd", "procd", "ubus", "ubusd",
+  "ubox", "fstools", "netifd", "firewall4", "logd", "block-mount", "resolveip", "fitblk",
+  "dnsmasq-full", "dropbear", "odhcpd", "odhcpd-ipv6only", "odhcp6c", "ppp", "ppp-mod-pppoe",
+  "wpad-basic-mbedtls", "swconfig", "ca-bundle", "uclient-fetch", "urandom-seed", "urngd",
+  "luci-base", "luci-compat", "luci-lib-fs", "luci-lib-ipkg", "mkf2fs", "f2fsck",
+]);
+const isProtected = (p) => PROTECTED_EXACT.has(p) || p.startsWith("kmod-") || /firmware$/.test(p) || p.startsWith("uboot-");
+/* 基础包标签云：仅显示可安全剔除的包；点 × 剔除，已剔除点击恢复 */
 function renderBaseChips() {
   const box = $("baseChips"); box.innerHTML = "";
   if (!state.device || !state.device.base) return;
-  const excl = new Set();
-  (state.pkgInput.match(/-([^\s]+)/g) || []).forEach((t) => excl.add(t.slice(1)));
-  state.device.base.slice().sort().forEach((p) => {
+  const excl = new Set((state.pkgInput.match(/-([^\s]+)/g) || []).map((t) => t.slice(1)));
+  const cuttable = state.device.base.filter((p) => !isProtected(p)).sort();
+  $("m-cut").textContent = cuttable.length;
+  if (!cuttable.length) { box.appendChild(el("p", "dim", "无可剔除项")); return; }
+  cuttable.forEach((p) => {
     const tag = el("span", "btag" + (excl.has(p) ? " out" : ""));
     tag.appendChild(el("span", "bn", p));
     if (excl.has(p)) {
