@@ -633,7 +633,7 @@ function bindStatic() {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
   on("p-account", "input", (e) => { state.account.str = e.target.value.trim() || "KuWiNet/ZWRT"; renderSummary(); });
-  on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); });
+  on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); renderBaseChips(); renderCommonChips(); });
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
   on("p-token", "input", (e) => { state.account.token = e.target.value.trim(); });
   on("p-tokensave", "change", (e) => {
