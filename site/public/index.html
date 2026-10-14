@@ -63,19 +63,19 @@
 
       <div class="fields" id="fieldsBasic">
         <label>主机名 <input id="p-hostname" type="text" placeholder="ZWRT"></label>
+        <label>管理密码 <input id="p-password" type="text" placeholder="留空 = 无密码"></label>
+      </div>
+      <div class="fields" id="fieldsNet">
         <label>LAN IP 地址 <input id="p-lanip" type="text" placeholder="192.168.100.1"></label>
+        <label id="lblGateway" hidden>网关 <input id="p-gateway" type="text" placeholder="192.168.100.1"></label>
       </div>
-      <div class="fields" id="fieldsBypass" hidden>
-        <label>网关（指向主路由）<input id="p-gateway" type="text" placeholder="192.168.100.1"></label>
-        <label>DNS（指向主路由）<input id="p-dns" type="text" placeholder="192.168.100.1"></label>
-        <p class="field-hint">旁路由：仅使用 LAN 口、关闭 WAN 与 DHCP，网关/DNS 指向主路由。</p>
-      </div>
+      <p class="field-hint" id="netHint" hidden>旁路由：网关指向主路由，DNS 自动取网关值。</p>
       <div class="fields" id="fieldsWifi" hidden>
         <label>无线 SSID <input id="p-wifissid" type="text" placeholder="ZWRT"></label>
         <label>无线密码（空 = 无密码）<input id="p-wifikey" type="text"></label>
       </div>
       <div class="fields" id="fieldsWwan" hidden>
-        <p class="field-hint" style="margin-top:0">蜂窝上网拨号凭据（PPPoE）</p>
+        <p class="field-hint" style="margin-top:0">拨号凭据（PPPoE）</p>
         <label>PPPoE 账号 <input id="p-pppuser" type="text" placeholder="拨号账号"></label>
         <label>PPPoE 密码 <input id="p-ppppass" type="password" placeholder="拨号密码"></label>
       </div>
@@ -85,9 +85,13 @@
     <div class="card" data-step="3">
       <div class="card-head"><span class="stepno">3</span><h3>软件包</h3></div>
       <div class="pkgmeta">
-        <span>基础包 <b id="m-base">—</b>（固定必装）</span>
+        <span>基础包 <b id="m-base">—</b>（固定，点 × 可剔除）</span>
         <span>当前已选 <b id="m-selected">—</b></span>
       </div>
+      <details class="basebox" id="baseBox">
+        <summary>查看基础包（点 × 剔除，会在可选包输入框追加 -包名）</summary>
+        <div class="chips" id="baseChips"></div>
+      </details>
       <textarea id="pkgInput" spellcheck="false" placeholder="软件包名列表，空格分隔；-包名 表示剔除"></textarea>
       <div class="combo" id="pkgCombo">
         <input id="pkgSearch" type="text" placeholder="🔍 输入关键字补包，如 5g、qos、ddns…" autocomplete="off">
@@ -117,10 +121,9 @@
 
     <!-- ===== 5 构建 ===== -->
     <div class="card" data-step="5">
-      <div class="card-head"><span class="stepno">5</span><h3>GitHub 构建账号</h3></div>
+      <div class="card-head"><span class="stepno">5</span><h3>构建账号</h3></div>
       <div class="fields">
-        <label>仓库所有者 <input id="p-owner" type="text" placeholder="KuWiNet"></label>
-        <label>仓库名 <input id="p-repo" type="text" placeholder="ZWRT"></label>
+        <label>仓库（所有者/仓库名）<input id="p-account" type="text" placeholder="KuWiNet/ZWRT"></label>
         <label>GitHub Token（需 repo + workflow 权限）
           <input id="p-token" type="password" placeholder="ghp_… 仅存浏览器">
           <label class="mini"><input id="p-tokensave" type="checkbox">记住 Token 在本机</label>

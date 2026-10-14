@@ -43,13 +43,13 @@ const state = {
   catalogFile: "",
   device: null,
   features: { bypass: false, ipv6: false, wifi: false, wwan: false },
-  params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", dns: "", wifi_ssid: "", wifi_key: "" },
+  params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", password: "", wifi_ssid: "", wifi_key: "" },
   net: new Set(["nikki"]),            // 已选互联网方案
   themes: new Set(["luci-theme-zwrt"]), // 已选主题
   defaultTheme: "luci-theme-zwrt",     // 默认主题
   pkgInput: "",             // 当前输入框内容
   initScript: "",
-  account: { owner: "KuWiNet", repo: "ZWRT", token: "" },
+  account: { str: "KuWiNet/ZWRT", token: "" },
   pollTimer: null,
   runId: null,
   triggering: false,
@@ -115,9 +115,15 @@ function setFeature(name, on) {
   state.features[name] = !!on;
   if (name === "bypass") {
     if (on && state.device && state.device.arch !== "x86_64") { state.features.bypass = false; $("f-bypass").checked = false; toast("旁路由仅适用于 x86/64 设备"); return; }
-    const b = on ? (state.device && state.device.bypassDefaults) : null;
-    if (b) { state.params.lan_ip = b.lan_ip; state.params.gateway = b.gateway || ""; state.params.dns = b.dns || ""; }
-    else if (state.device) { state.params.lan_ip = state.device.defaults.lan_ip; state.params.gateway = state.device.defaults.gateway || ""; state.params.dns = state.device.defaults.dns || ""; }
+    if (on) {
+      state.features.wifi = false;                         // 旁路由无法开启无线
+      const b = (state.device && state.device.bypassDefaults) || {};
+      state.params.lan_ip = b.lan_ip || "192.168.100.10";
+      state.params.gateway = b.gateway || "192.168.100.1";
+    } else if (state.device) {
+      state.params.lan_ip = state.device.defaults.lan_ip;
+      state.params.gateway = "";
+    }
   }
   render();
 }
@@ -132,13 +138,16 @@ function bindFeatures() {
 function readParams() {
   state.params.hostname = $("p-hostname").value.trim() || "ZWRT";
   state.params.lan_ip = $("p-lanip").value.trim();
+  state.params.password = $("p-password").value.trim();
   state.params.gateway = $("p-gateway").value.trim();
-  state.params.dns = $("p-dns").value.trim();
   state.params.wifi_ssid = $("p-wifissid").value.trim();
   state.params.wifi_key = $("p-wifikey").value.trim();
   state.params.pppoe_user = $("p-pppuser").value.trim();
   state.params.pppoe_pass = $("p-ppppass").value.trim();
+  state.account.str = ($("p-account").value.trim() || "KuWiNet/ZWRT").replace(/\/+$/, "");
 }
+function accountOwner() { return (state.account.str.split("/")[0] || "KuWiNet").trim(); }
+function accountRepo() { return (state.account.str.split("/")[1] || "ZWRT").trim(); }
 function applyDeviceDefaults() {
   const dd = state.device.defaults;
   state.features.bypass = false;
@@ -150,7 +159,7 @@ function applyDeviceDefaults() {
   state.defaultTheme = "luci-theme-zwrt";
   state.params = {
     hostname: dd.hostname || "ZWRT", lan_ip: dd.lan_ip, lan_mask: dd.lan_mask,
-    gateway: dd.gateway || "", dns: dd.dns || "",
+    gateway: "", password: "",
     wifi_ssid: dd.wifi_ssid || "", wifi_key: dd.wifi_key || "",
     pppoe_user: "", pppoe_pass: "",
   };
@@ -172,6 +181,34 @@ function parsePkgInput(str) {
   });
   removed.forEach((r) => out.delete(r));
   return [...out];
+}
+/* 基础包标签云：点 × 剔除（可选包输入框追加 -包名），已剔除点击恢复 */
+function renderBaseChips() {
+  const box = $("baseChips"); box.innerHTML = "";
+  if (!state.device || !state.device.base) return;
+  const excl = new Set();
+  (state.pkgInput.match(/-([^\s]+)/g) || []).forEach((t) => excl.add(t.slice(1)));
+  state.device.base.slice().sort().forEach((p) => {
+    const tag = el("span", "btag" + (excl.has(p) ? " out" : ""));
+    tag.appendChild(el("span", "bn", p));
+    if (excl.has(p)) {
+      tag.title = "已剔除，点击恢复";
+      tag.addEventListener("click", () => {
+        state.pkgInput = state.pkgInput.replace(new RegExp("(?:^|\\s)-" + p + "(?=\\s|$)"), " ").replace(/\s{2,}/g, " ").trim();
+        render();
+      });
+    } else {
+      const x = document.createElement("button");
+      x.type = "button"; x.className = "bx"; x.textContent = "×"; x.title = "剔除";
+      x.addEventListener("click", (e) => {
+        e.stopPropagation();
+        state.pkgInput = (state.pkgInput + " -" + p).trim();
+        render();
+      });
+      tag.appendChild(x);
+    }
+    box.appendChild(tag);
+  });
 }
 function renderPkgChips() {
   const box = $("pkgChips"); box.innerHTML = "";
@@ -256,7 +293,7 @@ function renderSummary() {
     ["主机名", state.params.hostname],
     ["LAN IP", state.params.lan_ip + " / " + state.params.lan_mask],
   ];
-  if (state.features.bypass) rows.push(["网关/DNS", state.params.gateway + " / " + state.params.dns]);
+  if (state.features.bypass) rows.push(["网关/DNS", state.params.gateway + " / " + state.params.gateway]);
   rows.push(["IPv6", state.features.ipv6 ? "开" : "关"]);
   if (state.features.wifi) rows.push(["无线", "SSID " + (state.params.wifi_ssid || "—") + (state.params.wifi_key ? "（加密）" : "（无密码）")]);
   else rows.push(["无线", "关"]);
@@ -265,7 +302,7 @@ function renderSummary() {
   rows.push(["可选包", set.length + " 个"]);
   rows.push(["互联网", state.net.size ? [...state.net].join("、") : "无"]);
   rows.push(["主题", [...new Set([...state.themes, state.defaultTheme])].length + " 个 · 默认 " + state.defaultTheme.replace("luci-theme-", "")]);
-  rows.push(["构建账号", state.account.owner + "/" + state.account.repo]);
+  rows.push(["构建账号", accountOwner() + "/" + accountRepo()]);
   rows.forEach(([k, v]) => {
     dd.appendChild(el("dt", "", k));
     dd.appendChild(el("dd", "", v));
@@ -322,7 +359,8 @@ function composeInputs() {
     lan_ip: state.params.lan_ip,
     lan_mask: state.params.lan_mask,
     gateway: state.features.bypass ? state.params.gateway : "",
-    dns: state.features.bypass ? state.params.dns : "",
+    dns: state.features.bypass ? state.params.gateway : "",
+    password: state.params.password,
     ipv6: state.features.ipv6 ? "true" : "false",
     wifi: state.features.wifi ? "true" : "false",
     wifi_ssid: state.features.wifi ? state.params.wifi_ssid : "",
@@ -346,13 +384,15 @@ async function apiJson(res) {
 }
 
 function validate() {
-  const a = state.account;
-  if (!a.owner || !a.repo || !a.token) return "请填写仓库所有者、仓库名与 GitHub Token";
+  const str = state.account.str;
+  const parts = str.split("/").filter(Boolean);
+  if (parts.length < 2 || !parts[0] || !parts[1]) return "仓库需填 所有者/仓库名（如 KuWiNet/ZWRT）";
+  if (!state.account.token) return "请填写 GitHub Token（需 repo + workflow 权限）";
   const ip = state.params.lan_ip, mk = state.params.lan_mask;
   const v4 = (s) => /^(\d{1,3}\.){3}\d{1,3}$/.test(s) && s.split(".").every((o) => +o <= 255);
   if (!v4(ip)) return "LAN IP 不是有效 IPv4 地址";
   if (!v4(mk)) return "子网掩码不是有效 IPv4";
-  if (state.features.bypass && (!v4(state.params.gateway) || !v4(state.params.dns))) return "旁路由需填写有效网关与 DNS";
+  if (state.features.bypass && !v4(state.params.gateway)) return "旁路由需填写有效网关";
   if (!/^[A-Za-z0-9_-]{1,63}$/.test(state.params.hostname)) return "主机名只能含字母/数字/下划线/连字符";
   return null;
 }
@@ -361,15 +401,15 @@ async function triggerBuild() {
   readParams();
   const err = validate();
   if (err) { toast(err); return; }
-  const a = state.account;
+  const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
   const { inputs, meta } = composeInputs();
   logc("触发构建: " + meta.role + " · 包 " + (meta.base + meta.sel) + " (基础 " + meta.base + " + 可选 " + meta.sel + (meta.wwan ? " + 蜂窝 " + meta.wwan : "") + ")");
   setBusy(true);
   try {
-    const res = await ghAPI("POST", "/repos/" + a.owner + "/" + a.repo + "/actions/workflows/build-openwrt.yml/dispatches", a.token, { ref: "main", inputs });
+    const res = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/actions/workflows/build-openwrt.yml/dispatches", token, { ref: "main", inputs });
     if (res.status !== 204 && res.status !== 201) throw new Error(await res.text());
     logc("已提交，等待调度…", "ok");
-    startPoll(a);
+    startPoll({ owner, repo, token });
   } catch (e) {
     logc("触发失败: " + e.message, "err");
     toast("触发失败：" + e.message);
@@ -442,28 +482,34 @@ function setBusy(b) { state.triggering = b; const btn = $("#btnBuild"); btn.disa
 function render() {
   if (!state.device) return;
   // 功能字段显隐
-  $("fieldsBypass").hidden = !state.features.bypass;
+  const by = state.features.bypass;
+  $("lblGateway").hidden = !by;
+  $("netHint").hidden = !by;
   $("fieldsWifi").hidden = !state.features.wifi;
   $("fieldsWwan").hidden = !state.features.wwan;
+  $("f-wifi").disabled = by;                       // 旁路由不可开无线
+  if (by && $("f-wifi").checked) $("f-wifi").checked = false;
   $("featureHint").textContent = [
-    state.features.bypass ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关/DNS 指向主路由。" : "",
+    by ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关指向主路由（DNS=网关），不可开无线。" : "",
     state.features.wwan ? "蜂窝上网：自动追加 5gmodem 应用与主流蜂窝网卡驱动包。" : "",
   ].filter(Boolean).join(" ");
   // 基础参数回填
   $("p-hostname").value = state.params.hostname;
   $("p-lanip").value = state.params.lan_ip;
+  $("p-password").value = state.params.password;
   $("p-gateway").value = state.params.gateway;
-  $("p-dns").value = state.params.dns;
   $("p-wifissid").value = state.params.wifi_ssid;
   $("p-wifikey").value = state.params.wifi_key;
   $("p-pppuser").value = state.params.pppoe_user;
   $("p-ppppass").value = state.params.pppoe_pass;
   $("pkgInput").value = state.pkgInput;
   $("initScript").value = state.initScript;
+  $("p-account").value = state.account.str;
   $("m-base").textContent = state.device.base.length;
   $("m-selected").textContent = parsePkgInput(state.pkgInput).length;
   $("initHint").textContent = state.features.wwan ? "已勾选蜂窝上网：构建时会自动附加 WWAN 配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
   $("deviceNote").textContent = "共 " + state.devices.length + " 种设备；x86/64 可旁路由。";
+  renderBaseChips();
   renderPkgChips();
   renderNetChips();
   renderThemeChips();
@@ -483,14 +529,13 @@ function bindStatic() {
   });
   on("pkgSearch", "input", (e) => renderPkgSuggest(e.target.value));
   on("pkgSearch", "focus", (e) => { if (e.target.value.trim()) renderPkgSuggest(e.target.value); });
-  ["p-hostname", "p-lanip", "p-gateway", "p-dns", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
+  ["p-hostname", "p-lanip", "p-password", "p-gateway", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
+  on("p-account", "input", (e) => { state.account.str = e.target.value.trim() || "KuWiNet/ZWRT"; renderSummary(); });
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); });
   on("p-theme", "change", (e) => { state.defaultTheme = e.target.value; renderThemeChips(); render(); });
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
-  on("p-owner", "input", (e) => { state.account.owner = e.target.value.trim() || "KuWiNet"; renderSummary(); });
-  on("p-repo", "input", (e) => { state.account.repo = e.target.value.trim() || "ZWRT"; renderSummary(); });
   on("p-token", "input", (e) => { state.account.token = e.target.value.trim(); });
   on("p-tokensave", "change", (e) => {
     try { if (e.target.checked) localStorage.setItem("zwrt_token", state.account.token); else localStorage.removeItem("zwrt_token"); }

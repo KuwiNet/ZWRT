@@ -19,7 +19,7 @@ const DL = "https://dl.openwrt.ai/releases/25.12/packages";
 const ZWRT = "https://luci.zwrt.de/packages";
 
 // ---- 默认可选应用包 (预填输入框; 用户可增删) ----
-const DEFAULT_APPS = `bash bc coremark coreutils coreutils-stat coreutils-stty curl dbus ddns-go frpc glib2 htop iw jansson4 minicom nano node127 smartmontools wget-ssl yq zram-swap ttyd shellsync chat atinout
+const DEFAULT_APPS = `coremark coreutils coreutils-stat coreutils-stty ddns-go frpc glib2 htop iw jansson4 minicom nano node127 smartmontools yq zram-swap ttyd shellsync chat
 luci-app-advancedplus luci-app-afrp luci-app-ddns-go luci-app-diskman luci-app-fan luci-app-firewall luci-app-footstrap-files luci-app-oui luci-app-package-manager luci-app-partexp luci-app-syscontrol luci-app-sysctl luci-app-timedreboot luci-app-ttyd luci-app-unblockneteasemusic luci-app-upnp luci-app-wifihistory luci-app-wizard`.split(/\s+/);
 
 // ---- 蜂窝上网(WWAN) 相关包: 随 "开启蜂窝上网" 开关安装, 不放进可选包 ----
