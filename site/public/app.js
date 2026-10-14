@@ -578,6 +578,7 @@ async function triggerBuild() {
 async function startPoll(a) {
   if (state.pollTimer) clearInterval(state.pollTimer);
   const t0 = Date.now();
+  let lastKey = "";
   const probe = async () => {
     try {
       const runs = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs?event=workflow_dispatch&per_page=5", a.token));
@@ -585,7 +586,11 @@ async function startPoll(a) {
       if (mine) {
         state.runId = mine.id;
         const s = mine.status, c = mine.conclusion;
-        logc("Run #" + mine.id + " 状态: " + s + (c ? " / " + c : ""), c === "success" ? "ok" : c === "failure" ? "err" : s === "in_progress" ? "warn" : "muted");
+        const key = mine.id + ":" + s + ":" + (c || "");
+        if (key !== lastKey) {
+          logc("Run #" + mine.id + " 状态: " + s + (c ? " / " + c : ""), c === "success" ? "ok" : c === "failure" ? "err" : s === "in_progress" ? "warn" : "muted");
+          lastKey = key;
+        }
         if (s === "completed") {
           clearInterval(state.pollTimer);
           setBusy(false);
