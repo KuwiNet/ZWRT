@@ -726,7 +726,7 @@ async function loadDownloads(owner, repo) {
     box.innerHTML = "";
     const items = rel.filter((r) => r.assets && r.assets.length);
     if (!items.length) { box.appendChild(el("p", "dim", "暂无 Release 固件")); return; }
-    items.forEach((r) => {
+    items.slice(0, 1).forEach((r) => {   // 只显示最近成功的那一个 Release
       // 从 Release body 提取 R2/B2 下载地址（按文件名映射），无则不显示
       const r2map = {};
       const body = r.body || "";
