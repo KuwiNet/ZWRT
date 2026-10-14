@@ -1,117 +1,145 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZWRT — 定制 OpenWrt 固件构建器</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1a2b'/%3E%3Cpath d='M9 21V11l4 6 4-6v10' stroke='%232dd4bf' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='23' cy='17' r='2.4' fill='%2338bdf8'/%3E%3C/svg%3E">
+<meta name="description" content="在线定制你的 ZWRT OpenWrt 固件：选设备、开功能、挑软件包、写初始化脚本，一键触发 GitHub Actions 编译。纯静态、去中心化，Token 只存浏览器。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1322'/%3E%3Cpath d='M14 44V20l12 14V20M38 44V20' stroke='%232dd4bf' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
-    <span class="logo">ZWRT</span>
-    <span class="tagline">定制 OpenWrt 固件构建器</span>
+    <span class="logo">ZW</span>
+    <div>
+      <h1>ZWRT <em>Builder</em></h1>
+      <p>OpenWrt 25.12 · ImmortalWrt 内核 6.12 · opkg</p>
+    </div>
   </div>
-  <div class="topmeta">
-    <span class="badge" id="srcBadge">源码</span>
-    <a class="gh" href="https://github.com/KuwiNet/ZWRT" target="_blank" rel="noopener">GitHub</a>
+  <div class="toplinks">
+    <a href="https://github.com/KuWiNet/ZWRT" target="_blank" rel="noopener">源码</a>
+    <a href="https://dl.zwrt.de/firmware/" target="_blank" rel="noopener">下载固件</a>
   </div>
 </header>
 
+<div class="hero">
+  <h2>在线定制你的 ZWRT 固件</h2>
+  <p>选设备、开功能（旁路由/IPv6/无线/蜂窝）、挑软件包、写初始化脚本，一键触发 GitHub Actions 编译，完成自动发布到 Release 与 R2。</p>
+  <div class="herometa">
+    <span><b id="m-kernel">6.12</b> 内核</span>
+    <span><b id="m-devices">2</b> 目标设备</span>
+    <span><b id="m-pkgs">—</b> 可选软件包</span>
+    <span><b>opkg</b> 包管理器</span>
+  </div>
+</div>
+
 <main class="layout">
-
-  <!-- ===== 左栏：配置 ===== -->
-  <section class="config">
-
-    <div class="panel" id="panel-device">
-      <div class="panel-head"><h2>设备型号</h2><span class="step">1</span></div>
-      <div id="deviceList" class="device-list" role="radiogroup" aria-label="设备型号"></div>
-      <p class="hint" id="deviceNote"></p>
-    </div>
-
-    <div class="panel" id="panel-packages">
-      <div class="panel-head"><h2>软件包</h2><span class="step">2</span></div>
-
-      <div class="subrow">
-        <span class="sub">出厂软件包</span>
-        <button id="resetDefaults" class="ghost" type="button">重置默认</button>
+  <section class="steps">
+    <!-- ===== 1 设备 ===== -->
+    <div class="card" data-step="1">
+      <div class="card-head"><span class="stepno">1</span><h3>设备型号</h3></div>
+      <div class="combo" id="deviceCombo">
+        <input id="deviceSearch" type="text" placeholder="输入关键词选设备… 如 x86 / mt7981 / wh3000" autocomplete="off">
+        <button type="button" class="combo-arrow" id="deviceArrow" aria-label="展开设备列表">▾</button>
+        <ul class="combo-list" id="deviceList" hidden></ul>
       </div>
-      <div id="defaultChips" class="chips" aria-label="出厂软件包"></div>
-
-      <div class="subrow"><span class="sub">常用软件包</span><span class="muted">点击添加</span></div>
-      <div id="commonChips" class="chips" aria-label="常用软件包"></div>
-
-      <div class="subrow"><span class="sub">定制软件包</span><span class="muted" id="customCount">0</span></div>
-      <input id="pkgInput" class="text" autocomplete="off" spellcheck="false"
-             placeholder="输入包名，空格分隔；加 -包名 可移除出厂包">
-      <div id="customChips" class="chips" aria-label="定制软件包"></div>
+      <p class="field-hint" id="deviceNote"></p>
+      <label class="opt" id="deviceMeta" hidden>
+        <span id="deviceMetaText"></span>
+      </label>
     </div>
 
-    <div class="panel" id="panel-params">
-      <div class="panel-head"><h2>参数</h2><span class="step">3</span></div>
-      <div class="grid">
-        <label>主机名<input id="hostname" class="text" value="ZWRT" maxlength="32" spellcheck="false"></label>
-        <label>LAN IP<input id="lan_ip" class="text" spellcheck="false"></label>
-        <label>子网掩码<input id="lan_mask" class="text" value="255.255.255.0" spellcheck="false"></label>
-        <label>网关<input id="gateway" class="text" spellcheck="false"></label>
-        <label>DNS<input id="dns" class="text" spellcheck="false"></label>
-        <div class="toggles">
-          <label class="switch"><input type="checkbox" id="ipv6"><span>启用 IPv6</span></label>
-          <label class="switch" id="wifiWrap"><input type="checkbox" id="wifi"><span>启用无线</span></label>
-        </div>
-        <label id="ssidWrap">无线 SSID<input id="wifi_ssid" class="text" maxlength="32" spellcheck="false"></label>
-        <label id="keyWrap">无线密码<input id="wifi_key" class="text" type="password" maxlength="64" spellcheck="false"></label>
+    <!-- ===== 2 功能 ===== -->
+    <div class="card" data-step="2">
+      <div class="card-head"><span class="stepno">2</span><h3>功能选项</h3></div>
+      <div class="chips" id="featureChips">
+        <label class="chip"><input type="checkbox" id="f-bypass"><span>旁路由</span></label>
+        <label class="chip"><input type="checkbox" id="f-ipv6"><span>IPv6</span></label>
+        <label class="chip"><input type="checkbox" id="f-wifi"><span>无线</span></label>
+        <label class="chip"><input type="checkbox" id="f-wwan"><span>蜂窝上网 5G/4G</span></label>
+      </div>
+      <p class="field-hint" id="featureHint"></p>
+
+      <div class="fields" id="fieldsBasic">
+        <label>主机名 <input id="p-hostname" type="text" placeholder="ZWRT"></label>
+        <label>LAN IP 地址 <input id="p-lanip" type="text" placeholder="192.168.100.1"></label>
+        <label>子网掩码 <input id="p-lanmask" type="text" placeholder="255.255.255.0"></label>
+      </div>
+      <div class="fields" id="fieldsBypass" hidden>
+        <label>网关（指向主路由）<input id="p-gateway" type="text" placeholder="192.168.100.1"></label>
+        <label>DNS（指向主路由）<input id="p-dns" type="text" placeholder="192.168.100.1"></label>
+        <p class="field-hint">旁路由：仅使用 LAN 口、关闭 WAN 与 DHCP，网关/DNS 指向主路由。</p>
+      </div>
+      <div class="fields" id="fieldsWifi" hidden>
+        <label>无线 SSID <input id="p-wifissid" type="text" placeholder="ZWRT"></label>
+        <label>无线密码（空 = 无密码）<input id="p-wifikey" type="text"></label>
       </div>
     </div>
 
-    <div class="panel" id="panel-init">
-      <div class="panel-head"><h2>系统初始化 shell 脚本</h2><span class="step">4</span></div>
-      <p class="hint">可选的 uci-defaults 脚本，固件首次开机执行。放在出厂包之后。</p>
-      <textarea id="initScript" class="text code" rows="7"
-                placeholder="#!/bin/sh&#10;# 首次开机执行，例如：&#10;uci set system.@system[0].timezone=Asia/Shanghai&#10;uci commit system"></textarea>
-      <div class="muted right" id="initLen"></div>
-    </div>
-
-    <div class="panel" id="panel-account">
-      <div class="panel-head"><h2>构建账号</h2><span class="step">5</span></div>
-      <p class="hint">默认仓库 KuwiNet/ZWRT。填你自己的 GitHub Token（需 <code>repo</code> + <code>workflow</code> 权限）即可在你的账号下构建；fork 本仓库后改填你自己的仓库，就不会占用别人配额。</p>
-      <div class="grid">
-        <label>GitHub 用户名<small>（仓库所有者）</small><input id="repoOwner" class="text" value="KuwiNet" spellcheck="false"></label>
-        <label>仓库名<input id="repoName" class="text" value="ZWRT" spellcheck="false"></label>
-        <label class="full">GitHub Token<input id="ghToken" class="text" type="password" placeholder="ghp_… / ghp…" spellcheck="false" autocomplete="off"></label>
+    <!-- ===== 3 软件包 ===== -->
+    <div class="card" data-step="3">
+      <div class="card-head"><span class="stepno">3</span><h3>软件包</h3></div>
+      <div class="pkgmeta">
+        <span>基础包 <b id="m-base">—</b>（固定必装）</span>
+        <span>当前已选 <b id="m-selected">—</b></span>
       </div>
-      <label class="switch"><input type="checkbox" id="saveToken"><span>把 Token 保存在本机浏览器（不推荐，下次免填）</span></label>
+      <div class="combo" id="pkgCombo">
+        <input id="pkgSearch" type="text" placeholder="🔍 输入关键字提示，如 5g、qos、ddns…" autocomplete="off">
+        <ul class="combo-list" id="pkgSuggest" hidden></ul>
+      </div>
+      <textarea id="pkgInput" rows="3" spellcheck="false" placeholder="软件包名列表，空格分隔；-包名 表示剔除"></textarea>
+      <div class="chips chips-selected" id="pkgChips"></div>
+      <p class="field-hint">默认值 = 该设备出厂可选包；在输入框删除即剔除，用上方搜索补包。基础包与蜂窝包（开启蜂窝上网时）自动包含。</p>
     </div>
 
+    <!-- ===== 4 初始化脚本 ===== -->
+    <div class="card" data-step="4">
+      <div class="card-head"><span class="stepno">4</span><h3>系统初始化脚本</h3></div>
+      <textarea id="initScript" rows="5" spellcheck="false" placeholder="#!/bin/sh&#10;# 首次开机自动执行（写入 /etc/uci-defaults）&#10;# 建议以 uci set / uci commit 结尾"></textarea>
+      <p class="field-hint" id="initHint"></p>
+    </div>
+
+    <!-- ===== 5 构建 ===== -->
+    <div class="card" data-step="5">
+      <div class="card-head"><span class="stepno">5</span><h3>GitHub 构建账号</h3></div>
+      <div class="fields">
+        <label>仓库所有者 <input id="p-owner" type="text" placeholder="KuWiNet"></label>
+        <label>仓库名 <input id="p-repo" type="text" placeholder="ZWRT"></label>
+        <label>GitHub Token（需 repo + workflow 权限）
+          <input id="p-token" type="password" placeholder="ghp_… 仅存浏览器">
+          <label class="mini"><input id="p-tokensave" type="checkbox">记住 Token 在本机</label>
+        </label>
+      </div>
+      <div class="actions">
+        <button id="btnBuild" class="primary">开始构建</button>
+        <button id="btnPreview" class="ghost">预览提交 JSON</button>
+      </div>
+      <pre id="preview" class="preview" hidden></pre>
+      <p class="field-hint">Token 只在你浏览器里直连 GitHub API，不经任何服务器；别人 fork 后用自己账号构建，不占 KuwiNet 配额。</p>
+    </div>
   </section>
 
-  <!-- ===== 右栏：构建 ===== -->
-  <aside class="build">
-    <div class="card summary-card">
-      <h3>本次构建</h3>
-      <pre id="summaryJson" class="code"></pre>
-      <button id="buildBtn" class="primary" type="button">开始构建</button>
-      <p class="muted" id="buildHint">构建在你的 GitHub 账号下进行，不占用本站资源。</p>
-    </div>
-
-    <div class="card" id="consoleCard" hidden>
-      <h3>构建进度</h3>
-      <div id="console" class="console code"></div>
-    </div>
-
+  <!-- ===== 右侧: 摘要 + 进度 + 下载 ===== -->
+  <aside class="panel">
     <div class="card">
-      <h3>固件下载</h3>
-      <div id="dlList" class="dl-list"></div>
+      <div class="card-head"><h3>构建摘要</h3></div>
+      <dl class="summary" id="summary"></dl>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>构建进度</h3></div>
+      <div id="console" class="console"><p class="dim">尚未开始构建。</p></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>固件下载</h3></div>
+      <div id="downloads" class="downloads"><p class="dim">构建完成后自动列出 GitHub Release 固件。</p></div>
     </div>
   </aside>
-
 </main>
 
-<footer>
-  <span>由 KuwiNet 维护</span>
-  <a href="https://github.com/KuwiNet/ZWRT" target="_blank" rel="noopener">源码 · KuwiNet/ZWRT</a>
-</footer>
+<footer class="foot">ZWRT Builder · 纯静态 · 无后端 · 构建在你自己或 KuWiNet 的 GitHub Actions 上完成</footer>
+
+<div id="toast"></div>
 
 <script src="app.js"></script>
 </body>

@@ -5,12 +5,14 @@
 
 ## 它做什么
 
-1. 选设备型号：`x86-64-main` / `x86-64-bypass` / `wh3000pro`
-2. 出厂软件包默认全选，可点掉或输入 `-包名` 剔除；常用/定制软件包点击添加
-3. 参数：主机名、LAN IP、掩码、网关、DNS、IPv6、无线（SSID/密码）
-4. 系统初始化 shell 脚本（写入固件 `/etc/uci-defaults`，首次开机执行）
-5. 填你的 GitHub Token（`repo` + `workflow` 权限）+ 仓库（默认 `KuwiNet/ZWRT`）
+1. 选设备型号（下拉 + 关键字搜索）：`x86/64` / `WH3000 Pro`
+2. 勾选功能：**旁路由**（仅 LAN 口、关 WAN/DHCP，需填网关/DNS）、**IPv6**、**无线**（SSID/密码）、**蜂窝上网 5G/4G**（自动追加 5gmodem 应用与主流蜂窝网卡驱动包）。ipv6/无线/蜂窝对任意设备可开。
+3. 软件包：默认只装**基础包**（固定必装）；输入框预填该设备**默认可选包**（可删除）；输入关键字弹出匹配包，点击即填入。蜂窝包不放可选，随「蜂窝上网」开关决定。
+4. 系统初始化 shell 脚本（写入 `/etc/uci-defaults`；勾选蜂窝上网时自动附加 WWAN 配置片段）
+5. 填你的 GitHub Token（`repo` + `workflow` 权限）+ 仓库（默认 `KuWiNet/ZWRT`）
 6. 一键触发对应仓库的 `build-openwrt.yml` 的 `workflow_dispatch`，实时轮询构建状态，完成后列出固件下载
+
+旁路由/IPv6/无线后端配置由 ZWRT 仓库 `files/etc/uci-defaults/99-zwrt-network` 按变体生成，无需改 workflow。
 
 ## 目录
 
@@ -23,7 +25,7 @@ site/
 │   └── data/                  # 设备与包目录数据（由脚本生成，可重新生成）
 │       ├── devices.json
 │       ├── packages-x86_64.json
-│       └── packages-aarch64.json
+│       └── packages-aarch64_cortex-a53.json
 ├── scripts/
 │   └── refresh-data.js        # 重新生成 public/data（拉 dl.openwrt.ai + luci.zwrt.de + 本仓库 plugins）
 └── README.md

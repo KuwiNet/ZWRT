@@ -1,419 +1,424 @@
+/* ZWRT 构建器 — 纯静态、去中心化：浏览器直连 GitHub API 触发构建。Token 仅存 localStorage。 */
 "use strict";
-/* ZWRT 定制 OpenWrt 固件构建器 — 纯前端，token 只在本机浏览器，不经过任何服务器 */
 
-/* 常用软件包（名称 + 简短说明），名称需与源目录一致；仅当在当前架构目录中存在才展示 */
-const COMMON = [
-  ["luci-app-adguardhome", "ADGuard Home 去广告"],
-  ["luci-app-aria2", "Aria2 下载工具"],
-  ["luci-app-broadbandacc", "宽带提速"],
-  ["luci-app-clouddrive2", "多云盘管理"],
-  ["luci-app-cpulimit", "CPU 占用率限制"],
-  ["luci-app-ddns", "动态域名解析"],
-  ["luci-app-ddns-go", "DDNS-GO 动态解析"],
-  ["luci-app-ddnsto", "内网穿透 DDNSTO"],
-  ["luci-app-diskman", "磁盘管理"],
-  ["luci-app-easytier", "异地组网 EasyTier"],
-  ["luci-app-filebrowser-q", "文件网盘管理"],
-  ["luci-app-frpc", "内网穿透 FRP 客户端"],
-  ["luci-app-frps", "FRP 服务端"],
-  ["luci-app-guest-wifi", "访客 WiFi"],
-  ["luci-app-ksmbd", "内核级文件共享"],
-  ["luci-app-linkease", "易有云文件管理"],
-  ["luci-app-lucky", "Lucky 多功能网络工具"],
-  ["luci-app-mosdns", "DNS 转发 MosDNS"],
-  ["luci-app-msd_lite", "IPTV 组播"],
-  ["luci-app-mwan3-nft", "负载均衡 MWAN3"],
-  ["luci-app-natmap", "内网穿透 NATMAP"],
-  ["luci-app-netdata", "性能监测 Netdata"],
-  ["luci-app-npc", "NPS 内网穿透客户端"],
-  ["luci-app-nlbwmon", "流量统计 NLBWMon"],
-  ["luci-app-qbittorrent", "BT 下载 qBittorrent"],
-  ["luci-app-rclone", "云盘挂载同步"],
-  ["luci-app-samba4", "Samba 文件共享"],
-  ["luci-app-smartdns", "SmartDNS"],
-  ["luci-app-socat", "端口转发 Socat"],
-  ["luci-app-store", "iStore 软件中心"],
-  ["luci-app-substore", "订阅管理与转换"],
-  ["luci-app-syncdial", "多拨"],
-  ["luci-app-tailscale-community", "Tailscale 组网"],
-  ["luci-app-timedreboot", "定时重启"],
-  ["luci-app-ttyd", "网页版命令行"],
-  ["luci-app-turboacc", "网络加速 TurboACC"],
-  ["luci-app-unblockneteasemusic", "解锁网易云音乐"],
-  ["luci-app-vlmcsd", "KMS 服务器"],
-  ["luci-app-vsftpd", "FTP 服务器"],
-  ["luci-app-watchcat", "断网检测重启"],
-  ["luci-app-wireguard", "WireGuard"],
-  ["luci-app-wrtbwmon", "流量监控 WRTbwmon"],
-  ["luci-app-zerotier", "ZeroTier 组网"],
-  ["automount", "自动挂载 USB/硬盘"],
-  ["btop", "性能监控 btop"],
-];
-
-const DEVICES_URL = "data/devices.json";
-const PKG_URL = (a) => (a === "x86_64" ? "data/packages-x86_64.json" : "data/packages-aarch64.json");
-const DEFAULT_REPO = { owner: "KuwiNet", name: "ZWRT" };
-const TOKEN_KEY = "zwrt_token";
-const PKG_RE = /^[a-zA-Z0-9][a-zA-Z0-9+_.-]{0,63}$/;
-const IP_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-const MAX_INIT = 16000;
-
-const $ = (id) => document.getElementById(id);
-const state = {
-  devices: [],
-  catalog: new Map(),   // name -> desc
-  device: null,          // current device object
-  pkg: new Map(),        // name -> 'on' | 'off'
-  loading: false,
+const $ = (s) => document.querySelector(s);
+function on(sel, ev, fn) {
+  const n = $(sel);
+  if (!n) { console.warn("ZWRT: 缺少元素 #" + sel); return; }
+  n.addEventListener(ev, fn);
+}
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
 };
 
-async function getJSON(url, token) {
-  const h = {};
-  if (token) h.Authorization = "Bearer " + token;
-  const r = await fetch(url, { headers: h });
-  if (!r.ok) throw new Error("HTTP " + r.status + " " + url);
+const state = {
+  devices: [],
+  wwan: [],
+  catalog: new Map(),       // name -> desc
+  catalogArr: [],
+  catalogFile: "",
+  device: null,
+  features: { bypass: false, ipv6: false, wifi: false, wwan: false },
+  params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", dns: "", wifi_ssid: "", wifi_key: "" },
+  pkgInput: "",             // 当前输入框内容
+  initScript: "",
+  account: { owner: "KuWiNet", repo: "ZWRT", token: "" },
+  pollTimer: null,
+  runId: null,
+  triggering: false,
+};
+
+/* ---------- data ---------- */
+async function getJSON(url) {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
   return r.json();
 }
+const DEV_URL = "data/devices.json";
+const PKG_URL = (arch) => "data/packages-" + arch + ".json";
 
-/* ---------- 设备 ---------- */
-async function loadDevices() {
-  state.devices = await getJSON(DEVICES_URL);
-  const list = $("deviceList");
-  list.innerHTML = "";
-  state.devices.forEach((d) => {
-    const el = document.createElement("div");
-    el.className = "device";
-    el.innerHTML = `<div class="dname"></div><div class="darch"></div>`;
-    el.querySelector(".dname").textContent = d.name;
-    el.querySelector(".darch").textContent = d.archLabel;
-    el.onclick = () => selectDevice(d);
-    d._el = el;
-    list.appendChild(el);
-  });
-  selectDevice(state.devices[0]);
+async function loadData() {
+  const d = await getJSON(DEV_URL);
+  state.devices = d.devices;
+  state.wwan = d.wwan_packages || [];
+  $("m-devices").textContent = state.devices.length;
+  state.device = state.devices[0];
+  await loadCatalog(state.device.arch);
+  applyDeviceDefaults();
+  render();
 }
 
-async function selectDevice(d) {
+async function loadCatalog(arch) {
+  if (state.catalogFile === arch && state.catalog.size) return;
+  const pj = await getJSON(PKG_URL(arch));
+  state.catalog = new Map(pj.pkgs.map((x) => [x[0], x[1]]));
+  state.catalogArr = pj.pkgs;
+  state.catalogFile = arch;
+  $("m-pkgs").textContent = pj.count;
+}
+
+/* ---------- device combo ---------- */
+function renderDeviceList(filter) {
+  const box = $("deviceList");
+  box.innerHTML = "";
+  const kw = (filter || "").trim().toLowerCase();
+  const hits = state.devices.filter((d) =>
+    !kw || d.name.toLowerCase().includes(kw) || d.archLabel.toLowerCase().includes(kw) || d.id.includes(kw));
+  if (!hits.length) { box.appendChild(el("li", "none", "无匹配设备")); }
+  hits.forEach((d) => {
+    const li = el("li");
+    li.innerHTML = d.name + '<span class="sub">' + d.archLabel + " · 架构 " + (d.archLabel === "x86_64" ? "x86/64" : "MT7981") + "</span>";
+    li.addEventListener("click", () => selectDevice(d));
+    box.appendChild(li);
+  });
+  $("deviceCombo").classList.add("open");
+}
+function selectDevice(d) {
   state.device = d;
-  state.devices.forEach((x) => x._el.classList.toggle("sel", x === d));
-  $("deviceNote").textContent = d.note;
-  // 载入该架构包目录
-  const pj = await getJSON(PKG_URL(d.arch));
-  state.catalog = new Map(pj.pkgs);
-  // 设置默认参数
-  setParams(d.defaults);
-  // 初始化包集合：出厂包默认全选
-  state.pkg = new Map();
-  d.required.forEach((n) => state.pkg.set(n, "on"));
-  renderChips();
-  updateSummary();
+  $("deviceSearch").value = d.name;
+  $("deviceCombo").classList.remove("open");
+  $("deviceMeta").hidden = false;
+  $("deviceMetaText").textContent = d.note;
+  if (state.catalogFile !== d.arch) { loadCatalog(d.arch).then(() => { applyDeviceDefaults(); render(); }); }
+  else { applyDeviceDefaults(); render(); }
 }
 
-function setParams(p) {
-  $("hostname").value = p.hostname || "ZWRT";
-  $("lan_ip").value = p.lan_ip || "";
-  $("lan_mask").value = p.lan_mask || "";
-  $("gateway").value = p.gateway || "";
-  $("dns").value = p.dns || "";
-  $("ipv6").checked = !!p.ipv6;
-  $("wifi").checked = !!p.wifi;
-  $("wifi_ssid").value = p.wifi_ssid || "";
-  $("wifi_key").value = p.wifi_key || "";
-  updateParamVisibility();
-}
-
-/* ---------- 软件包 ---------- */
-function renderChips() {
-  const d = state.device;
-  const defaults = $("defaultChips"), common = $("commonChips"), custom = $("customChips");
-  defaults.innerHTML = "";
-  d.required.forEach((n) => {
-    const s = state.pkg.get(n);
-    const core = !n.startsWith("luci-app-") && s !== "off";
-    defaults.appendChild(chipEl(n, s, core, () => toggle(n), true));
-  });
-  common.innerHTML = "";
-  COMMON.forEach(([n, zh]) => {
-    if (!state.catalog.has(n)) return;
-    const s = state.pkg.get(n) || "off";
-    common.appendChild(chipEl(n + " · " + zh, s, false, () => toggle(n), false));
-  });
-  custom.innerHTML = "";
-  state.pkg.forEach((s, n) => {
-    if (!d.required.includes(n) && s === "on") custom.appendChild(chipEl(n, s, false, () => toggle(n), false));
-  });
-  $("customCount").textContent = state.pkg.size > 0 ? state.pkg.size + " 个已选" : "";
-}
-
-function chipEl(label, s, core, onClick, withX) {
-  const el = document.createElement("span");
-  el.className = "chip" + (s === "on" ? " on" : s === "off" ? " off" : "") + (core ? " core" : "");
-  if (core) el.innerHTML = `<span class="dot"></span>`;
-  const txt = document.createElement("span");
-  txt.textContent = label;
-  el.appendChild(txt);
-  if (withX) { const x = document.createElement("span"); x.className = "x"; x.textContent = "×"; el.appendChild(x); }
-  el.onclick = onClick;
-  return el;
-}
-
-function toggle(n) {
-  const cur = state.pkg.get(n);
-  if (cur === "off" || cur === undefined) state.pkg.set(n, "on");
-  else state.pkg.set(n, "off");
-  renderChips();
-  updateSummary();
-}
-
-/* 定制软件包输入 */
-function parsePkgInput() {
-  const raw = $("pkgInput").value.split(/\s+/).map((s) => s.trim()).filter(Boolean);
-  const bad = [];
-  raw.forEach((tok) => {
-    const remove = tok.startsWith("-");
-    const name = remove ? tok.slice(1) : tok;
-    if (!PKG_RE.test(name)) { bad.push(tok); return; }
-    if (remove) state.pkg.set(name, "off");
-    else state.pkg.set(name, "on");
-  });
-  $("pkgInput").value = "";
-  renderChips();
-  updateSummary();
-  return bad;
-}
-
-/* ---------- 参数 ---------- */
-function updateParamVisibility() {
-  const isBypass = state.device && state.device.id === "x86-64-bypass";
-  const isWH = state.device && state.device.id === "wh3000pro";
-  // 网关/DNS 旁路由更有意义；无线只有 WH3000 Pro 有意义，其余设备默认隐藏
-  $("gateway").closest("label").style.display = isBypass ? "" : "none";
-  $("dns").closest("label").style.display = isBypass ? "" : "none";
-  $("wifiWrap").style.display = isWH ? "" : "none";
-  $("ssidWrap").style.display = isWH && $("wifi").checked ? "" : "none";
-  $("keyWrap").style.display = isWH && $("wifi").checked ? "" : "none";
-}
-
-function initEventBindings() {
-  ["hostname", "lan_ip", "lan_mask", "gateway", "dns", "wifi_ssid", "wifi_key"].forEach((id) => {
-    $(id).addEventListener("input", updateSummary);
-  });
-  ["ipv6", "wifi"].forEach((id) => {
-    $(id).addEventListener("change", () => { updateParamVisibility(); updateSummary(); });
-  });
-  $("initScript").addEventListener("input", () => {
-    const v = $("initScript").value;
-    $("initLen").textContent = v.length + (v.length > MAX_INIT ? " 字符（超限将截断）" : " 字符");
-    updateSummary();
-  });
-  $("pkgInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); parsePkgInput(); }
-  });
-  $("resetDefaults").addEventListener("click", () => {
-    state.pkg = new Map();
-    state.device.required.forEach((n) => state.pkg.set(n, "on"));
-    $("pkgInput").value = "";
-    renderChips(); updateSummary();
-  });
-  $("buildBtn").addEventListener("click", startBuild);
-  // 加载已保存 token
-  $("ghToken").value = localStorage.getItem(TOKEN_KEY) || "";
-}
-
-/* ---------- 摘要 ---------- */
-function selectedNames() {
-  const arr = [];
-  state.pkg.forEach((s, n) => { if (s === "on") arr.push(n); });
-  return arr.sort();
-}
-
-function updateSummary() {
-  const ip = $("lan_ip").value || state.device?.defaults?.lan_ip || "";
-  const summary = {
-    device: state.device ? state.device.id : "—",
-    hostname: $("hostname").value || "ZWRT",
-    lan_ip: ip,
-    ipv6: $("ipv6").checked,
-    wifi: $("wifi").checked,
-    packages: selectedNames().length + " 个",
-    init_script: ($("initScript").value.length || 0) + " 字符",
-  };
-  $("summaryJson").textContent = JSON.stringify(summary, null, 2);
-}
-
-/* ---------- 构建 ---------- */
-function validateInputs() {
-  const owner = $("repoOwner").value.trim();
-  const name = $("repoName").value.trim();
-  const token = $("ghToken").value.trim() || localStorage.getItem(TOKEN_KEY) || "";
-  if (!owner || !name) return "请填写仓库所有者与仓库名";
-  if (!token) return "请填写你的 GitHub Token（需要 repo + workflow 权限）";
-  const h = $("hostname").value.trim();
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,31}$/.test(h)) return "主机名仅允许字母数字与 . _ -，且以字母数字开头";
-  for (const [id, lbl] of [["lan_ip", "LAN IP"], ["lan_mask", "子网掩码"], ["gateway", "网关"], ["dns", "DNS"]]) {
-    const v = $(id).value.trim();
-    if (v && !isValidIp(v)) return lbl + " 格式不正确";
+/* ---------- features ---------- */
+function setFeature(name, on) {
+  state.features[name] = !!on;
+  if (name === "bypass" && on) {
+    // 旁路由仅适用于 x86/64；启用时确保有网关/DNS
+    if (state.device && state.device.arch !== "x86_64") { state.features.bypass = false; $("f-bypass").checked = false; toast("旁路由仅适用于 x86/64 设备"); return; }
   }
-  const bad = parsePkgInput();
-  if (bad.length) return "无效包名（仅允许字母数字 +_.-）：" + bad.join(", ");
-  const init = $("initScript").value;
-  if (init.length > MAX_INIT) return "初始化脚本过长（超过 " + MAX_INIT + " 字符）";
+  render();
+}
+function bindFeatures() {
+  on("f-bypass", "change", (e) => setFeature("bypass", e.target.checked));
+  on("f-ipv6", "change", (e) => setFeature("ipv6", e.target.checked));
+  on("f-wifi", "change", (e) => setFeature("wifi", e.target.checked));
+  on("f-wwan", "change", (e) => setFeature("wwan", e.target.checked));
+}
+
+/* ---------- params ---------- */
+function readParams() {
+  state.params.hostname = $("p-hostname").value.trim() || "ZWRT";
+  state.params.lan_ip = $("p-lanip").value.trim();
+  state.params.lan_mask = $("p-lanmask").value.trim();
+  state.params.gateway = $("p-gateway").value.trim();
+  state.params.dns = $("p-dns").value.trim();
+  state.params.wifi_ssid = $("p-wifissid").value.trim();
+  state.params.wifi_key = $("p-wifikey").value.trim();
+}
+function applyDeviceDefaults() {
+  const dd = state.device.defaults;
+  state.features.bypass = false;
+  state.features.ipv6 = !!dd.ipv6;
+  state.features.wifi = !!dd.wifi;
+  state.features.wwan = !!dd.wwan;
+  state.params = {
+    hostname: dd.hostname || "ZWRT", lan_ip: dd.lan_ip, lan_mask: dd.lan_mask,
+    gateway: dd.gateway || "", dns: dd.dns || "",
+    wifi_ssid: dd.wifi_ssid || "", wifi_key: dd.wifi_key || "",
+  };
+  state.pkgInput = (state.device.default || []).join(" ");
+  state.initScript = "";
+  $("f-bypass").checked = false;
+  $("f-ipv6").checked = state.features.ipv6;
+  $("f-wifi").checked = state.features.wifi;
+  $("f-wwan").checked = state.features.wwan;
+}
+
+/* ---------- packages ---------- */
+function parsePkgInput(str) {
+  const out = new Set(); const removed = new Set();
+  (str || "").split(/\s+/).forEach((t) => {
+    if (!t) return;
+    if (t.startsWith("-")) removed.add(t.slice(1));
+    else out.add(t);
+  });
+  removed.forEach((r) => out.delete(r));
+  return [...out];
+}
+function renderPkgChips() {
+  const box = $("pkgChips"); box.innerHTML = "";
+  parsePkgInput(state.pkgInput).sort().forEach((p) => {
+    const label = el("label", "chip");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true;
+    cb.addEventListener("change", () => {
+      state.pkgInput = state.pkgInput.split(/\s+/).filter((t) => t && t !== p).join(" ") + " -" + p;
+      render();
+    });
+    label.appendChild(cb);
+    label.appendChild(el("span", "", p));
+    box.appendChild(label);
+  });
+}
+function renderPkgSuggest(kw) {
+  const box = $("pkgSuggest");
+  if (!kw.trim()) { box.innerHTML = ""; $("pkgCombo").classList.remove("open"); return; }
+  const q = kw.trim().toLowerCase();
+  const hits = state.catalogArr.filter((x) => x[0].toLowerCase().includes(q) || (x[1] && x[1].toLowerCase().includes(q))).slice(0, 24);
+  box.innerHTML = "";
+  if (!hits.length) box.appendChild(el("li", "none", "无匹配软件包"));
+  hits.forEach(([name, desc]) => {
+    const li = el("li");
+    li.innerHTML = name + (desc ? '<span class="sub">' + desc + "</span>" : "");
+    li.addEventListener("click", () => {
+      state.pkgInput = (state.pkgInput + " " + name).trim();
+      $("pkgSearch").value = "";
+      render();
+    });
+    box.appendChild(li);
+  });
+  $("pkgCombo").classList.add("open");
+}
+
+/* ---------- summary ---------- */
+function renderSummary() {
+  const dd = $("summary"); dd.innerHTML = "";
+  const d = state.device; if (!d) return;
+  const set = parsePkgInput(state.pkgInput);
+  const role = state.features.bypass ? "旁路由" : "主路由";
+  const rows = [
+    ["设备", d.name],
+    ["模式", state.features.bypass ? "旁路由（仅 LAN）" : "主路由"],
+    ["主机名", state.params.hostname],
+    ["LAN IP", state.params.lan_ip + " / " + state.params.lan_mask],
+  ];
+  if (state.features.bypass) rows.push(["网关/DNS", state.params.gateway + " / " + state.params.dns]);
+  rows.push(["IPv6", state.features.ipv6 ? "开" : "关"]);
+  if (state.features.wifi) rows.push(["无线", "SSID " + (state.params.wifi_ssid || "—") + (state.params.wifi_key ? "（加密）" : "（无密码）")]);
+  else rows.push(["无线", "关"]);
+  if (state.features.wwan) rows.push(["蜂窝上网", "开（5gmodem + 蜂窝驱动）"]);
+  rows.push(["基础包", d.base.length + " 个（固定）"]);
+  rows.push(["可选包", set.length + " 个"]);
+  rows.push(["构建账号", state.account.owner + "/" + state.account.repo]);
+  rows.forEach(([k, v]) => {
+    dd.appendChild(el("dt", "", k));
+    dd.appendChild(el("dd", "", v));
+  });
+}
+
+/* ---------- wwan init snippet ---------- */
+const WWAN_SNIPPET = `# ZWRT 构建器 · 蜂窝上网(WWAN) 自动配置
+if [ -f /etc/init.d/ModemManager ]; then
+  /etc/init.d/ModemManager enable 2>/dev/null || true
+  /etc/init.d/ModemManager start 2>/dev/null || true
+fi
+exit 0`;
+function composeInitScript() {
+  const user = state.initScript.trim();
+  if (!state.features.wwan) return user;
+  return user ? user + "\n\n" + WWAN_SNIPPET : WWAN_SNIPPET;
+}
+
+/* ---------- dispatch ---------- */
+function workflowDevice() {
+  const d = state.device;
+  if (state.features.bypass && d.wfDeviceBypass) return d.wfDeviceBypass;
+  return d.wfDeviceMain;
+}
+function composeInputs() {
+  readParams();
+  const d = state.device;
+  const base = [...d.base];
+  const sel = parsePkgInput(state.pkgInput);
+  const set = [...new Set([...base, ...sel])];
+  const wwan = state.features.wwan ? state.wwan : [];
+  const common = [...new Set([...set, ...wwan])];
+  const wh3000 = [...new Set([...d.whExtra, ...wwan])];
+  const inputs = {
+    device: workflowDevice(),
+    hostname: state.params.hostname,
+    lan_ip: state.params.lan_ip,
+    lan_mask: state.params.lan_mask,
+    gateway: state.features.bypass ? state.params.gateway : "",
+    dns: state.features.bypass ? state.params.dns : "",
+    ipv6: state.features.ipv6 ? "true" : "false",
+    wifi: state.features.wifi ? "true" : "false",
+    wifi_ssid: state.features.wifi ? state.params.wifi_ssid : "",
+    wifi_key: state.features.wifi ? state.params.wifi_key : "",
+    packages_common: common.join(" "),
+    packages_wh3000: wh3000.join(" "),
+    init_script: composeInitScript(),
+  };
+  return { inputs, meta: { base: base.length, sel: sel.length, wwan: wwan.length, role: state.features.bypass ? "bypass" : "main" } };
+}
+function ghAPI(method, path, token, body) {
+  const opt = { method, headers: { Authorization: "Bearer " + token, "User-Agent": "zwrt-builder", Accept: "application/vnd.github+json" } };
+  if (body) opt.headers["Content-Type"] = "application/json";
+  return fetch("https://api.github.com" + path, body ? Object.assign(opt, { body: JSON.stringify(body) }) : opt);
+}
+async function apiJson(res) {
+  const t = await res.text();
+  let j; try { j = JSON.parse(t); } catch (e) { j = null; }
+  if (!res.ok) throw new Error((j && j.message) || ("HTTP " + res.status));
+  return j;
+}
+
+function validate() {
+  const a = state.account;
+  if (!a.owner || !a.repo || !a.token) return "请填写仓库所有者、仓库名与 GitHub Token";
+  const ip = state.params.lan_ip, mk = state.params.lan_mask;
+  const v4 = (s) => /^(\d{1,3}\.){3}\d{1,3}$/.test(s) && s.split(".").every((o) => +o <= 255);
+  if (!v4(ip)) return "LAN IP 不是有效 IPv4 地址";
+  if (!v4(mk)) return "子网掩码不是有效 IPv4";
+  if (state.features.bypass && (!v4(state.params.gateway) || !v4(state.params.dns))) return "旁路由需填写有效网关与 DNS";
+  if (!/^[A-Za-z0-9_-]{1,63}$/.test(state.params.hostname)) return "主机名只能含字母/数字/下划线/连字符";
   return null;
 }
 
-function isValidIp(v) {
-  if (!IP_RE.test(v)) return false;
-  return v.split(".").every((o) => { const n = +o; return n >= 0 && n <= 255; });
-}
-
-async function startBuild() {
-  if (state.loading) return;
-  const err = validateInputs();
-  if (err) { flash("buildBtn", err); return; }
-  const owner = $("repoOwner").value.trim();
-  const name = $("repoName").value.trim();
-  const token = ($("ghToken").value.trim() || localStorage.getItem(TOKEN_KEY) || "").trim();
-
-  if ($("saveToken").checked) localStorage.setItem(TOKEN_KEY, token);
-  else if (!localStorage.getItem(TOKEN_KEY)) { /* keep saved if user never cleared */ }
-
-  const sel = selectedNames();
-  const inputs = {
-    device: state.device.id,
-    hostname: $("hostname").value.trim() || "ZWRT",
-    lan_ip: $("lan_ip").value.trim(),
-    lan_mask: $("lan_mask").value.trim(),
-    gateway: $("gateway").value.trim(),
-    dns: $("dns").value.trim(),
-    ipv6: $("ipv6").checked ? "true" : "false",
-    wifi: $("wifi").checked ? "true" : "false",
-    wifi_ssid: $("wifi_ssid").value.trim(),
-    wifi_key: $("wifi_key").value.trim(),
-    packages_common: sel.join(" "),
-    packages_wh3000: sel.join(" "),
-    init_script: $("initScript").value,
-  };
-
-  state.loading = true;
-  const btn = $("buildBtn");
-  btn.disabled = true; btn.textContent = "正在触发构建…";
-  showConsole(`触发构建 → ${owner}/${name}`);
-
+async function triggerBuild() {
+  readParams();
+  const err = validate();
+  if (err) { toast(err); return; }
+  const a = state.account;
+  const { inputs, meta } = composeInputs();
+  logc("触发构建: " + meta.role + " · 包 " + (meta.base + meta.sel) + " (基础 " + meta.base + " + 可选 " + meta.sel + (meta.wwan ? " + 蜂窝 " + meta.wwan : "") + ")");
+  setBusy(true);
   try {
-    const r = await fetch(
-      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/actions/workflows/build-openwrt.yml/dispatches`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + token,
-          "Content-Type": "application/json",
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-        body: JSON.stringify({ ref: "main", inputs }),
-      }
-    );
-    if (!r.ok) {
-      const t = await r.text();
-      let msg = "HTTP " + r.status;
-      try { const j = JSON.parse(t); msg = (j.message || "") + (j.errors ? " " + JSON.stringify(j.errors) : ""); } catch (e) {}
-      throw new Error(msg);
-    }
-    const t0 = Date.now();
-    consoleLine("ok", "已触发。开始轮询构建状态…");
-    await pollRuns(owner, name, token, t0);
+    const res = await ghAPI("POST", "/repos/" + a.owner + "/" + a.repo + "/actions/workflows/build-openwrt.yml/dispatches", a.token, { ref: "main", inputs });
+    if (res.status !== 204 && res.status !== 201) throw new Error(await res.text());
+    logc("已提交，等待调度…", "ok");
+    startPoll(a);
   } catch (e) {
-    consoleLine("err", "触发失败：" + e.message);
-    consoleLine("info", "检查：仓库是否已包含 build-openwrt.yml？token 是否有 workflow 权限？仓库名大小写是否正确？");
-  } finally {
-    state.loading = false;
-    btn.disabled = false; btn.textContent = "开始构建";
+    logc("触发失败: " + e.message, "err");
+    toast("触发失败：" + e.message);
+    setBusy(false);
   }
 }
 
-async function pollRuns(owner, name, token, afterMs) {
-  const max = 360; // ~1.5h
-  for (let i = 0; i < max; i++) {
-    await sleep(12000);
+async function startPoll(a) {
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  const t0 = Date.now();
+  const probe = async () => {
     try {
-      const runs = await getJSON(
-        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/actions/runs?per_page=10&event=workflow_dispatch`,
-        token
-      );
-      const mine = (runs.workflow_runs || []).find((r) => new Date(r.created_at).getTime() >= afterMs - 60000);
-      if (!mine) { continue; }
-      const st = mine.status, concl = mine.conclusion;
-      consoleLine("info", `[${i}] run #${mine.run_number} → ${st}${concl ? "/" + concl : ""}`);
-      if (st === "completed") {
-        if (concl === "success") {
-          consoleLine("ok", "构建成功。拉取固件下载列表…");
-          await loadDownloads(owner, name, token);
-        } else {
-          consoleLine("err", "构建结束：" + concl + "。查看日志：" + mine.html_url);
+      const runs = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs?event=workflow_dispatch&per_page=5", a.token));
+      const mine = runs.workflow_runs.find((r) => r.path === ".github/workflows/build-openwrt.yml" && new Date(r.created_at).getTime() >= t0 - 60000);
+      if (mine) {
+        state.runId = mine.id;
+        const s = mine.status, c = mine.conclusion;
+        logc("Run #" + mine.id + " 状态: " + s + (c ? " / " + c : ""), c === "success" ? "ok" : c === "failure" ? "err" : s === "in_progress" ? "warn" : "muted");
+        if (s === "completed") {
+          clearInterval(state.pollTimer);
+          setBusy(false);
+          if (c === "success") { logc("构建成功！刷新固件列表…", "ok"); loadDownloads(a.owner, a.repo, a.token); }
+          else logc("构建未成功 (" + c + ")，请查看 Actions 日志", "err");
         }
-        return;
+      } else {
+        logc("…等待 workflow_dispatch 进入队列…", "muted");
       }
-      if (st === "queued" && i === 0) consoleLine("warn", "已在队列中（仓库可能同时在进行其他构建），继续等待…");
     } catch (e) {
-      consoleLine("warn", "轮询出错：" + e.message + "（继续）");
+      logc("轮询出错: " + e.message, "err");
     }
-  }
-  consoleLine("warn", "轮询超时。可到仓库 Actions 页面查看：" + `https://github.com/${owner}/${name}/actions`);
+  };
+  probe();
+  state.pollTimer = setInterval(probe, 12000);
 }
 
-async function loadDownloads(owner, name, token) {
-  const box = $("dlList");
+/* ---------- downloads ---------- */
+async function loadDownloads(owner, repo, token) {
+  const box = $("downloads");
   try {
-    const rels = await getJSON(
-      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/releases?per_page=4`,
-      token
-    );
-    const files = [];
-    (rels || []).forEach((r) => (r.assets || []).forEach((a) => {
-      if (/^zwrt-.*\.(bin|img|img\.gz|gz|tar\.gz)$/.test(a.name)) files.push({ n: a.name, u: a.browser_download_url });
-    }));
-    if (!files.length) { box.innerHTML = `<div class="dl-empty">暂无固件。构建完成后会自动出现在 Release。</div>`; return; }
+    const rel = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/releases?per_page=5", token));
     box.innerHTML = "";
-    files.forEach((f) => {
-      const el = document.createElement("div");
-      el.className = "dl-item";
-      el.innerHTML = `<span></span><a href="" target="_blank" rel="noopener">下载</a>`;
-      el.querySelector("span").textContent = f.n;
-      el.querySelector("a").href = f.u;
-      box.appendChild(el);
+    const items = rel.filter((r) => r.assets && r.assets.length);
+    if (!items.length) { box.appendChild(el("p", "dim", "暂无 Release 固件")); return; }
+    items.forEach((r) => {
+      r.assets.filter((a) => a.name.startsWith("zwrt-")).forEach((a) => {
+        const it = el("div", "dl-item");
+        const n = el("div", "n", a.name); it.appendChild(n);
+        const m = el("div", "m", (a.size / 1048576).toFixed(1) + " MB · " + r.tag_name); it.appendChild(m);
+        const l = el("div", "links");
+        const gh = el("a", "", "GitHub ↓"); gh.href = a.browser_download_url; gh.target = "_blank"; gh.rel = "noopener";
+        const r2 = el("a", "", "R2 下载 ↓"); r2.href = "https://dl.zwrt.de/firmware/" + a.name; r2.target = "_blank"; r2.rel = "noopener";
+        l.appendChild(r2); l.appendChild(gh); it.appendChild(l);
+        box.appendChild(it);
+      });
     });
   } catch (e) {
-    box.innerHTML = `<div class="dl-empty">读取 Release 失败：${e.message}</div>`;
+    box.innerHTML = ""; box.appendChild(el("p", "dim", "固件列表加载失败: " + e.message));
   }
 }
 
-/* ---------- console ---------- */
-function showConsole(title) {
-  const card = $("consoleCard");
-  card.hidden = false;
-  $("console").innerHTML = `<div class="info">${esc(title)}</div>`;
-}
-function consoleLine(cls, text) {
+/* ---------- ui helpers ---------- */
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3000); }
+function logc(msg, cls) {
   const c = $("console");
-  c.insertAdjacentHTML("beforeend", `<div class="${cls}">${esc(text)}</div>`);
-  c.scrollTop = c.scrollHeight;
+  if (c.querySelector(".dim") && c.childNodes.length === 1 && c.firstChild.textContent.includes("尚未开始")) c.innerHTML = "";
+  const p = el("div", cls || "", msg); c.appendChild(p); c.scrollTop = c.scrollHeight;
 }
-function flash(btnId, msg) {
-  const b = $(btnId);
-  const old = b.textContent;
-  b.textContent = "⚠ " + msg;
-  setTimeout(() => (b.textContent = old), 2600);
-}
-function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
-function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+function setBusy(b) { state.triggering = b; const btn = $("#btnBuild"); btn.disabled = b; btn.textContent = b ? "构建中…" : "开始构建"; }
 
-/* ---------- init ---------- */
+function render() {
+  if (!state.device) return;
+  // 功能字段显隐
+  $("fieldsBypass").hidden = !state.features.bypass;
+  $("fieldsWifi").hidden = !state.features.wifi;
+  $("featureHint").textContent = [
+    state.features.bypass ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关/DNS 指向主路由。" : "",
+    state.features.wwan ? "蜂窝上网：自动追加 5gmodem 应用与主流蜂窝网卡驱动包。" : "",
+  ].filter(Boolean).join(" ");
+  // 基础参数回填
+  $("p-hostname").value = state.params.hostname;
+  $("p-lanip").value = state.params.lan_ip;
+  $("p-lanmask").value = state.params.lan_mask;
+  $("p-gateway").value = state.params.gateway;
+  $("p-dns").value = state.params.dns;
+  $("p-wifissid").value = state.params.wifi_ssid;
+  $("p-wifikey").value = state.params.wifi_key;
+  $("pkgInput").value = state.pkgInput;
+  $("initScript").value = state.initScript;
+  $("m-base").textContent = state.device.base.length;
+  $("m-selected").textContent = parsePkgInput(state.pkgInput).length;
+  $("initHint").textContent = state.features.wwan ? "已勾选蜂窝上网：构建时会自动附加 WWAN 配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
+  $("deviceNote").textContent = "共 " + state.devices.length + " 种设备；x86/64 可旁路由。";
+  renderPkgChips();
+  renderSummary();
+}
+
+function bindStatic() {
+  bindFeatures();
+  on("deviceSearch", "focus", () => renderDeviceList($("deviceSearch").value));
+  on("deviceSearch", "input", () => renderDeviceList($("deviceSearch").value));
+  on("deviceArrow", "click", () => { const c = $("deviceCombo"); c.classList.contains("open") ? c.classList.remove("open") : renderDeviceList($("deviceSearch").value); });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#deviceCombo")) $("deviceCombo").classList.remove("open");
+    if (!e.target.closest("#pkgCombo")) $("pkgCombo").classList.remove("open");
+  });
+  on("pkgSearch", "input", (e) => renderPkgSuggest(e.target.value));
+  on("pkgSearch", "focus", (e) => { if (e.target.value.trim()) renderPkgSuggest(e.target.value); });
+  ["p-hostname", "p-lanip", "p-lanmask", "p-gateway", "p-dns", "p-wifissid", "p-wifikey"].forEach((id) => {
+    on(id, "input", () => { readParams(); renderSummary(); });
+  });
+  on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; renderSummary(); });
+  on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
+  on("p-owner", "input", (e) => { state.account.owner = e.target.value.trim() || "KuWiNet"; renderSummary(); });
+  on("p-repo", "input", (e) => { state.account.repo = e.target.value.trim() || "ZWRT"; renderSummary(); });
+  on("p-token", "input", (e) => { state.account.token = e.target.value.trim(); });
+  on("p-tokensave", "change", (e) => {
+    try { if (e.target.checked) localStorage.setItem("zwrt_token", state.account.token); else localStorage.removeItem("zwrt_token"); }
+    catch (err) {}
+  });
+  on("btnBuild", "click", () => triggerBuild());
+  on("btnPreview", "click", () => {
+    readParams();
+    const { inputs } = composeInputs();
+    const p = $("preview"); p.hidden = !p.hidden; if (!p.hidden) p.textContent = JSON.stringify({ ref: "main", inputs }, null, 2);
+  });
+  const saved = (() => { try { return localStorage.getItem("zwrt_token") || ""; } catch (e) { return ""; } })();
+  if (saved) { $("p-token").value = saved; $("p-tokensave").checked = true; state.account.token = saved; }
+}
+
 (async function init() {
-  initEventBindings();
-  try { await loadDevices(); }
+  bindStatic();
+  try { await loadData(); }
   catch (e) {
     console.error(e);
-    $("deviceList").innerHTML = `<div class="dl-empty">无法加载设备/包数据。请通过 https 访问本站（本地直接打开 html 因浏览器限制无法加载数据）。</div>`;
+    $("deviceSearch").value = "";
+    $("deviceNote").textContent = "无法加载设备/包数据：请通过 https 访问本站（直接打开本地 html 会被浏览器拦截数据请求）。";
   }
-  try { loadDownloads("KuwiNet", "ZWRT", ""); } catch (e) {}
 })();
