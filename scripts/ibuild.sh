@@ -132,10 +132,8 @@ PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | 
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 
 echo "==== [5/7] 组装固件 (ImageBuilder make image) ===="
-echo ">> DEBUG PROFILE_TAGS=[$PROFILE_TAGS]" >&2
 BIN_DIR="$ZWRT_DIR/$IB_DIR/bin/targets/$FEED_TARGET"
 mapfile -d ';' -t PKG_GROUPS < <(printf '%s;' "$PROFILE_TAGS")
-echo ">> DEBUG PKG_GROUPS count=${#PKG_GROUPS[@]} => [${PKG_GROUPS[*]}]" >&2
 for g in "${PKG_GROUPS[@]}"; do
   IFS=',' read -r PROFILE IDENTITY TAG <<< "$g" || true
   echo ">> make image PROFILE=$PROFILE tag=$TAG" >&2
