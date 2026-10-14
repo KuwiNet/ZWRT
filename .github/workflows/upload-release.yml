@@ -89,7 +89,19 @@ jobs:
           done
           rclone copy firmware/ "r2:$R2_BUCKET/firmware/" --include "zwrt-*" -v
           echo "==== 上传完成, 下载地址 ===="
+          DOWNLOADS=""
           for f in firmware/zwrt-*; do
-            [ -f "$f" ] && echo "  ${PUB}/firmware/$(basename "$f")"
+            [ -f "$f" ] && { echo "  ${PUB}/firmware/$(basename "$f")"; DOWNLOADS="${DOWNLOADS}  - ${PUB}/firmware/$(basename "$f")\n"; }
           done
-          echo "已把 R2 下载地址写入上方, Release body 由 gh release 管理"
+          # 把 R2 下载地址追加进 Release body（<!--R2DL--> 标记防重复）
+          TAG="ZWRT-${{ steps.date.outputs.date }}"
+          CUR=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)
+          if [ -z "$(printf '%s' "$CUR" | grep '<!--R2DL-->')" ]; then
+            BODY="${CUR}
+<!--R2DL-->
+R2 下载地址:
+${DOWNLOADS}"
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes "$BODY" || echo "(body 更新失败, 不影响固件)"
+          else
+            echo "R2 下载地址已在 Release body 中, 跳过更新"
+          fi
