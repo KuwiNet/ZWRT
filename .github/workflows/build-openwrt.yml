@@ -163,12 +163,8 @@ jobs:
               (.wifi_ssid = (if $ssid != "" then $ssid else .wifi_ssid end)) |
               (.wifi_key = (if $key != "" then $key else .wifi_key end))
             )')
-          # 多行输出: GITHUB_OUTPUT 只接受单行, 多行 JSON 须用 heredoc 定界符格式
-          {
-            echo "matrix<<ZWRTEOM"
-            echo "$MATRIX"
-            echo "ZWRTEOM"
-          } >> "$GITHUB_OUTPUT"
+          # GITHUB_OUTPUT 输出单行 JSON (jq -c 紧凑), 避免多行值在 fromJSON 矩阵展开时出问题
+          echo "matrix=$(echo "$MATRIX" | jq -c .)" >> "$GITHUB_OUTPUT"
           echo "==== 构建矩阵 ===="
           echo "$MATRIX" | jq .
 
