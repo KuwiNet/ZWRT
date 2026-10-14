@@ -163,8 +163,8 @@ jobs:
               (.wifi_ssid = (if $ssid != "" then $ssid else .wifi_ssid end)) |
               (.wifi_key = (if $key != "" then $key else .wifi_key end))
             )')
-          # GITHUB_OUTPUT 输出单行 JSON (jq -c 紧凑), 避免多行值在 fromJSON 矩阵展开时出问题
-          echo "matrix=$(echo "$MATRIX" | jq -c .)" >> "$GITHUB_OUTPUT"
+          # GitHub 的 matrix 必须是对象: 用 include 包一层, fromJSON 才可展开为矩阵
+          echo "matrix=$(echo "$MATRIX" | jq -c '{"include": .}')" >> "$GITHUB_OUTPUT"
           echo "==== 构建矩阵 ===="
           echo "$MATRIX" | jq .
 
@@ -177,25 +177,7 @@ jobs:
     timeout-minutes: 420
     strategy:
       fail-fast: false
-      matrix:
-        - device: x86-64-main
-          bin_dir: bin/targets/x86/64
-          arch: x86_64
-          board: main
-          identity: x86-64-generic
-          tag: x86_64-main
-          feed_arch: x86_64
-          feed_target: x86/64
-          family: x86
-          lan_ip: 192.168.100.1
-          lan_mask: 255.255.255.0
-          gateway: 192.168.100.1
-          dns: 192.168.100.1
-          role: main
-          ipv6: '0'
-          wifi: '0'
-          wifi_ssid: ''
-          wifi_key: ''
+      matrix: ${{ fromJSON(needs.check.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
