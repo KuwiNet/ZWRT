@@ -175,9 +175,9 @@ function selectDevice(d) {
 function setFeature(name, on) {
   state.features[name] = !!on;
   if (name === "bypass") {
-    if (on && state.device && state.device.arch !== "x86_64") { state.features.bypass = false; $("f-bypass").checked = false; toast("旁路由仅适用于 x86/64 设备"); return; }
     if (on) {
       state.features.wifi = false;                         // 旁路由无法开启无线
+      state.features.wwan = false;                         // 旁路由无法开启蜂窝拨号
       const b = (state.device && state.device.bypassDefaults) || {};
       state.params.lan_ip = b.lan_ip || "192.168.100.10";
       state.params.gateway = b.gateway || "192.168.100.1";
@@ -414,7 +414,7 @@ function renderSummary() {
   rows.push(["伪装 iStoreOS", state.features.istore ? "开" : "关"]);
   if (state.features.wifi) rows.push(["无线", "SSID " + (state.params.wifi_ssid || "—") + (state.params.wifi_key ? "（加密）" : "（无密码）")]);
   else rows.push(["无线", "关"]);
-  if (state.features.wwan) { rows.push(["蜂窝上网", "开（5gmodem + 蜂窝驱动）"]); if (state.params.pppoe_user || state.params.pppoe_pass) rows.push(["蜂窝拨号", (state.params.pppoe_user || "—") + " / " + (state.params.pppoe_pass ? "****" : "—")]); }
+  if (state.features.wwan) { rows.push(["WWAN", "开（5gmodem + 蜂窝驱动）"]); if (state.params.pppoe_user || state.params.pppoe_pass) rows.push(["蜂窝拨号", (state.params.pppoe_user || "—") + " / " + (state.params.pppoe_pass ? "****" : "—")]); }
   rows.push(["基础包", d.base.length + " 个（固定）"]);
   rows.push(["可选包", set.length + " 个"]);
   rows.push(["互联网", state.net.size ? [...state.net].join("、") : "无"]);
@@ -438,7 +438,7 @@ function composeInitScript() {
         "uci set network.wwan.username='" + state.params.pppoe_user + "'\n" +
         "uci set network.wwan.password='" + state.params.pppoe_pass + "'\n" +
         "uci commit network 2>/dev/null || true\n" : "";
-    parts.push("# ZWRT 构建器 · 蜂窝上网(WWAN) 自动配置\n" + cred +
+    parts.push("# ZWRT 构建器 · WWAN 自动配置\n" + cred +
       "if [ -f /etc/init.d/ModemManager ]; then\n" +
       "  /etc/init.d/ModemManager enable 2>/dev/null || true\n" +
       "  /etc/init.d/ModemManager start 2>/dev/null || true\n" +
@@ -451,7 +451,7 @@ function composeInitScript() {
       "/etc/init.d/dnsmasq restart 2>/dev/null || true");
   }
   if (state.features.https) {
-    parts.push("# ZWRT 构建器 · HTTPS 访问后台\n" +
+    parts.push("# ZWRT 构建器 · HTTPS 后台\n" +
       "if [ ! -f /etc/ssl/certs/uhttpd-ssl.pem ]; then\n" +
       "  mkdir -p /etc/ssl/certs\n" +
       "  openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -keyout /etc/ssl/private/uhttpd.key -out /etc/ssl/certs/uhttpd-ssl.pem -subj \"/CN=ZWRT\" 2>/dev/null\n" +
@@ -643,7 +643,7 @@ function render() {
   if (by && $("f-wwan").checked) { state.features.wwan = false; $("f-wwan").checked = false; }  // 旁路由隐藏并关闭拨号
   $("featureHint").textContent = [
     by ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关指向主路由（DNS=网关），不可开无线。" : "",
-    state.features.wwan ? "蜂窝上网：自动追加 5gmodem 应用与主流蜂窝网卡驱动包。" : "",
+    state.features.wwan ? "WWAN：自动追加 5gmodem 应用与主流蜂窝网卡驱动包。" : "",
   ].filter(Boolean).join(" ");
   // 基础参数回填
   $("p-hostname").value = state.params.hostname;
@@ -659,8 +659,8 @@ function render() {
   $("p-account").value = state.account.str;
   $("m-base").textContent = state.device.base.length;
   $("m-selected").textContent = parsePkgInput(state.pkgInput).length;
-  $("initHint").textContent = state.features.wwan ? "已勾选蜂窝上网：构建时会自动附加 WWAN 配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
-  $("deviceNote").textContent = "共 " + state.devices.length + " 种设备；x86/64 可旁路由。";
+  $("initHint").textContent = state.features.wwan ? "已勾选 WWAN：构建时会自动附加蜂窝配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
+  $("deviceNote").textContent = "共 " + state.devices.length + " 种设备，均可选旁路由模式。";
   renderBaseChips();
   renderCommonChips();
   renderNetChips();
