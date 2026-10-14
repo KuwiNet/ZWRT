@@ -22,3 +22,4 @@ luci-theme-zwrt
 mihomo
 my-default-settings
 nikki
+opkg
