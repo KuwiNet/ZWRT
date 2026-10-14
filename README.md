@@ -94,11 +94,13 @@
 | `R2_BUCKET` | Secret | 桶名称（如 `zwrt`） | 要上传则必需 |
 | `R2_ACCOUNT_ID` | Secret | Cloudflare 账户 ID | 要上传则必需 |
 | `R2_ENDPOINT` | Secret | 自定义 S3 端点 `https://<account_id>.r2.cloudflarestorage.com` | 可选（缺省按 `R2_ACCOUNT_ID` 推导） |
-| `R2_PUBLIC_URL` | Variable | 桶公开下载前缀（如 `https://你的域名`） | 可选（默认 `https://dl.zwrt.de`） |
+| `R2_PUBLIC_URL` | Variable | 桶公开下载前缀（如 `https://你的域名`） | 要上传则必需（无它无法给出下载地址） |
 
 获取位置（Cloudflare 控制台）：Access Key → `R2` 管理 API 令牌；Account ID → 控制台首页右上角；Bucket → `R2` 创建桶；公开前缀 → 桶 `Settings → Public access`（或默认 `https://pub-<hash>.r2.dev`）。
 
 配置入口：仓库 → `Settings` → `Secrets and variables` → `Actions`（`R2_PUBLIC_URL` 加 Variables，其余加 Secrets）。
+
+> 私有 fork 的 **GitHub Release 资产无法匿名下载**（需 GitHub 登录/Token），固件下载必须靠你自己的 R2 公开桶。公开仓库（如 `KuWiNet/ZWRT`）则可匿名下载 GitHub Release。
 
 4. **使用你自己的库构建**：在在线构建器里把"构建账号"填成 `你的用户名/你的仓库名`，并填入你自己的 GitHub Token（只需 `repo` + `workflow` 权限）。
 
