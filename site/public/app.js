@@ -294,11 +294,11 @@ function renderNetChips() {
     box.appendChild(label);
   });
 }
-/* 主题多选：勾选安装；勾选后可点「设为默认」切换，★默认 = LuCI 默认 */
+/* 主题多选：勾选安装；勾选后点「设为默认」切换，★默认 = LuCI 默认（标记均在标签内部） */
 function renderThemeChips() {
   const box = $("themeChips"); box.innerHTML = "";
   THEMES.forEach((t) => {
-    const label = el("label", "chip" + (state.defaultTheme === t ? " isDefault" : ""));
+    const label = el("label", "chip");
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = state.themes.has(t);
     cb.addEventListener("change", () => {
       if (cb.checked) { state.themes.add(t); if (!state.defaultTheme) state.defaultTheme = t; }
@@ -306,20 +306,18 @@ function renderThemeChips() {
       render();
     });
     label.appendChild(cb);
-    label.appendChild(el("span", "", t.replace("luci-theme-", "")));
+    const span = el("span", "");
+    span.appendChild(document.createTextNode(t.replace("luci-theme-", "")));
     if (state.themes.has(t)) {
-      if (state.defaultTheme === t) label.appendChild(el("em", "def", "★默认"));
+      if (state.defaultTheme === t) span.appendChild(el("em", "def", "★默认"));
       else {
         const btn = document.createElement("button");
         btn.type = "button"; btn.className = "setdef"; btn.textContent = "设为默认";
-        btn.addEventListener("click", (e) => {
-          e.preventDefault(); e.stopPropagation();
-          state.defaultTheme = t; state.themes.add(t);
-          render();
-        });
-        label.appendChild(btn);
+        btn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); state.defaultTheme = t; state.themes.add(t); render(); });
+        span.appendChild(btn);
       }
     }
+    label.appendChild(span);
     box.appendChild(label);
   });
 }
