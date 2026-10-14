@@ -14,14 +14,22 @@ const el = (tag, cls, text) => {
   return n;
 };
 
-/* 互联网（科学上网）多选方案：默认勾选 nikki */
+/* 互联网（科学上网）多选方案：与 openwrt.ai 一致，默认勾选 nikki */
 const INTERNET_SCHEMES = [
-  { id: "nikki", name: "nikki（Mihomo TUN）", pkgs: ["luci-app-nikki", "nikki", "mihomo"] },
-  { id: "openclash", name: "OpenClash", pkgs: ["luci-app-openclash"] },
-  { id: "passwall2", name: "PassWall 2", pkgs: ["luci-app-passwall2"] },
+  { id: "passwall", name: "PassWall", pkgs: ["luci-app-passwall"] },
   { id: "homeproxy", name: "HomeProxy", pkgs: ["luci-app-homeproxy"] },
+  { id: "homeproxypro", name: "HomeProxy Pro", pkgs: ["luci-app-homeproxy-pro"] },
+  { id: "ssrplus", name: "SSR-Plus", pkgs: ["luci-app-ssr-plus"] },
+  { id: "openclash", name: "OpenClash", pkgs: ["luci-app-openclash"] },
+  { id: "passwall2", name: "PassWall2", pkgs: ["luci-app-passwall2"] },
+  { id: "nikki", name: "Nikki", pkgs: ["luci-app-nikki", "nikki", "mihomo"] },
+  { id: "momo", name: "Momo", pkgs: ["luci-app-momo", "momo"] },
+  { id: "clashoo", name: "Clashoo", pkgs: ["luci-app-clashoo", "clashoo"] },
+  { id: "honk", name: "Honk", pkgs: ["luci-app-honk", "honk"] },
+  { id: "lucixray", name: "luci-xray", pkgs: ["luci-app-xray", "xray-core"] },
+  { id: "daed", name: "Daed", pkgs: ["luci-app-daed", "daed", "daed-geoip", "daed-geosite"] },
+  { id: "hijpass", name: "HiJpass", pkgs: ["luci-app-hijpass"] },
   { id: "v2raya", name: "v2rayA", pkgs: ["luci-app-v2raya", "v2raya"] },
-  { id: "singbox", name: "sing-box", pkgs: ["sing-box"] },
 ];
 /* 主题多选（openwrt.ai 全部主题，含用户自建 zwrt / kucat） */
 const THEMES = [
@@ -236,27 +244,34 @@ function renderNetChips() {
     box.appendChild(label);
   });
 }
-/* 主题多选 */
+/* 主题多选：勾选安装；勾选后可点「设为默认」切换，★默认 = LuCI 默认 */
 function renderThemeChips() {
   const box = $("themeChips"); box.innerHTML = "";
   THEMES.forEach((t) => {
-    const label = el("label", "chip");
+    const label = el("label", "chip" + (state.defaultTheme === t ? " isDefault" : ""));
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = state.themes.has(t);
-    cb.addEventListener("change", () => { if (cb.checked) state.themes.add(t); else state.themes.delete(t); render(); });
+    cb.addEventListener("change", () => {
+      if (cb.checked) { state.themes.add(t); if (!state.defaultTheme) state.defaultTheme = t; }
+      else state.themes.delete(t);
+      render();
+    });
     label.appendChild(cb);
     label.appendChild(el("span", "", t.replace("luci-theme-", "")));
+    if (state.themes.has(t)) {
+      if (state.defaultTheme === t) label.appendChild(el("em", "def", "★默认"));
+      else {
+        const btn = document.createElement("button");
+        btn.type = "button"; btn.className = "setdef"; btn.textContent = "设为默认";
+        btn.addEventListener("click", (e) => {
+          e.preventDefault(); e.stopPropagation();
+          state.defaultTheme = t; state.themes.add(t);
+          render();
+        });
+        label.appendChild(btn);
+      }
+    }
     box.appendChild(label);
   });
-}
-/* 默认主题下拉 */
-function renderThemeSelect() {
-  const sel = $("p-theme"); sel.innerHTML = "";
-  THEMES.forEach((t) => {
-    const o = document.createElement("option");
-    o.value = t; o.textContent = t.replace("luci-theme-", "");
-    sel.appendChild(o);
-  });
-  sel.value = state.defaultTheme;
 }
 /* textarea 高度自适应：默认全显内容、无滚动条；用户手动拉大后保持，不缩回 */
 function autoGrow(el) {
@@ -518,7 +533,6 @@ function render() {
   renderPkgChips();
   renderNetChips();
   renderThemeChips();
-  renderThemeSelect();
   autoGrow($("pkgInput"));
   renderSummary();
 }
@@ -539,7 +553,6 @@ function bindStatic() {
   });
   on("p-account", "input", (e) => { state.account.str = e.target.value.trim() || "KuWiNet/ZWRT"; renderSummary(); });
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); });
-  on("p-theme", "change", (e) => { state.defaultTheme = e.target.value; renderThemeChips(); render(); });
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
   on("p-token", "input", (e) => { state.account.token = e.target.value.trim(); });
   on("p-tokensave", "change", (e) => {
