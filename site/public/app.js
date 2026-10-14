@@ -214,6 +214,11 @@ function readParams() {
 }
 function accountOwner() { return (state.account.str.split("/")[0] || "KuWiNet").trim(); }
 function accountRepo() { return (state.account.str.split("/")[1] || "ZWRT").trim(); }
+function updateGHA() {
+  const a = $("btnGHA");
+  if (!a) return;
+  a.href = "https://github.com/" + accountOwner() + "/" + accountRepo() + "/actions";
+}
 function applyDeviceDefaults() {
   const dd = state.device.defaults;
   state.features.bypass = false;
@@ -758,7 +763,7 @@ function bindStatic() {
   ["p-hostname", "p-lanip", "p-password", "p-gateway", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
-  on("p-account", "input", (e) => { state.account.str = e.target.value.trim() || "KuWiNet/ZWRT"; renderSummary(); });
+  on("p-account", "input", (e) => { state.account.str = e.target.value.trim() || "KuWiNet/ZWRT"; renderSummary(); updateGHA(); });
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); renderBaseChips(); renderCommonChips(); });
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
   on("p-token", "input", (e) => { state.account.token = e.target.value.trim(); });
@@ -779,6 +784,7 @@ function bindStatic() {
 (async function init() {
   initTheme();
   bindStatic();
+  updateGHA();
   try { await loadData(); }
   catch (e) {
     console.error(e);
