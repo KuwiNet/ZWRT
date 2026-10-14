@@ -79,15 +79,6 @@ on:
         description: '自定义系统初始化脚本 (base64 编码, 推荐以规避多行转义问题)'
         type: string
         default: ''
-  schedule:
-    # 每天 22:30 UTC (= 北京时间次日 06:30) 检测稳定分支更新
-    - cron: '30 22 * * *'
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '.cache/**'
-      - 'site/**'
-      - '.github/workflows/pages.yml'
 
 concurrency:
   group: zwrt-openwrt-build
