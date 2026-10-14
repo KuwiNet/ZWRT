@@ -585,10 +585,13 @@ async function startPoll(a) {
       const mine = runs.workflow_runs.find((r) => r.path === ".github/workflows/build-openwrt.yml" && new Date(r.created_at).getTime() >= t0 - 60000);
       if (mine) {
         state.runId = mine.id;
+        renderSteps(a, mine.id);
         const s = mine.status, c = mine.conclusion;
+        const statusCN = { queued: "排队中", in_progress: "构建中", completed: "已完成", success: "成功", failure: "失败", cancelled: "已取消", skipped: "已跳过", timed_out: "超时", neutral: "无结果" };
+        const label = statusCN[c] || statusCN[s] || s || "";
         const key = mine.id + ":" + s + ":" + (c || "");
         if (key !== lastKey) {
-          logc("Run #" + mine.id + " 状态: " + s + (c ? " / " + c : ""), c === "success" ? "ok" : c === "failure" ? "err" : s === "in_progress" ? "warn" : "muted");
+          logc("Run #" + mine.id + " 状态: " + label, c === "success" ? "ok" : c === "failure" || c === "cancelled" ? "err" : s === "in_progress" ? "warn" : "muted");
           lastKey = key;
         }
         if (s === "completed") {
@@ -606,6 +609,41 @@ async function startPoll(a) {
   };
   probe();
   state.pollTimer = setInterval(probe, 12000);
+}
+
+/* ---------- 渲染真实 GitHub Actions 工作流步骤 ---------- */
+async function renderSteps(a, runId) {
+  const box = $("#jobsteps");
+  if (!box) return;
+  try {
+    const jobs = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs/" + runId + "/jobs", a.token));
+    const builds = (jobs.jobs || []).filter((j) => j.name && j.name.indexOf("构建") === 0);
+    const target = builds.length ? builds[builds.length - 1] : null;
+    if (!target) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = "";
+    const stCN = { queued: "排队中", in_progress: "进行中", completed: "已完成", success: "成功", failure: "失败", cancelled: "已取消", skipped: "已跳过" };
+    const h = el("div", "jobs-head", target.name + " · " + (stCN[target.conclusion] || stCN[target.status] || target.status || ""));
+    box.appendChild(h);
+    const ul = el("div", "steps");
+    (target.steps || []).forEach((st) => {
+      const row = el("div", "step", stepMark(st) + " " + st.name);
+      if (st.conclusion === "skipped") row.classList.add("step-skipped");
+      if (st.status === "in_progress") row.classList.add("step-run");
+      row.title = (st.status || "") + (st.conclusion ? " / " + st.conclusion : "");
+      ul.appendChild(row);
+    });
+    box.appendChild(ul);
+  } catch (e) { box.hidden = true; }
+}
+function stepMark(st) {
+  if (st.status === "in_progress") return "◍";
+  if (st.conclusion === "success") return "✔";
+  if (st.conclusion === "failure") return "✘";
+  if (st.conclusion === "cancelled") return "✕";
+  if (st.conclusion === "skipped") return "—";
+  if (st.status === "completed") return "✔";
+  return "·";
 }
 
 /* ---------- 主题（深/浅），右上角切换，localStorage 记忆 ---------- */
