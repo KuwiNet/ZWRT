@@ -103,7 +103,7 @@ const state = {
   catalogArr: [],
   catalogFile: "",
   device: null,
-  features: { bypass: false, ipv6: false, wifi: false, wwan: false },
+  features: { bypass: false, ipv6: false, wifi: false, wwan: false, docker: false, https: false, dhcp: true, istore: false },
   params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", password: "", wifi_ssid: "", wifi_key: "" },
   net: new Set(["nikki"]),            // 已选互联网方案
   themes: new Set(["luci-theme-zwrt"]), // 已选主题
@@ -193,6 +193,10 @@ function bindFeatures() {
   on("f-ipv6", "change", (e) => setFeature("ipv6", e.target.checked));
   on("f-wifi", "change", (e) => setFeature("wifi", e.target.checked));
   on("f-wwan", "change", (e) => setFeature("wwan", e.target.checked));
+  on("f-docker", "change", (e) => setFeature("docker", e.target.checked));
+  on("f-https", "change", (e) => setFeature("https", e.target.checked));
+  on("f-dhcp", "change", (e) => setFeature("dhcp", e.target.checked));
+  on("f-istore", "change", (e) => setFeature("istore", e.target.checked));
 }
 
 /* ---------- params ---------- */
@@ -215,6 +219,10 @@ function applyDeviceDefaults() {
   state.features.ipv6 = !!dd.ipv6;
   state.features.wifi = !!dd.wifi;
   state.features.wwan = !!dd.wwan;
+  state.features.docker = false;
+  state.features.https = false;
+  state.features.dhcp = true;
+  state.features.istore = false;
   state.net = new Set(["nikki"]);
   state.themes = new Set(["luci-theme-zwrt"]);
   state.defaultTheme = "luci-theme-zwrt";
@@ -230,6 +238,10 @@ function applyDeviceDefaults() {
   $("f-ipv6").checked = state.features.ipv6;
   $("f-wifi").checked = state.features.wifi;
   $("f-wwan").checked = state.features.wwan;
+  $("f-docker").checked = state.features.docker;
+  $("f-https").checked = state.features.https;
+  $("f-dhcp").checked = state.features.dhcp;
+  $("f-istore").checked = state.features.istore;
 }
 
 /* ---------- packages ---------- */
@@ -396,6 +408,10 @@ function renderSummary() {
   ];
   if (state.features.bypass) rows.push(["网关/DNS", state.params.gateway + " / " + state.params.gateway]);
   rows.push(["IPv6", state.features.ipv6 ? "开" : "关"]);
+  rows.push(["Docker", state.features.docker ? "开" : "关"]);
+  rows.push(["HTTPS 后台", state.features.https ? "开" : "关"]);
+  rows.push(["DHCP 服务器", state.features.dhcp ? "开" : "关"]);
+  rows.push(["伪装 iStoreOS", state.features.istore ? "开" : "关"]);
   if (state.features.wifi) rows.push(["无线", "SSID " + (state.params.wifi_ssid || "—") + (state.params.wifi_key ? "（加密）" : "（无密码）")]);
   else rows.push(["无线", "关"]);
   if (state.features.wwan) { rows.push(["蜂窝上网", "开（5gmodem + 蜂窝驱动）"]); if (state.params.pppoe_user || state.params.pppoe_pass) rows.push(["蜂窝拨号", (state.params.pppoe_user || "—") + " / " + (state.params.pppoe_pass ? "****" : "—")]); }
@@ -410,7 +426,7 @@ function renderSummary() {
   });
 }
 
-/* ---------- wwan / theme init snippet ---------- */
+/* ---------- features / init snippet ---------- */
 function composeInitScript() {
   const parts = [];
   const user = state.initScript.trim();
@@ -427,6 +443,36 @@ function composeInitScript() {
       "  /etc/init.d/ModemManager enable 2>/dev/null || true\n" +
       "  /etc/init.d/ModemManager start 2>/dev/null || true\n" +
       "fi");
+  }
+  if (!state.features.dhcp) {
+    parts.push("# ZWRT 构建器 · 关闭 DHCP 服务器\n" +
+      "uci set dhcp.lan.ignore='1'\n" +
+      "uci commit dhcp 2>/dev/null || true\n" +
+      "/etc/init.d/dnsmasq restart 2>/dev/null || true");
+  }
+  if (state.features.https) {
+    parts.push("# ZWRT 构建器 · HTTPS 访问后台\n" +
+      "if [ ! -f /etc/ssl/certs/uhttpd-ssl.pem ]; then\n" +
+      "  mkdir -p /etc/ssl/certs\n" +
+      "  openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -keyout /etc/ssl/private/uhttpd.key -out /etc/ssl/certs/uhttpd-ssl.pem -subj \"/CN=ZWRT\" 2>/dev/null\n" +
+      "  cat /etc/ssl/private/uhttpd.key >> /etc/ssl/certs/uhttpd-ssl.pem\n" +
+      "fi\n" +
+      "uci set uhttpd.main.listen_http='0.0.0.0:80'\n" +
+      "uci set uhttpd.main.listen_https='0.0.0.0:443'\n" +
+      "uci set uhttpd.main.redirect_https='1'\n" +
+      "uci commit uhttpd 2>/dev/null || true\n" +
+      "/etc/init.d/uhttpd restart 2>/dev/null || true");
+  }
+  if (state.features.docker) {
+    parts.push("# ZWRT 构建器 · Docker\n" +
+      "/etc/init.d/dockerd enable 2>/dev/null || true\n" +
+      "/etc/init.d/dockerd start 2>/dev/null || true");
+  }
+  if (state.features.istore) {
+    parts.push("# ZWRT 构建器 · 伪装 iStoreOS 品牌\n" +
+      "sed -i 's/DISTRIB_ID=.*/DISTRIB_ID=\"iStoreOS\"/' /etc/openwrt_release 2>/dev/null || true\n" +
+      "sed -i 's/DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION=\"iStoreOS '\"\"'\"$(cat /etc/openwrt_version 2>/dev/null)\"'\"\"'\"/' /etc/openwrt_release 2>/dev/null || true\n" +
+      "echo '  ________  ___  ____  ____  ____\n /_  __/ _ \\/ _ \\/ __ \\/ __ \\/ __/ iStoreOS\n' > /etc/banner 2>/dev/null || true");
   }
   const theme = state.defaultTheme.replace("luci-theme-", "");
   if (theme && theme !== "bootstrap") {
@@ -452,7 +498,11 @@ function composeInputs() {
   const netPkgs = [...state.net].flatMap((id) => (INTERNET_SCHEMES.find((s) => s.id === id) || {}).pkgs || []);
   const themePkgs = [...new Set([...state.themes, state.defaultTheme])];
   const wwan = state.features.wwan ? state.wwan : [];
-  const common = [...new Set([...base, ...sel, ...netPkgs, ...themePkgs, ...wwan])];
+  const featurePkgs = [];
+  if (state.features.docker) featurePkgs.push("docker", "luci-app-dockerman");
+  if (state.features.https) featurePkgs.push("luci-ssl-openssl");
+  if (state.features.istore) featurePkgs.push("luci-app-store");
+  const common = [...new Set([...base, ...sel, ...netPkgs, ...themePkgs, ...wwan, ...featurePkgs])];
   const wh3000 = [...new Set([...d.whExtra, ...wwan])];
   const inputs = {
     device: workflowDevice(),
