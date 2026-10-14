@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZWRT — 定制 OpenWrt 固件构建器</title>
-<meta name="description" content="在线定制你的 ZWRT OpenWrt 固件：选设备、开功能、挑软件包、写初始化脚本，一键触发 GitHub Actions 编译。纯静态、去中心化，Token 只存浏览器。">
+<meta name="description" content="在线定制你的 ZWRT OpenWrt 固件：选设备、开功能、挑软件包、写初始化脚本，一键触发 GitHub Actions 编译。私有站点，Worker 持有令牌。">
 <link rel="icon" href="yacd.ico" type="image/x-icon">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -135,12 +135,11 @@
 
     <!-- ===== 5 构建 ===== -->
     <div class="card" data-step="5">
-      <div class="card-head"><span class="stepno">5</span><h3>构建账号</h3><span class="acct-hint">Fork <a href="https://github.com/KuWiNet/ZWRT" target="_blank" rel="noopener">KuWiNet/ZWRT</a>，输入仓库名和 Token 后开始构建。</span></div>
+      <div class="card-head"><span class="stepno">5</span><h3>构建账号</h3><span class="acct-hint">仓库 <a href="https://github.com/KuWiNet/ZWRT" target="_blank" rel="noopener">KuWiNet/ZWRT</a>（私库）</span></div>
       <div class="fields">
-        <label>仓库（所有者/仓库名）<input id="p-account" type="text" placeholder="KuWiNet/ZWRT"></label>
-        <label>GitHub Token（需 repo + workflow 权限）
-          <input id="p-token" type="password" placeholder="ghp_… 仅存浏览器">
-          <label class="mini"><input id="p-tokensave" type="checkbox">记住 Token<span class="mini-hint">只记在浏览器，不经任何服务器。</span></label>
+        <label>仓库（所有者/仓库名）
+          <input id="p-account" type="text" value="KuWiNet/ZWRT" placeholder="KuWiNet/ZWRT" disabled>
+          <span class="mini-hint">固定私有仓库；GitHub Token 由 Worker 持有，无需填写。</span>
         </label>
       </div>
       <div class="actions">
@@ -173,7 +172,7 @@
   </aside>
 </main>
 
-<footer class="foot">ZWRT Builder · 纯静态 · 无后端 · 构建在你自己或 KuWiNet 的 GitHub Actions 上完成</footer>
+<footer class="foot">ZWRT Builder · 私有站点 · GitHub Token 由 Worker 持有 · 构建在你的 GitHub Actions 上完成</footer>
 
 <div id="toast"></div>
 

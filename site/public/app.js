@@ -210,7 +210,7 @@ function readParams() {
   state.params.wifi_key = $("p-wifikey").value.trim();
   state.params.pppoe_user = $("p-pppuser").value.trim();
   state.params.pppoe_pass = $("p-ppppass").value.trim();
-  state.account.str = ($("p-account").value.trim() || "KuWiNet/ZWRT").replace(/\/+$/, "");
+  state.account.str = "KuWiNet/ZWRT";
 }
 function accountOwner() { return (state.account.str.split("/")[0] || "KuWiNet").trim(); }
 function accountRepo() { return (state.account.str.split("/")[1] || "ZWRT").trim(); }
@@ -542,9 +542,10 @@ function composeInputs() {
   return { inputs, meta: { base: base.length, sel: sel.length, wwan: wwan.length, role: state.features.bypass ? "bypass" : "main" } };
 }
 function ghAPI(method, path, token, body) {
-  const opt = { method, headers: { Authorization: "Bearer " + token, "User-Agent": "zwrt-builder", Accept: "application/vnd.github+json" } };
-  if (body) opt.headers["Content-Type"] = "application/json";
-  return fetch("https://api.github.com" + path, body ? Object.assign(opt, { body: JSON.stringify(body) }) : opt);
+  const opt = { method, headers: { "User-Agent": "zwrt-builder", Accept: "application/vnd.github+json" } };
+  if (body) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  // 全部经 Worker /api/gh 代理（注入 GH_TOKEN），前端不再持有 Token
+  return fetch("/api/gh?m=" + encodeURIComponent(method) + "&p=" + encodeURIComponent(path), opt);
 }
 async function apiJson(res) {
   const t = await res.text();
@@ -557,7 +558,6 @@ function validate() {
   const str = state.account.str;
   const parts = str.split("/").filter(Boolean);
   if (parts.length < 2 || !parts[0] || !parts[1]) return "仓库需填 所有者/仓库名（如 KuWiNet/ZWRT）";
-  if (!state.account.token) return "请填写 GitHub Token（需 repo + workflow 权限）";
   const ip = state.params.lan_ip, mk = state.params.lan_mask;
   const v4 = (s) => /^(\d{1,3}\.){3}\d{1,3}$/.test(s) && s.split(".").every((o) => +o <= 255);
   if (!v4(ip)) return "LAN IP 不是有效 IPv4 地址";
@@ -671,17 +671,16 @@ function stepMark(st) {
 
 /* ---------- 重新打开页面后：查看/恢复上次定制构建 ---------- */
 async function resumeProgress() {
-  const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
-  if (!token) { logc("请先填写 GitHub Token", "err"); return; }
+  const owner = accountOwner(), repo = accountRepo();
   let mine = null;
   try {
     const saved = JSON.parse(localStorage.getItem("zwrt_run") || "null");
     if (saved && saved.runId && saved.owner === owner && saved.repo === repo) {
-      mine = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs/" + saved.runId, token));
+      mine = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs/" + saved.runId));
     }
   } catch (e) {}
   if (!mine) {
-    const runs = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs?event=workflow_dispatch&per_page=5", token));
+    const runs = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/actions/runs?event=workflow_dispatch&per_page=5"));
     mine = (runs.workflow_runs || []).find((r) => r.path === ".github/workflows/build-openwrt.yml");
   }
   if (!mine) { logc("未找到该仓库最近的定制构建记录", "err"); return; }
@@ -691,11 +690,11 @@ async function resumeProgress() {
   logc("上次构建 Run #" + mine.id + " 状态: " + label, c === "success" ? "ok" : c === "failure" || c === "cancelled" ? "err" : s === "in_progress" ? "warn" : "muted");
   setBottomBtn("gha");
   if (s === "completed") {
-    if (c === "success") { logc("上次构建已完成，正在加载固件下载…", "ok"); loadDownloads(owner, repo, token); }
+    if (c === "success") { logc("上次构建已完成，正在加载固件下载…", "ok"); loadDownloads(owner, repo); }
     else logc("上次构建未成功 (" + c + ")，请查看 GitHub Actions 日志", "err");
   } else {
     logc("上次构建尚未完成，正在恢复跟踪进度…", "warn");
-    startPoll({ owner, repo, token, runId: mine.id });
+    startPoll({ owner, repo, runId: mine.id });
   }
 }
 
@@ -715,10 +714,10 @@ function initTheme() {
 }
 
 /* ---------- downloads ---------- */
-async function loadDownloads(owner, repo, token) {
+async function loadDownloads(owner, repo) {
   const box = $("downloads");
   try {
-    const rel = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/releases?per_page=5", token));
+    const rel = await apiJson(await ghAPI("GET", "/repos/" + owner + "/" + repo + "/releases?per_page=5"));
     box.innerHTML = "";
     const items = rel.filter((r) => r.assets && r.assets.length);
     if (!items.length) { box.appendChild(el("p", "dim", "暂无 Release 固件")); return; }
@@ -735,7 +734,8 @@ async function loadDownloads(owner, repo, token) {
         const n = el("div", "n", a.name); it.appendChild(n);
         const m = el("div", "m", (a.size / 1048576).toFixed(1) + " MB · " + r.tag_name); it.appendChild(m);
         const l = el("div", "links");
-        const gh = el("a", "", "GitHub ↓"); gh.href = a.browser_download_url; gh.target = "_blank"; gh.rel = "noopener";
+        // 私库 Release 走 Worker /api/dl 代理（带 GH_TOKEN）
+        const gh = el("a", "", "GitHub ↓"); gh.href = "/api/dl?u=" + encodeURIComponent(a.browser_download_url); gh.target = "_blank"; gh.rel = "noopener";
         l.appendChild(gh);
         if (r2map[a.name]) {
           const r2 = el("a", "", "R2 下载 ↓"); r2.href = r2map[a.name]; r2.target = "_blank"; r2.rel = "noopener";
@@ -782,7 +782,6 @@ function render() {
   $("p-ppppass").value = state.params.pppoe_pass;
   $("pkgInput").value = state.pkgInput;
   $("initScript").value = state.initScript;
-  $("p-account").value = state.account.str;
   $("m-base").textContent = state.device.base.length;
   $("m-selected").textContent = parsePkgInput(state.pkgInput).length;
   $("initHint").textContent = state.features.wwan ? "已勾选 WWAN：构建时会自动附加蜂窝配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
@@ -809,14 +808,8 @@ function bindStatic() {
   ["p-hostname", "p-lanip", "p-password", "p-gateway", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
-  on("p-account", "input", (e) => { state.account.str = e.target.value.trim() || "KuWiNet/ZWRT"; renderSummary(); updateGHA(); });
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); renderBaseChips(); renderCommonChips(); });
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
-  on("p-token", "input", (e) => { state.account.token = e.target.value.trim(); });
-  on("p-tokensave", "change", (e) => {
-    try { if (e.target.checked) localStorage.setItem("zwrt_token", state.account.token); else localStorage.removeItem("zwrt_token"); }
-    catch (err) {}
-  });
   on("btnBuild", "click", () => triggerBuild());
   on("btnResume", "click", () => resumeProgress());
   on("btnPreview", "click", () => {
@@ -824,8 +817,6 @@ function bindStatic() {
     const { inputs } = composeInputs();
     const p = $("preview"); p.hidden = !p.hidden; if (!p.hidden) p.textContent = JSON.stringify({ ref: "main", inputs }, null, 2);
   });
-  const saved = (() => { try { return localStorage.getItem("zwrt_token") || ""; } catch (e) { return ""; } })();
-  if (saved) { $("p-token").value = saved; $("p-tokensave").checked = true; state.account.token = saved; }
 }
 
 (async function init() {
@@ -843,13 +834,9 @@ function bindStatic() {
   try {
     const rr = JSON.parse(localStorage.getItem("zwrt_run") || "null");
     if (rr && rr.runId && rr.owner && rr.repo) {
-      if (state.account.token) {
-        setBottomBtn("gha");
-        logc("检测到上次构建 Run #" + rr.runId + "，正在恢复跟踪进度…", "muted");
-        startPoll({ owner: rr.owner, repo: rr.repo, token: state.account.token, runId: rr.runId });
-      } else {
-        logc("检测到上次构建 Run #" + rr.runId + "，请填写 GitHub Token 并勾选「保存 Token」以继续跟踪进度", "err");
-      }
+      setBottomBtn("gha");
+      logc("检测到上次构建 Run #" + rr.runId + "，正在恢复跟踪进度…", "muted");
+      startPoll({ owner: rr.owner, repo: rr.repo, runId: rr.runId });
     }
   } catch (e) {}
 })();
