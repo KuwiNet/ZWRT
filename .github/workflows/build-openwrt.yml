@@ -1,12 +1,10 @@
 # =============================================================
-# ZWRT-openwrt 自动构建工作流 (方案 A: ImageBuilder 组装, 双引擎)
+# ZWRT-openwrt 自动构建工作流 (方案 A: ImageBuilder 组装, Kwrt 引擎)
 #   - 不再从源码全量编译, 改用 ImageBuilder 几分钟出固件
-#   - 双引擎:  ImmortalWrt 官方 (官方源内核匹配) / Kwrt (openwrt.ai)
-#   - 引擎由 dispatch 二选一 (网站定制页可选, 默认 Kwrt)
-#   - 自定义第三方源地址通过仓库 Variables 配置 (不写明文)
-#   - 按设备矩阵构建, 每个设备一个 job; workflow_dispatch 可指定设备/引擎/参数/软件包/初始化脚本
-#   - 主机名统一 ZWRT, 固件命名 zwrt-YYYYMMDD-引擎-架构-设备
-#   - 产物: Artifact + 单个 GitHub Release (ZWRT-日期-引擎) + Cloudflare R2 (只保留最近2版)
+#   - Kwrt 引擎 (openwrt.ai), 自定义第三方源地址通过仓库 Variables 配置 (不写明文)
+#   - 按设备矩阵构建, 每个设备一个 job; workflow_dispatch 可指定设备/参数/软件包/初始化脚本
+#   - 主机名统一 ZWRT, 固件命名 zwrt-YYYYMMDD-设备
+#   - 产物: Artifact + 单个 GitHub Release (ZWRT-日期) + Cloudflare R2 (只保留最近2版)
 # =============================================================
 name: Build OpenWrt ZWRT
 run-name: Build OpenWrt ZWRT
@@ -24,14 +22,6 @@ on:
           - x86-64-bypass
           - wh3000pro
         default: all
-      engine:
-        description: '构建引擎 (Kwrt = openwrt.ai; ImmortalWrt = 官方源)'
-        type: choice
-        required: true
-        options:
-          - kwrt
-          - immortalwrt
-        default: kwrt
       hostname:
         description: '主机名 (默认 ZWRT)'
         type: string
@@ -101,38 +91,35 @@ permissions:
   contents: write
 
 jobs:
-  # ---- 生成构建矩阵 (dispatch 设备筛选 + 引擎 + 参数覆盖) ----
+  # ---- 生成构建矩阵 (dispatch 设备筛选 + 参数覆盖) ----
   check:
     name: 生成构建矩阵
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.mtx.outputs.matrix }}
-      engine: ${{ steps.mtx.outputs.engine }}
     steps:
       - uses: actions/checkout@v4
-      - name: 生成构建矩阵 (dispatch 设备筛选 + 引擎 + 参数覆盖)
+      - name: 生成构建矩阵 (dispatch 设备筛选 + 参数覆盖)
         id: mtx
         env:
           OA_BASE: ${{ vars.OPENWRT_AI_BASE }}
         run: |
-          ENGINE="${{ inputs.engine }}"
-          [ -z "$ENGINE" ] && ENGINE="kwrt"
-          if [ "$ENGINE" = "kwrt" ] && [ -z "$OA_BASE" ]; then
+          if [ -z "$OA_BASE" ]; then
             echo "::error ::未配置仓库 Variables OPENWRT_AI_BASE (Kwrt 引擎需要第三方源基础地址)"
             exit 1
           fi
           MATRIX='[
-            {"device":"x86-64-main","tag":"x86_64-main","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","img_immortal":"https://downloads.immortalwrt.org/releases/25.12.2/targets/x86/64/immortalwrt-imagebuilder-25.12.2-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-main","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
-            {"device":"x86-64-bypass","tag":"x86_64-bypass","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","img_immortal":"https://downloads.immortalwrt.org/releases/25.12.2/targets/x86/64/immortalwrt-imagebuilder-25.12.2-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-bypass","lan_ip":"192.168.100.10","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"bypass","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
-            {"device":"wh3000pro","tag":"wh3000pro","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","img_immortal":"https://downloads.immortalwrt.org/releases/25.12.2/targets/mediatek/filogic/immortalwrt-imagebuilder-25.12.2-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"huasifei_wh3000-pro-emmc,huasifei_wh3000-pro-emmc,wh3000pro-emmc;huasifei_wh3000-pro-nand,huasifei_wh3000-pro-nand,wh3000pro-nand","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""}
+            {"device":"x86-64-main","tag":"x86_64-main","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-main","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
+            {"device":"x86-64-bypass","tag":"x86_64-bypass","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-bypass","lan_ip":"192.168.100.10","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"bypass","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
+            {"device":"wh3000pro","tag":"wh3000pro","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"huasifei_wh3000-pro-emmc,huasifei_wh3000-pro-emmc,wh3000pro-emmc;huasifei_wh3000-pro-nand,huasifei_wh3000-pro-nand,wh3000pro-nand","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""}
           ]'
           # 设备筛选 (仅 dispatch 且指定单设备)
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.device }}" ] && [ "${{ inputs.device }}" != "all" ]; then
             MATRIX=$(echo "$MATRIX" | jq --arg d "${{ inputs.device }}" '[.[] | select(.device==$d)]')
           fi
-          # 计算 img_url + 写入 engine 字段 (immortalwrt 用官方URL; kwrt 用 vars.OPENWRT_AI_BASE 拼接)
-          MATRIX=$(echo "$MATRIX" | jq --arg engine "$ENGINE" --arg oa "$OA_BASE" \
-            'map(.engine=$engine | .img_url=(if $engine=="immortalwrt" then .img_immortal else ($oa + .img_suffix) end) | del(.img_suffix,.img_immortal))')
+          # 计算 img_url (kwrt 用 vars.OPENWRT_AI_BASE 拼接)
+          MATRIX=$(echo "$MATRIX" | jq --arg oa "$OA_BASE" \
+            'map(.img_url=($oa + .img_suffix) | del(.img_suffix))')
           # 参数覆盖 (非空才覆盖; 空值保持设备默认)
           MATRIX=$(echo "$MATRIX" | jq \
             --arg ip "${{ inputs.lan_ip }}" \
@@ -155,8 +142,6 @@ jobs:
             )')
           # GitHub 的 matrix 必须是对象: 用 include 包一层, fromJSON 才可展开为矩阵
           echo "matrix=$(echo "$MATRIX" | jq -c '{"include": .}')" >> "$GITHUB_OUTPUT"
-          echo "engine=$ENGINE" >> "$GITHUB_OUTPUT"
-          echo "==== 构建引擎: $ENGINE ===="
           echo "$MATRIX" | jq .
 
   # ---- 按设备用 ImageBuilder 组装固件 ----
@@ -182,7 +167,6 @@ jobs:
         id: ibuild
         env:
           DEVICE: ${{ matrix.device }}
-          ENGINE: ${{ matrix.engine }}
           DATE: ${{ steps.date.outputs.date }}
           FEED_ARCH: ${{ matrix.feed_arch }}
           FEED_TARGET: ${{ matrix.feed_target }}
@@ -214,7 +198,7 @@ jobs:
       - name: 上传固件 Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.engine }}-${{ matrix.tag }}
+          name: zwrt-${{ steps.date.outputs.date }}-${{ matrix.tag }}
           path: firmware/zwrt-*
           if-no-files-found: error
 
@@ -233,25 +217,25 @@ jobs:
       - name: 下载全部固件 Artifact
         uses: actions/download-artifact@v4
         with:
-          pattern: zwrt-${{ steps.date.outputs.date }}-${{ needs.check.outputs.engine }}-*
+          pattern: zwrt-${{ steps.date.outputs.date }}-*
           path: firmware/
           merge-multiple: true
 
       - name: 列出待发布固件
         run: ls -lh firmware/
 
-      - name: 发布单个 Release (ZWRT-日期-引擎, 含全部固件)
+      - name: 发布单个 Release (ZWRT-日期, 含全部固件)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="ZWRT-${{ steps.date.outputs.date }}-${{ needs.check.outputs.engine }}"
+          TAG="ZWRT-${{ steps.date.outputs.date }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG 已存在, 跳过创建"
           else
             gh release create "$TAG" firmware/zwrt-* \
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
-              --notes "ImmortalWrt 25.12 (${{ needs.check.outputs.engine }} 引擎, ImageBuilder 组装)
+              --notes "Kwrt 引擎 (ImageBuilder 组装)
               构建日期: ${{ steps.date.outputs.date }}
               内容: x86_64 主路由 / x86_64 旁路由 / WH3000 Pro (eMMC+NAND)"
           fi
@@ -299,7 +283,7 @@ jobs:
             [ -f "$f" ] && echo "  ${R2_PUBLIC_URL}/firmware/$(basename "$f")"
           done
           # ---- 把 R2/B2 下载地址写进 Release body (标记 <!--R2DL--> 防重复追加) ----
-          TAG="ZWRT-${{ steps.date.outputs.date }}-${{ needs.check.outputs.engine }}"
+          TAG="ZWRT-${{ steps.date.outputs.date }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             BODY=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
             BODY="${BODY%%<!--R2DL-->*}"

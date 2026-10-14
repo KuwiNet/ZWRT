@@ -1,11 +1,10 @@
 #!/bin/bash
-# ===== 固件重命名: zwrt-日期-引擎-发布标签-<原固件类型> =====
-# 用法: scripts/custom.sh <bin目录> <日期YYYYMMDD> <引擎immortalwrt|kwrt> <发布标签> <openwrt镜像身份串>
-# 例:  scripts/custom.sh bin/targets/x86/64 20261013 kwrt x86_64-main "x86-64-generic"
-# 命名: zwrt-20261013-kwrt-x86_64-main-squashfs-combined.img.gz      (x86 主路由, Kwrt引擎)
-#       zwrt-20261013-immortal-x86_64-main-squashfs-combined.img.gz  (x86 主路由, ImmortalWrt官方引擎)
+# ===== 固件重命名: zwrt-日期-发布标签-<原固件类型> =====
+# 用法: scripts/custom.sh <bin目录> <日期YYYYMMDD> <发布标签> <openwrt镜像身份串>
+# 例:  scripts/custom.sh bin/targets/x86/64 20261013 x86_64-main "x86-64-generic"
+# 命名: zwrt-20261013-x86_64-main-squashfs-combined.img.gz      (x86 主路由)
 set -e
-BIN_DIR="$1"; DATE="$2"; ENGINE="$3"; TAG="$4"; IDENTITY="$5"
+BIN_DIR="$1"; DATE="$2"; TAG="$3"; IDENTITY="$4"
 
 cd "$BIN_DIR"
 for f in *; do
@@ -18,7 +17,7 @@ for f in *; do
         echo "!! 跳过(未匹配身份串): $f"
         continue
       fi
-      new="zwrt-${DATE}-${ENGINE}-${TAG}-${suffix}"
+      new="zwrt-${DATE}-${TAG}-${suffix}"
       mv "$f" "$new"
       echo ">> $f  ->  $new"
       ;;
