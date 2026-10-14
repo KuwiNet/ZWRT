@@ -123,7 +123,7 @@
 
     <!-- ===== 5 构建 ===== -->
     <div class="card" data-step="5">
-      <div class="card-head"><span class="stepno">5</span><h3>构建账号</h3></div>
+      <div class="card-head"><span class="stepno">5</span><h3>构建账号</h3><span class="acct-hint">Fork <a href="https://github.com/KuWiNet/ZWRT" target="_blank" rel="noopener">https://github.com/KuWiNet/ZWRT</a> 到自己账号，将仓库和 Token 输入后构建。</span></div>
       <div class="fields">
         <label>仓库（所有者/仓库名）<input id="p-account" type="text" placeholder="KuWiNet/ZWRT"></label>
         <label>GitHub Token（需 repo + workflow 权限）
@@ -131,7 +131,6 @@
           <label class="mini"><input id="p-tokensave" type="checkbox">记住 Token 在本机</label>
         </label>
       </div>
-      <p class="field-hint" style="margin-top:6px">Fork <a href="https://github.com/KuWiNet/ZWRT" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">KuWiNet/ZWRT</a> 到自己账号，将仓库输入下方后构建。</p>
       <div class="actions">
         <button id="btnBuild" class="primary">开始构建</button>
         <button id="btnPreview" class="ghost">预览提交 JSON</button>

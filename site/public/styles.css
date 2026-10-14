@@ -40,6 +40,8 @@ h1,h2,h3{margin:0;line-height:1.2}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
 .card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .card-head h3{font-size:16px;font-weight:700}
+.acct-hint{font-size:12px;color:var(--dim);font-weight:400}
+.acct-hint a{color:var(--accent);text-decoration:underline;word-break:break-all}
 .stepno{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#06121f;font-weight:800;display:grid;place-items:center;font-size:14px;flex:none}
 
 /* ---- combo (searchable dropdown) ---- */
