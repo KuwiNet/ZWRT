@@ -9,15 +9,14 @@
 #       zwrt-20261013-wh3000pro-nand-squashfs-sysupgrade.bin        (WH3000 Pro NAND)
 set -e
 BIN_DIR="$1"; DATE="$2"; TAG="$3"; IDENTITY="$4"
-# 身份串前缀匹配: 兼容 openwrt- / immortalwrt- 前缀 (ImmortalWrt 产物为 immortalwrt-<arch>-<dev>-...)
-PATTERN="*${IDENTITY}-"
 
 cd "$BIN_DIR"
 for f in *; do
   [ -f "$f" ] || continue
   case "$f" in
     *.bin|*.img|*.img.gz|*.gz|*.tar.gz)
-      suffix="${f#"$PATTERN"}"
+      # 去掉到身份串为止的前缀 (模式不加引号, 否则 * 无法通配)
+      suffix="${f#*${IDENTITY}-}"
       if [ "$suffix" = "$f" ]; then
         echo "!! 跳过(未匹配身份串): $f"
         continue
