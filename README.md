@@ -85,14 +85,7 @@
 
 1. **Fork**：GitHub → KuWiNet/ZWRT → Fork。
 2. **设为私有（推荐）**：Settings → General → Danger Zone → Change visibility → **Private**。私有库的 Actions run 对外不可见，dispatch 参数（含密码）不会公开。
-3. **（可选）配置仓库 Secrets / Variables**：
-   - 需要把网站部署到自己的 Cloudflare Pages：配置 `CLOUDFLARE_API_TOKEN`（Secret）、`CLOUDFLARE_ACCOUNT_ID`（Secret）。
-   - 需要固件上传到自己的 R2/B2 对象存储：见下节「R2/B2 固件上传配置」表格。
-4. **使用你自己的库构建**：在在线构建器里把"构建账号"填成 `你的用户名/你的仓库名`，并填入你自己的 GitHub Token（只需 `repo` + `workflow` 权限）。
-
-### R2/B2 固件上传配置（可选）
-
-不配置 R2 密钥则**自动跳过上传**，构建与 Release 照常成功；配置后固件上传到你自己的桶，下载地址写入该 Release 描述，前端「固件下载」优先显示你自己的地址。
+3. **（可选）固件上传到自己的 R2/B2 对象存储**（不配置则自动跳过上传，构建与 Release 照常成功）：
 
 | 配置项 | 类型 | 用途 | 是否必需 |
 |--------|------|------|---------|
@@ -103,13 +96,11 @@
 | `R2_ACCOUNT_ID` | Secret | Cloudflare 账户 ID | 可选（设了 `R2_ENDPOINT` 可不填） |
 | `R2_PUBLIC_URL` | Variable | 桶公开下载前缀（如 `https://你的域名`） | 可选（默认 `https://dl.zwrt.de`） |
 
-**获取位置**（Cloudflare 控制台）：
-- Access Key：`R2` → 管理 API 令牌 → 创建 R2 令牌（对象读/写）→ 得到 `Access Key ID` / `Secret Access Key`
-- Account ID：控制台首页右上角「账户 ID」
-- Bucket：`R2` → 创建桶（名称如 `zwrt`）
-- 公开下载前缀：`R2` → 该桶 → Settings → Public access → 绑定自定义域名（如 `dl.zwrt.de`），或使用默认公开端点 `https://pub-<hash>.r2.dev`
+获取位置（Cloudflare 控制台）：Access Key → `R2` 管理 API 令牌；Account ID → 控制台首页右上角；Bucket → `R2` 创建桶；公开前缀 → 桶 `Settings → Public access`（或默认 `https://pub-<hash>.r2.dev`）。
 
-配置入口：仓库 → `Settings` → `Secrets and variables` → `Actions` → 按表添加（`R2_PUBLIC_URL` 加到 Variables，其余加到 Secrets）。
+配置入口：仓库 → `Settings` → `Secrets and variables` → `Actions`（`R2_PUBLIC_URL` 加 Variables，其余加 Secrets）。
+
+4. **使用你自己的库构建**：在在线构建器里把"构建账号"填成 `你的用户名/你的仓库名`，并填入你自己的 GitHub Token（只需 `repo` + `workflow` 权限）。
 
 ## 安全事项（重要）
 
