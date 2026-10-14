@@ -33,7 +33,7 @@ const INTERNET_SCHEMES = [
 ];
 /* 主题多选（openwrt.ai 全部主题，含用户自建 zwrt / kucat） */
 const THEMES = [
-  "luci-theme-zwrt", "luci-theme-kucat", "luci-theme-argon", "luci-theme-bootstrap",
+  "luci-theme-zwrt", "luci-theme-argon", "luci-theme-bootstrap",
   "luci-theme-bootstrap-mmdvm", "luci-theme-design", "luci-theme-alpha", "luci-theme-aurora",
   "luci-theme-edge", "luci-theme-fluent", "luci-theme-fluent-lite", "luci-theme-footstrap",
   "luci-theme-glass", "luci-theme-inas", "luci-theme-istorenas", "luci-theme-lightblue",
@@ -41,6 +41,7 @@ const THEMES = [
   "luci-theme-merona", "luci-theme-noobwrt", "luci-theme-openmptcprouter", "luci-theme-openwrt",
   "luci-theme-openwrt-2020", "luci-theme-rmm", "luci-theme-routerich", "luci-theme-shadcn",
   "luci-theme-shadcnui", "luci-theme-spectra", "luci-theme-teleofis", "luci-theme-vantage",
+  "luci-theme-kucat",
 ];
 
 /* 常用软件包（点击包名添加到可选包；参照 openwrt.ai 常用列表） */
@@ -106,7 +107,7 @@ const state = {
   features: { bypass: false, ipv6: false, wifi: false, wwan: false, docker: false, https: false, dhcp: true, istore: false },
   params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", password: "", wifi_ssid: "", wifi_key: "" },
   net: new Set(["nikki"]),            // 已选互联网方案
-  themes: new Set(["luci-theme-zwrt"]), // 已选主题
+  themes: new Set(["luci-theme-zwrt", "luci-theme-openwrt"]), // 已选主题
   defaultTheme: "luci-theme-zwrt",     // 默认主题
   pkgInput: "",             // 当前输入框内容
   initScript: "",
@@ -224,7 +225,7 @@ function applyDeviceDefaults() {
   state.features.dhcp = true;
   state.features.istore = false;
   state.net = new Set(["nikki"]);
-  state.themes = new Set(["luci-theme-zwrt"]);
+  state.themes = new Set(["luci-theme-zwrt", "luci-theme-openwrt"]);
   state.defaultTheme = "luci-theme-zwrt";
   state.params = {
     hostname: dd.hostname || "ZWRT", lan_ip: dd.lan_ip, lan_mask: dd.lan_mask,
