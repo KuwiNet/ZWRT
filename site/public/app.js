@@ -637,9 +637,10 @@ function render() {
   $("lblGateway").hidden = !by;
   $("netHint").hidden = !by;
   $("fieldsWifi").hidden = !state.features.wifi;
-  $("fieldsWwan").hidden = !state.features.wwan;
+  $("fieldsWwan").hidden = !state.features.wwan || state.features.bypass;
   $("f-wifi").disabled = by;                       // 旁路由不可开无线
   if (by && $("f-wifi").checked) $("f-wifi").checked = false;
+  if (by && $("f-wwan").checked) { state.features.wwan = false; $("f-wwan").checked = false; }  // 旁路由隐藏并关闭拨号
   $("featureHint").textContent = [
     by ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关指向主路由（DNS=网关），不可开无线。" : "",
     state.features.wwan ? "蜂窝上网：自动追加 5gmodem 应用与主流蜂窝网卡驱动包。" : "",
