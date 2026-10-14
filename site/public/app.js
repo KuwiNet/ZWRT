@@ -218,20 +218,6 @@ function renderBaseChips() {
     box.appendChild(tag);
   });
 }
-function renderPkgChips() {
-  const box = $("pkgChips"); box.innerHTML = "";
-  parsePkgInput(state.pkgInput).sort().forEach((p) => {
-    const label = el("label", "chip");
-    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = true;
-    cb.addEventListener("change", () => {
-      state.pkgInput = state.pkgInput.split(/\s+/).filter((t) => t && t !== p).join(" ") + " -" + p;
-      render();
-    });
-    label.appendChild(cb);
-    label.appendChild(el("span", "", p));
-    box.appendChild(label);
-  });
-}
 /* 互联网（科学上网）多选 */
 function renderNetChips() {
   const box = $("netChips"); box.innerHTML = "";
@@ -530,7 +516,6 @@ function render() {
   $("initHint").textContent = state.features.wwan ? "已勾选蜂窝上网：构建时会自动附加 WWAN 配置片段。" : "可选。写入 /etc/uci-defaults，首次开机执行。";
   $("deviceNote").textContent = "共 " + state.devices.length + " 种设备；x86/64 可旁路由。";
   renderBaseChips();
-  renderPkgChips();
   renderNetChips();
   renderThemeChips();
   autoGrow($("pkgInput"));
@@ -552,7 +537,7 @@ function bindStatic() {
     on(id, "input", () => { readParams(); renderSummary(); });
   });
   on("p-account", "input", (e) => { state.account.str = e.target.value.trim() || "KuWiNet/ZWRT"; renderSummary(); });
-  on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; renderPkgChips(); $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); });
+  on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); });
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
   on("p-token", "input", (e) => { state.account.token = e.target.value.trim(); });
   on("p-tokensave", "change", (e) => {
