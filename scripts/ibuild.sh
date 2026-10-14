@@ -110,7 +110,7 @@ fi
 echo ">> 覆盖层: $FILES"
 
 echo "==== [4/7] 生成 PACKAGES 清单 ===="
-clean() { echo "$1" | grep -v '^\s*#' | grep -v '^\s*$' | tr '\n' ' '; }
+clean() { echo "$1" | sed '1s/^\xEF\xBB\xBF//' | grep -v '^\s*#' | grep -v '^\s*$' | tr '\n' ' '; }
 # 按来源组装覆盖 (空=默认; __none__=不装; 其它=以清单为准)
 apply_src() {
   local list="$1" base="$2"
@@ -137,8 +137,14 @@ for g in "${GROUPS[@]}"; do
   IFS=',' read -r PROFILE IDENTITY TAG <<< "$g"
   echo ">> make image PROFILE=$PROFILE tag=$TAG"
   cd "$ZWRT_DIR/$IB_DIR"
-  make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="$FILES" 2>&1 | tee "image-$PROFILE.log"
-done
+  make image PROFILE="$PROFILE" PACKAGES="$PACKAGES" FILES="$FILES" > "image-$PROFILE.log" 2>&1 || {
+    echo "!! make image 失败 (PROFILE=$PROFILE)"
+    echo "---- 日志尾部 ----"
+    tail -50 "image-$PROFILE.log"
+    exit 1
+  }
+  echo ">> make image PROFILE=$PROFILE 完成"
+  cd "$ZWRT_DIR"
 
 echo "==== [6/7] 重命名固件 (zwrt-日期-发布标签-类型) ===="
 for g in "${GROUPS[@]}"; do
