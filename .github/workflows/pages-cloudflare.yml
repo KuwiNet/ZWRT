@@ -1,1 +1,46 @@
-      - name: 部署 Pages Functions (/api/*)
+# =============================================================
+# ZWRT 构建配置器网站 -> Cloudflare Pages (自动部署)
+# 触发: push 到 main 且改动 site/** 时自动发布
+# 依赖仓库配置:
+#   - Secret  CLOUDFLARE_API_TOKEN (Cloudflare API Token, 含 Cloudflare Pages: Edit 权限)
+#   - Secret  CLOUDFLARE_ACCOUNT_ID (Cloudflare 账户 ID)
+# 访问地址: https://zwrt.de
+# Pages Functions: site/public/functions/ (随 pages deploy public 由最新 wrangler 自动部署)
+# =============================================================
+name: Deploy Site to Cloudflare Pages
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'site/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cf-pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    name: 部署网站到 Cloudflare Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 确保 Pages 项目 zwrt 存在 (不存在则创建)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if ! npx --yes wrangler pages project list --json 2>/dev/null | grep -q '"zwrt"'; then
+            echo "Pages 项目 zwrt 不存在, 创建中..."
+            npx --yes wrangler pages project create zwrt --production-branch=main
+          else
+            echo "Pages 项目 zwrt 已存在"
+          fi
+      - name: 部署到 Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 'latest'
+          workingDirectory: site
+          command: pages deploy public --project-name=zwrt --branch=main
