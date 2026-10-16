@@ -256,9 +256,9 @@ jobs:
             gh release create "$TAG" firmware/zwrt-* \
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
-              --notes "Kwrt 引擎 (ImageBuilder 组装)
+              --notes "由 ImageBuilder 组装
               构建日期: ${{ steps.date.outputs.date }}
-              内容: 按网站/派发选择的设备 (默认: x86_64 主路由 / x86_64 旁路由 / WH3000 Pro (eMMC+NAND) / Cudy TR3000 (256mb v1))"
+              内容：网站提交的设备信息"
           fi
 
       - name: 上传全部固件到 Cloudflare R2 (firmware)
