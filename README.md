@@ -11,10 +11,11 @@
 
 ## 特性
 
-- **多平台矩阵**：x86-64 主路由 / x86-64 旁路由 / WH3000 Pro
+- **多平台矩阵**：x86-64 主路由 / x86-64 旁路由 / WH3000 Pro / Cudy TR3000
+- **全量设备支持**：16 个目标（target）/ 26 个子目标，929 台设备（含官方未构建设备）；网站设备下拉任选一台即可在线定制构建，出厂软件包可逐项剔除
 - **workflow_dispatch 全参数定制**：动态矩阵 + 主机名 / LAN IP / 网关 / DNS / 管理密码 / IPv6 / 无线 / 软件包清单 / 初始化脚本
 - 固件默认：主题 `ZWRT`、LAN `192.168.100.1`（旁路由 `.100.10`）、后台密码空、WiFi SSID `ZWRT`、签名 `kuwi.net`
-- 软件源三级：`dl.openwrt.ai` → `luci.zwrt.de` → 官方
+- 软件源三级：默认源（Kwrt 引擎，基础地址由仓库 Variables `OPENWRT_AI_BASE` 配置）→ `luci.zwrt.de` → 官方
 - 自动发布：单个 Release（`ZWRT-日期`）；R2 只保留最近 2 版
 
 ## 目录结构
@@ -40,18 +41,22 @@
 
 ## 支持的设备
 
-| device | 设备 | 架构 / 目标 |
+| 范围 | 设备 | 架构 / 目标 |
 |--------|------|-------------|
-| `x86-64-main` | x86_64 主路由 | x86_64 / `x86/64` |
-| `x86-64-bypass` | x86_64 旁路由 | x86_64 / `x86/64` |
-| `wh3000pro` | Huasifei WH3000 Pro | MT7981B / `mediatek/filogic` |
+| 内置固定 | `x86-64-main` | x86_64 主路由 | x86_64 / `x86/64` |
+| 内置固定 | `x86-64-bypass` | x86_64 旁路由 | x86_64 / `x86/64` |
+| 内置固定 | `wh3000pro` | Huasifei WH3000 Pro | MT7981B / `mediatek/filogic` |
+| 内置固定 | `tr3000` | Cudy TR3000 | MT7981B / `mediatek/filogic` |
+| 全量动态 | **929 台**（16 target / 26 subtarget，含官方未构建 63 台） | 见 `site/public/data/devices.json` | 各设备自有架构（mipsel / mips / arm / aarch64 / x86_64 / riscv64 等） |
+
+> `device` 输入支持 `all`（默认构建上述 4 台）或任意设备 id（如 `xiaomi_redmi-router-ax6000`）；动态设备每次构建按需下载对应目标的 ImageBuilder（约 300MB）。
 
 ## 固件默认配置
 
 - 主机名：`ZWRT`；LAN IP：`192.168.100.1`（旁路由 `.100.10`，网关 `.100.1`）
 - 后台密码：空（**首次登录进入修改密码页面**）；WiFi SSID：`ZWRT`、密码空
 - 默认主题：`luci-theme-zwrt`；签名：`kuwi.net`
-- 软件源：`dl.openwrt.ai`（25.12 / 6.12 内核）→ `luci.zwrt.de`（ipk / apk）→ 官方
+- 软件源：默认源（25.12 / 6.12 内核，基础地址经仓库 Variables `OPENWRT_AI_BASE` 配置）→ `luci.zwrt.de`（ipk / apk）→ 官方
 
 ## 构建方式
 
@@ -63,7 +68,7 @@
 
 | input | 说明 |
 |-------|------|
-| `device` | `all` / `x86-64-main` / `x86-64-bypass` / `wh3000pro` |
+| `device` | `all`（默认 4 台）/ 任意设备 id（见 `site/public/data/devices.json`，如 `xiaomi_redmi-router-ax6000`） |
 | `hostname` | 主机名（空=ZWRT） |
 | `lan_ip` / `lan_mask` / `gateway` / `dns` | 网络配置（空=设备默认；旁路由填网关） |
 | `password` | root 管理密码（空=无密码） |
@@ -77,7 +82,7 @@
 
 ## 软件源
 
-`files/etc/opkg/distfeeds.conf` 定义三级源，构建时按 `dl.openwrt.ai` → `luci.zwrt.de` → 官方 顺序。
+`files/etc/opkg/distfeeds.conf` 定义三级源，构建时按 默认源（Kwrt 引擎，`OPENWRT_AI_BASE`）→ `luci.zwrt.de` → 官方 顺序。
 
 ## 去中心化构建：Fork 到自己的库（推荐私有）
 

@@ -5,9 +5,9 @@
 
 ## 它做什么
 
-1. 选设备型号（下拉 + 关键字搜索）：`x86/64` / `WH3000 Pro`
+1. 选设备型号（下拉按目标分组 + 关键字搜索，共 929 台 / 16 目标）：搜索匹配 型号 / vendor / model / target / 架构；`x86-64` / `WH3000 Pro` / `TR3000` 等内置设备置顶
 2. 勾选功能：**旁路由**（仅 LAN 口、关 WAN/DHCP，需填网关/DNS）、**IPv6**、**无线**（SSID/密码）、**蜂窝上网 5G/4G**（自动追加 5gmodem 应用与主流蜂窝网卡驱动包）。ipv6/无线/蜂窝对任意设备可开。
-3. 软件包：默认只装**基础包**（固定必装）；输入框预填该设备**默认可选包**（可删除）；输入关键字弹出匹配包，点击即填入。蜂窝包不放可选，随「蜂窝上网」开关决定。
+3. 软件包：自动载入该设备**出厂软件包**（可逐项剔除，受保护的基础包不可删）；可选常用软件包点选、关键字匹配搜索；小闪存设备（≤32MB）页面会提示精简。
 4. 系统初始化 shell 脚本（写入 `/etc/uci-defaults`；勾选蜂窝上网时自动附加 WWAN 配置片段）
 5. 填你的 GitHub Token（`repo` + `workflow` 权限）+ 仓库（默认 `KuWiNet/ZWRT`）
 6. 一键触发对应仓库的 `build-openwrt.yml` 的 `workflow_dispatch`，实时轮询构建状态，完成后列出固件下载
@@ -23,11 +23,13 @@ site/
 │   ├── styles.css
 │   ├── app.js
 │   └── data/                  # 设备与包目录数据（由脚本生成，可重新生成）
-│       ├── devices.json
+│       ├── devices.json              # 全量设备清单（929 台）
+│       ├── device-pkgs.json          # 设备 id → 出厂软件包（构建侧 auto 分支按 id 取用）
 │       ├── packages-x86_64.json
-│       └── packages-aarch64_cortex-a53.json
+│       ├── packages-aarch64_cortex-a53.json
+│       └── packages-*.json           # 其余 13 个架构包目录（共 15 架构）
 ├── scripts/
-│   └── refresh-data.js        # 重新生成 public/data（拉 dl.openwrt.ai + luci.zwrt.de + 本仓库 plugins）
+│   └── refresh-data.js        # 重新生成 public/data（拉 默认源 + luci.zwrt.de + 本仓库 plugins）
 └── README.md
 ```
 
@@ -61,7 +63,7 @@ ZWRT 仓库已内置 `.github/workflows/pages.yml`：每次 `push` 改动 `site/
 
 ## 重新生成包目录
 
-包目录是从 dl.openwrt.ai 与 luci.zwrt.de 拉取生成。如需更新：
+包目录是从默认源（Kwrt 引擎，`OPENWRT_AI_BASE`）与 luci.zwrt.de 拉取生成。如需更新：
 
 ```bash
 node scripts/refresh-data.js            # 默认 KuwiNet/ZWRT
@@ -78,4 +80,4 @@ node scripts/refresh-data.js your/repo  # fork 用户用你自己的仓库
 
 - 每次构建在同一个仓库的 `concurrency: zwrt-openwrt-build` 队列里串行，多人同时构建会排队；页面会显示等待状态。
 - 固件会进入当天（或已有）的 `ZWRT-日期` Release 与 R2 `firmware/`，站点从 GitHub Release 列出下载。
-- 设备/架构目前为 ZWRT 的三变体；需要更多设备时扩展 `devices.json` 与 ZWRT 的 matrix/workflow。
+- 设备/架构现为全量 929 台（16 目标 / 26 子目标），网站设备下拉任选即可构建；构建侧按设备 id 动态下载对应目标 ImageBuilder，无需逐个硬编码。
