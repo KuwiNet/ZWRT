@@ -80,7 +80,7 @@
 
       <div class="fields" id="fieldsBasic">
         <label>主机名 <input id="p-hostname" type="text" placeholder="ZWRT"></label>
-        <label>管理密码 <input id="p-password" type="password" placeholder="留空 = 无密码" autocomplete="new-password"></label>
+        <label>管理密码 <input id="p-password" type="password" placeholder="留空 = 无密码" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"></label>
       </div>
       <div class="fields" id="fieldsNet">
         <label>LAN IP 地址 <input id="p-lanip" type="text" placeholder="192.168.100.1"></label>
@@ -89,11 +89,11 @@
       <p class="field-hint" id="netHint" hidden>旁路由：网关指向主路由，DNS 自动取网关值。</p>
       <div class="fields" id="fieldsWifi" hidden>
         <label>无线 SSID <input id="p-wifissid" type="text" placeholder="ZWRT"></label>
-        <label>无线密码 <input id="p-wifikey" type="password" placeholder="空 = 无密码" autocomplete="new-password"></label>
+        <label>无线密码 <input id="p-wifikey" type="password" placeholder="空 = 无密码" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"></label>
       </div>
       <div class="fields" id="fieldsWwan">
         <label>拨号账号 <input id="p-pppuser" type="text" placeholder="拨号账号"></label>
-        <label>拨号密码 <input id="p-ppppass" type="password" placeholder="拨号密码" autocomplete="new-password"></label>
+        <label>拨号密码 <input id="p-ppppass" type="password" placeholder="拨号密码" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')"></label>
       </div>
     </div>
 
