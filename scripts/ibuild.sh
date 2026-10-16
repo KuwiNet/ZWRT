@@ -138,6 +138,15 @@ case "$DEVICE" in
     DEV_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/x86_64.txt")")"
     COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
     ;;
+  tr3000*)
+    DEV_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/tr3000.txt")")"
+    if [ -f "$ZWRT_DIR/plugins/common-wh3000.txt" ]; then
+      COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common-wh3000.txt")")"
+      echo ">> 使用 WH3000 精简公共清单 common-wh3000.txt"
+    else
+      COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
+    fi
+    ;;
   *)
     COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
     ;;
