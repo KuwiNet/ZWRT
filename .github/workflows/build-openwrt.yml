@@ -21,6 +21,7 @@ on:
           - x86-64-main
           - x86-64-bypass
           - wh3000pro
+          - tr3000
         default: all
       hostname:
         description: '主机名 (默认 ZWRT)'
@@ -111,7 +112,8 @@ jobs:
           MATRIX='[
             {"device":"x86-64-main","tag":"x86_64-main","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-main","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
             {"device":"x86-64-bypass","tag":"x86_64-bypass","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-bypass","lan_ip":"192.168.100.10","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"bypass","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
-            {"device":"wh3000pro","tag":"wh3000pro","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"huasifei_wh3000-pro-emmc,huasifei_wh3000-pro-emmc,wh3000pro-emmc;huasifei_wh3000-pro-nand,huasifei_wh3000-pro-nand,wh3000pro-nand","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""}
+            {"device":"wh3000pro","tag":"wh3000pro","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"huasifei_wh3000-pro-emmc,huasifei_wh3000-pro-emmc,wh3000pro-emmc;huasifei_wh3000-pro-nand,huasifei_wh3000-pro-nand,wh3000pro-nand","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""},
+            {"device":"tr3000","tag":"tr3000","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"cudy_tr3000-256mb-v1,cudy_tr3000-256mb-v1,tr3000","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""}
           ]'
           # 设备筛选 (仅 dispatch 且指定单设备)
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.device }}" ] && [ "${{ inputs.device }}" != "all" ]; then
@@ -239,7 +241,7 @@ jobs:
               --title "$TAG" \
               --notes "Kwrt 引擎 (ImageBuilder 组装)
               构建日期: ${{ steps.date.outputs.date }}
-              内容: x86_64 主路由 / x86_64 旁路由 / WH3000 Pro (eMMC+NAND)"
+              内容: x86_64 主路由 / x86_64 旁路由 / WH3000 Pro (eMMC+NAND) / Cudy TR3000 (256mb v1)"
           fi
 
       - name: 上传全部固件到 Cloudflare R2 (firmware)
