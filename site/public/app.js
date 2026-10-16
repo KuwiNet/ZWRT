@@ -817,24 +817,25 @@ async function renderSteps(a, runId) {
   const box = $("#jobsteps");
   if (!box) return;
   try {
-    const jobs = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs/" + runId + "/jobs", a.token));
-    const builds = (jobs.jobs || []).filter((j) => j.name && j.name.indexOf("构建") === 0);
-    const target = builds.length ? builds[builds.length - 1] : null;
-    if (!target) { box.hidden = true; return; }
+    const jr = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs/" + runId + "/jobs", a.token));
+    const all = jr.jobs || [];
+    if (!all.length) { box.hidden = true; return; }
     box.hidden = false;
     box.innerHTML = "";
     const stCN = { queued: "排队中", in_progress: "进行中", completed: "已完成", success: "成功", failure: "失败", cancelled: "已取消", skipped: "已跳过" };
-    const h = el("div", "jobs-head", target.name + " · " + (stCN[target.conclusion] || stCN[target.status] || target.status || ""));
-    box.appendChild(h);
-    const ul = el("div", "steps");
-    (target.steps || []).forEach((st) => {
-      const row = el("div", "step", stepMark(st) + " " + st.name);
-      if (st.conclusion === "skipped") row.classList.add("step-skipped");
-      if (st.status === "in_progress") row.classList.add("step-run");
-      row.title = (st.status || "") + (st.conclusion ? " / " + st.conclusion : "");
-      ul.appendChild(row);
+    all.forEach((j) => {
+      const h = el("div", "jobs-head", j.name + " · " + (stCN[j.conclusion] || stCN[j.status] || j.status || ""));
+      box.appendChild(h);
+      const ul = el("div", "steps");
+      (j.steps || []).forEach((st) => {
+        const row = el("div", "step", stepMark(st) + " " + st.name);
+        if (st.conclusion === "skipped") row.classList.add("step-skipped");
+        if (st.status === "in_progress") row.classList.add("step-run");
+        row.title = (st.status || "") + (st.conclusion ? " / " + st.conclusion : "");
+        ul.appendChild(row);
+      });
+      box.appendChild(ul);
     });
-    box.appendChild(ul);
   } catch (e) { box.hidden = true; }
 }
 function stepMark(st) {
