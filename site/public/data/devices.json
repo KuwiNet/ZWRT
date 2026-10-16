@@ -19361,16 +19361,16 @@
    }
   },
   {
-   "id": "cudy_tr3000-mod",
-   "name": "Cudy TR3000",
+   "id": "cudy_tr3000-v1-ubootmod",
+   "name": "Cudy TR3000 (v1 · U-Boot layout)",
    "vendor": "",
    "model": "",
    "arch": "aarch64_cortex-a53",
    "archLabel": "aarch64_cortex-a53",
    "target": "mediatek/filogic",
    "subtarget": "filogic",
-   "profile": "cudy_tr3000-mod",
-   "identity": "mediatek-filogic-cudy_tr3000-mod",
+   "profile": "cudy_tr3000-v1-ubootmod",
+   "identity": "mediatek-filogic-cudy_tr3000-v1-ubootmod",
    "img_suffix": "/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst",
    "flash": 0,
    "fw_size": 54696793,
@@ -19394,13 +19394,13 @@
    "build": {
     "variants": [
      {
-      "key": "cudy_tr3000-mod",
-      "tag": "cudy_tr3000-mod",
+      "key": "cudy_tr3000-v1-ubootmod",
+      "tag": "cudy_tr3000-v1-ubootmod",
       "family": "mtk",
       "feed_arch": "aarch64_cortex-a53",
       "feed_target": "mediatek/filogic",
       "img_suffix": "/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst",
-      "profile_tags": "cudy_tr3000-mod,mediatek-filogic-cudy_tr3000-mod,cudy_tr3000-mod",
+      "profile_tags": "cudy_tr3000-v1-ubootmod,mediatek-filogic-cudy_tr3000-v1-ubootmod,cudy_tr3000-v1-ubootmod",
       "role": "main",
       "ipv6": "0",
       "wifi": "1",
@@ -19417,7 +19417,7 @@
   },
   {
    "id": "cudy_tr3000-v1",
-   "name": "Cudy TR3000",
+   "name": "Cudy TR3000 (v1 · 128MB)",
    "vendor": "",
    "model": "",
    "arch": "aarch64_cortex-a53",
@@ -51803,7 +51803,7 @@
   },
   {
    "id": "tr3000",
-   "name": "Cudy TR3000 (256mb v1) · MT7981",
+   "name": "Cudy TR3000 (256MB)",
    "arch": "aarch64_cortex-a53",
    "archLabel": "aarch64_cortex-a53",
    "wfDeviceMain": "tr3000",
