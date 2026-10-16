@@ -31,3 +31,11 @@ kmod-crypto-hw-safexcel
 kmod-hwmon-pwmfan
 kmod-mt7981-firmware
 kmod-usb-xhci-mtk
+# (mediatek WiFi, 从 common 移入, 仅 WH3000 Pro)
+kmod-mt76-connac
+kmod-mt76-core
+kmod-mt7915-firmware
+kmod-mt7915e
+mt7981-wo-firmware
+eip197-mini-firmware
+fit-check-sign
