@@ -229,7 +229,9 @@ jobs:
 
       - name: 生成构建日期
         id: date
-        run: echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          echo "stamp=$(date +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
 
       - name: 下载全部固件 Artifact
         uses: actions/download-artifact@v4
@@ -245,7 +247,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="ZWRT-${{ steps.date.outputs.date }}"
+          TAG="ZWRT-${{ steps.date.outputs.stamp }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG 已存在, 覆盖上传最新固件"
             gh release upload "$TAG" firmware/zwrt-* \
@@ -302,7 +304,7 @@ jobs:
             [ -f "$f" ] && echo "  ${R2_PUBLIC_URL}/firmware/$(basename "$f")"
           done
           # ---- 把 R2/B2 下载地址写进 Release body (标记 <!--R2DL--> 防重复追加) ----
-          TAG="ZWRT-${{ steps.date.outputs.date }}"
+          TAG="ZWRT-${{ steps.date.outputs.stamp }}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             BODY=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
             BODY="${BODY%%<!--R2DL-->*}"
