@@ -914,11 +914,12 @@ async function loadDownloads(owner, repo) {
         const n = el("div", "n", a.name); it.appendChild(n);
         const m = el("div", "m", (a.size / 1048576).toFixed(1) + " MB · " + r.tag_name); it.appendChild(m);
         const l = el("div", "links");
-        const gh = el("a", "", "GitHub ↓"); gh.href = "/api/dl?u=" + encodeURIComponent(a.browser_download_url); gh.target = "_blank"; gh.rel = "noopener";
-        l.appendChild(gh);
         if (r2map[a.name]) {
           const r2 = el("a", "", "R2 下载 ↓"); r2.href = r2map[a.name]; r2.target = "_blank"; r2.rel = "noopener";
-          l.insertBefore(r2, l.firstChild);
+          l.appendChild(r2);
+        } else {
+          const gh = el("a", "", "GitHub ↓（私库需登录）"); gh.href = "/api/dl?u=" + encodeURIComponent(a.browser_download_url); gh.target = "_blank"; gh.rel = "noopener";
+          l.appendChild(gh);
         }
         it.appendChild(l);
         box.appendChild(it);
