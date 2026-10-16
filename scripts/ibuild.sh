@@ -122,11 +122,25 @@ apply_src() {
   else echo "$(clean "$list")"
   fi
 }
-COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
+COMMON_BASE=""
 DEV_BASE=""
 case "$DEVICE" in
-  wh3000pro) DEV_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/wh3000pro.txt")")" ;;
-  x86-64-*)  DEV_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/x86_64.txt")")" ;;
+  wh3000pro)
+    DEV_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/wh3000pro.txt")")"
+    if [ -f "$ZWRT_DIR/plugins/common-wh3000.txt" ]; then
+      COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common-wh3000.txt")")"
+      echo ">> 使用 WH3000 精简公共清单 common-wh3000.txt"
+    else
+      COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
+    fi
+    ;;
+  x86-64-*)
+    DEV_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/x86_64.txt")")"
+    COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
+    ;;
+  *)
+    COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
+    ;;
 esac
 COMMON_P="$(apply_src "$PKG_COMMON" "$COMMON_BASE")"
 DEV_P="$(apply_src "$PKG_WH3000" "$DEV_BASE")"
