@@ -19,3 +19,12 @@ devices:
     packages:
       - common
       - wh3000pro
+
+  - id: tr3000
+    name: Cudy TR3000 (256mb v1)
+    arch: mt7981b (mediatek/filogic)
+    board: cudy_tr3000-256mb-v1
+    seed: configs/tr3000.seed
+    packages:
+      - common
+      - tr3000
