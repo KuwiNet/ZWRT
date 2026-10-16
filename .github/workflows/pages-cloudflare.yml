@@ -36,6 +36,12 @@ jobs:
           else
             echo "Pages 项目 zwrt 已存在"
           fi
+      - name: 编译 Pages Functions 为 _worker.js (advanced mode)
+        working-directory: site
+        run: |
+          npx --yes wrangler@latest pages functions build functions --outdir=public/_worker.js
+          echo "---- built output ----"
+          ls -la public/_worker.js/ 2>/dev/null || ls -la public/
       - name: 部署到 Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
@@ -43,4 +49,4 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: 'latest'
           workingDirectory: site
-          command: pages deploy . --project-name=zwrt --branch=main
+          command: pages deploy public --project-name=zwrt --branch=main
