@@ -10,7 +10,6 @@
 #   LAN_IP / LAN_MASK / GATEWAY / DNS / ROLE / IPV6 / WIFI / WIFI_SSID / WIFI_KEY
 #   HOSTNAME / ROOT_PASS / INIT_B64
 #   PKG_COMMON / PKG_WH3000  自定义包清单 (空=默认; __none__=不装; 其它=以清单为准)
-#   DEV_KIND                 legacy=旧设备(plugins 清单); auto=动态设备(出厂包清单 site/public/data/device-pkgs.json)
 #
 # 用法: scripts/ibuild.sh <仓库根目录>
 # =============================================================
@@ -38,10 +37,9 @@ ROOT_PASS="${ROOT_PASS:-}"
 INIT_B64="${INIT_B64:-}"
 PKG_COMMON="${PKG_COMMON:-}"
 PKG_WH3000="${PKG_WH3000:-}"
-DEV_KIND="${DEV_KIND:-legacy}"
 
 echo "=============================================================="
-echo " ZWRT ImageBuilder 组装  device=$DEVICE arch=$FEED_ARCH kind=$DEV_KIND"
+echo " ZWRT ImageBuilder 组装  device=$DEVICE arch=$FEED_ARCH"
 echo "=============================================================="
 
 echo "==== [1/7] 下载并解压 ImageBuilder ===="
@@ -50,7 +48,7 @@ curl -fsSL -o "$IB_TAR" "$IMG_URL"
 tar --zstd -xf "$IB_TAR"
 IB_DIR="$(ls -d *imagebuilder-*/ 2>/dev/null | head -1)"
 [ -n "$IB_DIR" ] && IB_DIR="${IB_DIR%/}"
-echo ">> ImageBuilder 目录: $IB_DIR"
+echo ">> ImageBuilder 目录: $IB_DIR (engine=$ENGINE)"
 
 echo "==== [2/7] 写入源配置 (构建时拉包源, opkg) ===="
 # 由固件运行时源 distfeeds.conf 生成(替换架构占位符)
@@ -74,21 +72,21 @@ else
 fi
 # 3b 管理密码 (空=无密码)
 if [ -n "$ROOT_PASS" ]; then
-  printf '#!/bin/sh\n(echo "%s"; echo "%s") | passwd root 2>/dev/null || true\nexit 0\n' "$ROOT_PASS" "$ROOT_PASS" > "$FILES/etc/uci-defaults/89-zwrt-pass"
+  printf '#!/bin/sh\necho "root:%s" | chpasswd 2>/dev/null || { (echo "%s"; echo "%s") | passwd root 2>/dev/null; }\nexit 0\n' "$ROOT_PASS" "$ROOT_PASS" "$ROOT_PASS" > "$FILES/etc/uci-defaults/89-zwrt-pass"
   chmod +x "$FILES/etc/uci-defaults/89-zwrt-pass"
   echo "已写入管理密码 uci-defaults"
 else
   echo "管理密码为空, 保持无密码"
 fi
-# 3c 运行时软件源 (opkg /etc/opkg/distfeeds.conf)
+# 3c 运行时软件源 (只保留 src/gz 源行, 去掉所有说明注释)
 mkdir -p "$FILES/etc/opkg"
-cp /tmp/zwrt-distfeeds.conf "$FILES/etc/opkg/distfeeds.conf"
+grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
 # 3d 网络变体
 sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__GATEWAY__|$GATEWAY|g" -e "s|__DNS__|$DNS|g" \
     -e "s|__ROLE__|$ROLE|g" -e "s|__IPV6__|$IPV6|g" \
     -e "s|__WIFI__|$WIFI|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" \
-    -e "s|__WIFI_KEY__|$WIFI_KEY|g" \
+    -e "s|__WIFI_KEY__|$WIFI_KEY|g" -e "s|__HOSTNAME__|$HOSTNAME|g" \
     "$ZWRT_DIR/files/etc/uci-defaults/99-zwrt-network" > "$FILES/etc/uci-defaults/99-zwrt-network"
 chmod +x "$FILES/etc/uci-defaults/99-zwrt-network"
 # 3e DNS 主机记录 (zwrt -> LAN IP, 改 IP 自动跟随)
@@ -99,7 +97,9 @@ cat > "$FILES/etc/hotplug.d/iface/20-zwrt-dns" <<'EOF'
 [ "$INTERFACE" = "lan" ] || exit 0
 IP=$(uci get network.lan.ipaddr 2>/dev/null)
 [ -n "$IP" ] || exit 0
-uci set dhcp.@dnsmasq[0].address="/zwrt/$IP"
+uci get dhcp.@dnsmasq[0].enable >/dev/null 2>&1 || uci add dhcp dnsmasq >/dev/null 2>&1
+uci -q del_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
+uci add_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
 uci commit dhcp
 /etc/init.d/dnsmasq restart
 exit 0
@@ -150,17 +150,7 @@ case "$DEVICE" in
     fi
     ;;
   *)
-    if [ "$DEV_KIND" = "auto" ]; then
-      # 动态设备: 默认清单 = 该设备出厂软件包 (site/public/data/device-pkgs.json)
-      if [ -f "$ZWRT_DIR/site/public/data/device-pkgs.json" ]; then
-        COMMON_BASE="$(jq -r --arg id "$DEVICE" '.[$id] // empty | join(" ")' "$ZWRT_DIR/site/public/data/device-pkgs.json" 2>/dev/null || true)"
-        echo ">> 使用出厂软件包清单 device-pkgs.json ($(echo "$COMMON_BASE" | wc -w) 个)"
-      else
-        echo ">> 警告: device-pkgs.json 不存在, 默认清单为空"
-      fi
-    else
-      COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
-    fi
+    COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
     ;;
 esac
 COMMON_P="$(apply_src "$PKG_COMMON" "$COMMON_BASE")"
