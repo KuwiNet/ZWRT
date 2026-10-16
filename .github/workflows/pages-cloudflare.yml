@@ -5,7 +5,7 @@
 #   - Secret  CLOUDFLARE_API_TOKEN (Cloudflare API Token, 含 Cloudflare Pages: Edit 权限)
 #   - Secret  CLOUDFLARE_ACCOUNT_ID (Cloudflare 账户 ID)
 # 访问地址: https://zwrt.de
-# Pages Functions: site/public/functions/ (随 pages deploy public 由最新 wrangler 自动部署)
+# Pages Functions: site/public/functions/ (随 pages deploy public 自动部署)
 # =============================================================
 name: Deploy Site to Cloudflare Pages
 on:
@@ -36,12 +36,6 @@ jobs:
           else
             echo "Pages 项目 zwrt 已存在"
           fi
-      - name: 编译 Pages Functions 为 _worker.js (advanced mode)
-        working-directory: site
-        run: |
-          npx --yes wrangler@latest pages functions build functions --outdir=public/_worker.js
-          echo "---- built output ----"
-          ls -la public/_worker.js/ 2>/dev/null || ls -la public/
       - name: 部署到 Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
