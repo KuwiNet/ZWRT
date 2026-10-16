@@ -23,14 +23,12 @@ dosfstools
 dropbear
 ds-lite
 e2fsprogs
-eip197-mini-firmware
 exfat-fsck
 exfat-mkfs
 f2fs-tools
 f2fsck
 fdisk
 firewall4
-fit-check-sign
 frpc
 fstools
 fwtool
@@ -110,10 +108,6 @@ kmod-mac80211
 kmod-macvlan
 kmod-mii
 kmod-mppe
-kmod-mt76-connac
-kmod-mt76-core
-kmod-mt7915-firmware
-kmod-mt7915e
 kmod-nf-conntrack
 kmod-nf-conntrack-netlink
 kmod-nf-conntrack6
@@ -285,7 +279,6 @@ mihomo
 minicom
 miniupnpd-nftables
 mkf2fs
-mt7981-wo-firmware
 mtd
 my-default-settings
 nano
