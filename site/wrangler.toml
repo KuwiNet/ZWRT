@@ -5,8 +5,9 @@
 # 方式二(CLI): 先设置 CLOUDFLARE_API_TOKEN 环境变量, 再:
 #   npx wrangler pages deploy site --project-name zwrt-builder
 # =============================================================
-name = "zwrt-builder"
+name = "zwrt"
 compatibility_date = "2026-01-01"
+pages_build_output_dir = "public"
 
 [env.production]
-name = "zwrt-builder"
+name = "zwrt"
