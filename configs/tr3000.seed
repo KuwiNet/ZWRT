@@ -1,0 +1,15 @@
+# ===== Cudy TR3000 256mb v1 目标配置 =====
+# 目标: mediatek / filogic (MT7981B + MT7976CN, 256MB RAM, 128MB NAND)
+CONFIG_TARGET_mediatek=y
+CONFIG_TARGET_mediatek_filogic=y
+CONFIG_TARGET_mediatek_filogic_DEVICE_cudy_tr3000-256mb-v1=y
+
+# 设备默认附带包 (官方 DEVICE_PACKAGES)
+# kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware kmod-usb3
+CONFIG_PACKAGE_kmod-mt7915e=y
+CONFIG_PACKAGE_kmod-mt7981-firmware=y
+CONFIG_PACKAGE_mt7981-wo-firmware=y
+
+# 包管理器: 强制 opkg (ImmortalWrt 25.12 默认 apk, 关闭 USE_APK 即用 opkg)
+CONFIG_USE_APK=n
+CONFIG_PACKAGE_opkg=y
