@@ -960,7 +960,7 @@ function render() {
   $("p-wifissid").value = state.params.wifi_ssid;
   $("p-wifikey").value = state.params.wifi_key;
   $("p-pppuser").value = state.params.pppoe_user;
-  $("p-ppppass").value = state.params.ppppass;
+  $("p-ppppass").value = state.params.pppoe_pass;
   $("pkgInput").value = state.pkgInput;
   $("initScript").value = state.initScript;
   $("m-base").textContent = deviceBaseList(state.device, state.devicePkgs).length;
