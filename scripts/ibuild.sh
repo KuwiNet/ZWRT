@@ -70,31 +70,11 @@ if [ -n "$HOSTNAME" ] && [ "$HOSTNAME" != "ZWRT" ]; then
 else
   echo "主机名保持默认 ZWRT"
 fi
-# 3b 管理密码 (空=无密码) — 优先覆盖层直写 /etc/shadow (刷入即生效, 不依赖首启脚本)
+# 3b 管理密码 (空=无密码)
 if [ -n "$ROOT_PASS" ]; then
-  SHADOW_HASH="$(openssl passwd -6 "$ROOT_PASS" 2>/dev/null || true)"
-  SHADOW_SRC=""
-  for cand in "$IB_DIR"/root-*/etc/shadow "$IB_DIR"/root/etc/shadow "$IB_DIR"/build_dir/target-*/root-*/etc/shadow; do
-    [ -f "$cand" ] && { SHADOW_SRC="$cand"; break; }
-  done
-  if [ -n "$SHADOW_HASH" ] && [ -n "$SHADOW_SRC" ]; then
-    mkdir -p "$FILES/etc"
-    awk -v h="$SHADOW_HASH" 'BEGIN{OFS=":"} $1=="root"{$2=h} {print}' "$SHADOW_SRC" > "$FILES/etc/shadow"
-    chmod 0640 "$FILES/etc/shadow" 2>/dev/null || true
-    echo "已写入 /etc/shadow (root 密码, 覆盖层直写)"
-  else
-    # fallback: 不依赖 ImageBuilder rootfs, 直接写完整 shadow
-    mkdir -p "$FILES/etc"
-    cat > "$FILES/etc/shadow" <<EOF
-root:$SHADOW_HASH:0:0:99999:7:::
-daemon:*:0:0:99999:7:::
-ftp:*:0:0:99999:7:::
-network:*:0:0:99999:7:::
-nobody:*:0:0:99999:7:::
-EOF
-    chmod 0640 "$FILES/etc/shadow" 2>/dev/null || true
-    echo "已写入 /etc/shadow (root 密码, 完整模板 fallback)"
-  fi
+  printf '#!/bin/sh\necho "root:%s" | chpasswd 2>/dev/null || { (echo "%s"; echo "%s") | passwd root 2>/dev/null; }\nexit 0\n' "$ROOT_PASS" "$ROOT_PASS" "$ROOT_PASS" > "$FILES/etc/uci-defaults/89-zwrt-pass"
+  chmod +x "$FILES/etc/uci-defaults/89-zwrt-pass"
+  echo "已写入管理密码 uci-defaults"
 else
   echo "管理密码为空, 保持无密码"
 fi
@@ -131,46 +111,11 @@ exit 0
 EOF
 chmod +x "$FILES/etc/hotplug.d/iface/20-zwrt-dns"
 echo "已配置 DNS 主机记录: http://zwrt 打开后台 / nikki 直达 http://zwrt/cgi-bin/luci/admin/services/nikki"
-# /etc/hosts 直写 zwrt/nk -> LAN_IP (刷入即生效, 不依赖 hotplug 触发)
-mkdir -p "$FILES/etc"
-HOSTS_F="$FILES/etc/hosts"
-if [ -f "$HOSTS_F" ]; then
-  sed -i "/[[:space:]]zwrt[[:space:]]*$/d; /[[:space:]]nk[[:space:]]*$/d" "$HOSTS_F" 2>/dev/null || true
-  echo "$LAN_IP zwrt nk" >> "$HOSTS_F"
-else
-  printf '127.0.0.1 localhost\n::1 localhost ip6-localhost ip6-loopback\n%s zwrt nk\n' "$LAN_IP" > "$HOSTS_F"
-fi
-echo "已写入 /etc/hosts: $LAN_IP zwrt nk"
 # 3f 自定义初始化脚本
 if [ -n "$INIT_B64" ]; then
   echo "$INIT_B64" | base64 -d > "$FILES/etc/uci-defaults/90-zwrt-custom-init"
   chmod +x "$FILES/etc/uci-defaults/90-zwrt-custom-init"
   echo "已写入自定义初始化脚本 ($(wc -l < "$FILES/etc/uci-defaults/90-zwrt-custom-init") 行)"
-fi
-# 3g 固件版本标识 (ZWRT 25.12-SNAPSHOT <日期> by zwrt.de)
-DISPLAY_DATE="$(date -d "$DATE" +%d.%m.%Y 2>/dev/null || printf '%s' "$DATE")"
-REL_SRC=""
-for cand in "$IB_DIR"/root-*/etc/openwrt_release "$IB_DIR"/root/etc/openwrt_release "$IB_DIR"/build_dir/target-*/root-*/etc/openwrt_release; do
-  [ -f "$cand" ] && { REL_SRC="$cand"; break; }
-done
-if [ -n "$REL_SRC" ]; then
-  mkdir -p "$FILES/etc"
-  sed -e "s|^DISTRIB_ID=.*|DISTRIB_ID='ZWRT'|" \
-      -e "s|^DISTRIB_DESCRIPTION=.*|DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'|" \
-      "$REL_SRC" > "$FILES/etc/openwrt_release"
-  echo "已写入 /etc/openwrt_release (ZWRT 版本标识: $DISPLAY_DATE)"
-else
-  mkdir -p "$FILES/etc"
-  cat > "$FILES/etc/openwrt_release" <<EOF
-DISTRIB_ID='ZWRT'
-DISTRIB_RELEASE='25.12-SNAPSHOT'
-DISTRIB_REVISION='($DATE)'
-DISTRIB_TARGET='$FEED_TARGET'
-DISTRIB_ARCH='$FEED_ARCH'
-DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
-DISTRIB_TAINTS=''
-EOF
-  echo "已写入 /etc/openwrt_release (ZWRT 完整模板 fallback)"
 fi
 echo ">> 覆盖层: $FILES"
 
