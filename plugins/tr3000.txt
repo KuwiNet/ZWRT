@@ -1,0 +1,13 @@
+# Cudy TR3000 256mb v1 专属插件 (mediatek/filogic, aarch64_cortex-a53)
+# 普通路由器: 无 5G 蜂窝。mediatek WiFi 7 包已从 common 移入, 在此补齐
+kmod-mt76-connac
+kmod-mt76-core
+kmod-mt7915-firmware
+kmod-mt7915e
+mt7981-wo-firmware
+eip197-mini-firmware
+fit-check-sign
+# usb / 平台
+kmod-usb3
+kmod-usb-xhci-mtk
+kmod-crypto-hw-safexcel
