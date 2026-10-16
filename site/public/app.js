@@ -754,7 +754,9 @@ async function triggerBuild() {
   setBusy(true);
   try {
     const res = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/actions/workflows/build-openwrt.yml/dispatches", token, { ref: "main", inputs });
-    if (res.status !== 204 && res.status !== 201) throw new Error(await res.text());
+    if (res.status === 422 || res.status === 400 || res.status === 403 || res.status === 404) {
+      throw new Error(await res.text());
+    }
     logc("已提交，等待调度…", "ok");
     setBottomBtn("gha");
     startPoll({ owner, repo, token, since: Date.now() });
