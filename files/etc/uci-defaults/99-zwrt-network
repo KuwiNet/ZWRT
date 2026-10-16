@@ -35,15 +35,24 @@ if [ "__IPV6__" = "1" ]; then
     uci set dhcp.lan.ra_slaac='1'
 fi
 
-# ---- WiFi (WH3000 Pro: SSID=ZWRT, 无密码) ----
+# ---- 主机名 (固定为 __HOSTNAME__, 覆盖设备出厂默认如 Cudy-xxx) ----
+uci set system.@system[0].hostname='__HOSTNAME__'
+uci commit system 2>/dev/null
+
+# ---- WiFi (SSID=__WIFI_SSID__; 填了密码则加密, 否则开放) ----
 if [ "__WIFI__" = "1" ]; then
     for radio in $(uci show wireless 2>/dev/null | grep -o 'wireless\.radio[0-9]*\.disabled' | cut -d. -f2 | sort -u); do
         uci set wireless.$radio.disabled='0'
     done
     for sec in $(uci show wireless 2>/dev/null | grep -o 'wireless\.[a-zA-Z0-9_]*\.ssid' | cut -d. -f2 | sort -u); do
         uci set wireless.$sec.ssid='__WIFI_SSID__'
-        uci set wireless.$sec.encryption='none'
-        uci -q delete wireless.$sec.key
+        if [ -n "__WIFI_KEY__" ]; then
+            uci set wireless.$sec.encryption='psk2'
+            uci set wireless.$sec.key='__WIFI_KEY__'
+        else
+            uci set wireless.$sec.encryption='none'
+            uci -q delete wireless.$sec.key
+        fi
     done
 fi
 
