@@ -10,6 +10,7 @@
 #   LAN_IP / LAN_MASK / GATEWAY / DNS / ROLE / IPV6 / WIFI / WIFI_SSID / WIFI_KEY
 #   HOSTNAME / ROOT_PASS / INIT_B64
 #   PKG_COMMON / PKG_WH3000  自定义包清单 (空=默认; __none__=不装; 其它=以清单为准)
+#   DEV_KIND                 legacy=旧设备(plugins 清单); auto=动态设备(出厂包清单 site/public/data/device-pkgs.json)
 #
 # 用法: scripts/ibuild.sh <仓库根目录>
 # =============================================================
@@ -37,9 +38,10 @@ ROOT_PASS="${ROOT_PASS:-}"
 INIT_B64="${INIT_B64:-}"
 PKG_COMMON="${PKG_COMMON:-}"
 PKG_WH3000="${PKG_WH3000:-}"
+DEV_KIND="${DEV_KIND:-legacy}"
 
 echo "=============================================================="
-echo " ZWRT ImageBuilder 组装  device=$DEVICE arch=$FEED_ARCH"
+echo " ZWRT ImageBuilder 组装  device=$DEVICE arch=$FEED_ARCH kind=$DEV_KIND"
 echo "=============================================================="
 
 echo "==== [1/7] 下载并解压 ImageBuilder ===="
@@ -48,7 +50,7 @@ curl -fsSL -o "$IB_TAR" "$IMG_URL"
 tar --zstd -xf "$IB_TAR"
 IB_DIR="$(ls -d *imagebuilder-*/ 2>/dev/null | head -1)"
 [ -n "$IB_DIR" ] && IB_DIR="${IB_DIR%/}"
-echo ">> ImageBuilder 目录: $IB_DIR (engine=$ENGINE)"
+echo ">> ImageBuilder 目录: $IB_DIR"
 
 echo "==== [2/7] 写入源配置 (构建时拉包源, opkg) ===="
 # 由固件运行时源 distfeeds.conf 生成(替换架构占位符)
@@ -148,7 +150,17 @@ case "$DEVICE" in
     fi
     ;;
   *)
-    COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
+    if [ "$DEV_KIND" = "auto" ]; then
+      # 动态设备: 默认清单 = 该设备出厂软件包 (site/public/data/device-pkgs.json)
+      if [ -f "$ZWRT_DIR/site/public/data/device-pkgs.json" ]; then
+        COMMON_BASE="$(jq -r --arg id "$DEVICE" '.[$id] // empty | join(" ")' "$ZWRT_DIR/site/public/data/device-pkgs.json" 2>/dev/null || true)"
+        echo ">> 使用出厂软件包清单 device-pkgs.json ($(echo "$COMMON_BASE" | wc -w) 个)"
+      else
+        echo ">> 警告: device-pkgs.json 不存在, 默认清单为空"
+      fi
+    else
+      COMMON_BASE="$(clean "$(cat "$ZWRT_DIR/plugins/common.txt")")"
+    fi
     ;;
 esac
 COMMON_P="$(apply_src "$PKG_COMMON" "$COMMON_BASE")"

@@ -39,7 +39,7 @@
   <h2>在线定制你的 ZWRT 固件</h2>
   <div class="herometa">
     <span><b id="m-kernel">6.12</b> 内核</span>
-    <span><b id="m-devices">2</b> 目标设备</span>
+    <span><b id="m-devices">—</b> 目标设备</span>
     <span><b id="m-pkgs">—</b> 可选软件包</span>
     <span><b>opkg</b> 包管理器</span>
   </div>
@@ -51,14 +51,16 @@
     <div class="card" data-step="1">
       <div class="card-head"><span class="stepno">1</span><h3>设备型号</h3></div>
       <div class="combo" id="deviceCombo">
-        <input id="deviceSearch" type="text" placeholder="输入关键词选设备… 如 x86 / mt7981 / wh3000" autocomplete="off">
+        <input id="deviceSearch" type="text" placeholder="输入关键词搜索设备… 如 x86 / mt7981 / filogic / cudy" autocomplete="off">
         <button type="button" class="combo-arrow" id="deviceArrow" aria-label="展开设备列表">▾</button>
         <ul class="combo-list" id="deviceList"></ul>
       </div>
       <p class="field-hint" id="deviceNote"></p>
-      <label class="opt" id="deviceMeta" hidden>
-        <span id="deviceMetaText"></span>
-      </label>
+      <div id="deviceMeta" hidden>
+        <div class="devmeta" id="devMetaGrid"></div>
+        <div class="flashwarn" id="flashWarn" hidden>闪存较小（≤32MB），出厂清单已精简，请谨慎增删软件包。</div>
+        <p class="field-hint" id="deviceMetaText"></p>
+      </div>
     </div>
 
     <!-- ===== 2 功能 ===== -->
@@ -99,12 +101,14 @@
     <div class="card" data-step="3">
       <div class="card-head"><span class="stepno">3</span><h3>软件包</h3></div>
       <div class="pkgmeta">
-        <span>基础软件包 <b id="m-base">—</b></span>
-        <span>可选软件包已选 <b id="m-selected">—</b></span>
+        <span>出厂软件包 <b id="m-base">—</b></span>
+        <span>可剔除 <b id="m-cut">—</b></span>
+        <span>已剔除 <b id="m-basedel">0</b></span>
+        <span>已选 <b id="m-selected">—</b></span>
       </div>
       <details class="basebox" id="baseBox">
-        <summary>出厂软件包</summary>
-        <p class="field-hint" style="margin-bottom:8px">选中即可去除指定的出厂软件包，过度精简可能导致固件出现不可预知的问题。</p>
+        <summary>出厂软件包（共 <b id="m-basetotal">—</b> 个）</summary>
+        <p class="field-hint" style="margin-bottom:8px">选中即可去除指定的出厂软件包，过度精简可能导致固件出现不可预知的问题。核心包（kmod/固件/uboot 等）受保护不可删。</p>
         <div class="chips" id="baseChips"></div>
       </details>
       <details class="basebox" id="commonBox">

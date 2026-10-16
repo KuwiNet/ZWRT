@@ -2,7 +2,9 @@
 # ZWRT-openwrt 自动构建工作流 (方案 A: ImageBuilder 组装, Kwrt 引擎)
 #   - 不再从源码全量编译, 改用 ImageBuilder 几分钟出固件
 #   - Kwrt 引擎 (openwrt.ai), 自定义第三方源地址通过仓库 Variables 配置 (不写明文)
-#   - 按设备矩阵构建, 每个设备一个 job; workflow_dispatch 可指定设备/参数/软件包/初始化脚本
+#   - 全量设备支持: 设备矩阵从 site/public/data/devices.json 的 build.variants 动态查找
+#     (网站设备下拉全量; 手动 dispatch 可填任意设备 id, 如 xiaomi_redmi-router-ax6000)
+#   - workflow_dispatch 可指定设备/参数/软件包/初始化脚本; device=all 或空 = 默认 4 台
 #   - 主机名统一 ZWRT, 固件命名 zwrt-YYYYMMDD-设备
 #   - 产物: Artifact + 单个 GitHub Release (ZWRT-日期) + Cloudflare R2 (只保留最近2版)
 # =============================================================
@@ -13,16 +15,17 @@ on:
   workflow_dispatch:
     inputs:
       device:
-        description: '构建目标 (all = 全部设备)'
+        description: '构建目标: all/空 = 默认设备(x86_64主旁+WH3000Pro+TR3000); 或填设备 id(网站设备列表, 如 xiaomi_redmi-router-ax6000)'
+        type: string
+        default: all
+      role:
+        description: '路由角色 (旁路由生效: 关WAN/关DHCP, 需填网关/DNS)'
         type: choice
         required: true
         options:
-          - all
-          - x86-64-main
-          - x86-64-bypass
-          - wh3000pro
-          - tr3000
-        default: all
+          - main
+          - bypass
+        default: main
       hostname:
         description: '主机名 (默认 ZWRT)'
         type: string
@@ -64,7 +67,7 @@ on:
         type: string
         default: ''
       packages_common:
-        description: '通用软件包清单 (空格分隔; 空 = 仓库默认全部; __none__ = 不装)'
+        description: '通用软件包清单 (空格分隔; 空 = 设备出厂默认; __none__ = 不装)'
         type: string
         default: ''
       packages_wh3000:
@@ -92,7 +95,7 @@ permissions:
   contents: write
 
 jobs:
-  # ---- 生成构建矩阵 (dispatch 设备筛选 + 参数覆盖) ----
+  # ---- 生成构建矩阵: all = 默认 4 台; 指定设备 = 从 devices.json 动态查找 ----
   check:
     name: 生成构建矩阵
     runs-on: ubuntu-latest
@@ -100,7 +103,7 @@ jobs:
       matrix: ${{ steps.mtx.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - name: 生成构建矩阵 (dispatch 设备筛选 + 参数覆盖)
+      - name: 生成构建矩阵 (all=默认 / 设备id=动态查找 + 参数覆盖)
         id: mtx
         env:
           OA_BASE: ${{ vars.OPENWRT_AI_BASE }}
@@ -109,20 +112,29 @@ jobs:
             echo "::error ::未配置仓库 Variables OPENWRT_AI_BASE (Kwrt 引擎需要第三方源基础地址)"
             exit 1
           fi
-          MATRIX='[
-            {"device":"x86-64-main","tag":"x86_64-main","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-main","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
-            {"device":"x86-64-bypass","tag":"x86_64-bypass","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-bypass","lan_ip":"192.168.100.10","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"bypass","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":""},
-            {"device":"wh3000pro","tag":"wh3000pro","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"huasifei_wh3000-pro-emmc,huasifei_wh3000-pro-emmc,wh3000pro-emmc;huasifei_wh3000-pro-nand,huasifei_wh3000-pro-nand,wh3000pro-nand","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""},
-            {"device":"tr3000","tag":"tr3000","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"cudy_tr3000-256mb-v1,cudy_tr3000-256mb-v1,tr3000","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":""}
-          ]'
-          # 设备筛选 (仅 dispatch 且指定单设备)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.device }}" ] && [ "${{ inputs.device }}" != "all" ]; then
-            MATRIX=$(echo "$MATRIX" | jq --arg d "${{ inputs.device }}" '[.[] | select(.device==$d)]')
+          if [ -z "${{ inputs.device }}" ] || [ "${{ inputs.device }}" = "all" ]; then
+            # ---- 默认设备矩阵 (与既有 4 台行为完全一致) ----
+            MATRIX='[
+              {"device":"x86-64-main","tag":"x86_64-main","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-main","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":"","dynamic":false},
+              {"device":"x86-64-bypass","tag":"x86_64-bypass","family":"x86","feed_arch":"x86_64","feed_target":"x86/64","img_suffix":"/targets/x86/64/kwrt-imagebuilder-x86-64.Linux-x86_64.tar.zst","profile_tags":"generic,x86-64-generic,x86_64-bypass","lan_ip":"192.168.100.10","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"bypass","ipv6":"0","wifi":"0","wifi_ssid":"","wifi_key":"","dynamic":false},
+              {"device":"wh3000pro","tag":"wh3000pro","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"huasifei_wh3000-pro-emmc,huasifei_wh3000-pro-emmc,wh3000pro-emmc;huasifei_wh3000-pro-nand,huasifei_wh3000-pro-nand,wh3000pro-nand","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":"","dynamic":false},
+              {"device":"tr3000","tag":"tr3000","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"cudy_tr3000-256mb-v1,cudy_tr3000-256mb-v1,tr3000","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":"","dynamic":false}
+            ]'
+          else
+            # ---- 指定设备: 从 site/public/data/devices.json 的 build.variants 动态查找 ----
+            MATRIX=$(jq -c --arg id "${{ inputs.device }}" '
+              [ .devices[] as $d | ($d.build.variants[]? | select(.key == $id)) as $v | $v ]
+            ' site/public/data/devices.json)
+            if [ -z "$MATRIX" ] || [ "$MATRIX" = "[]" ]; then
+              echo "::error ::设备 ${{ inputs.device }} 未在 site/public/data/devices.json 的 build.variants 中找到 (设备 id 以网站设备列表为准)"
+              exit 1
+            fi
+            echo "动态设备: ${{ inputs.device }}"
           fi
           # 计算 img_url (kwrt 用 vars.OPENWRT_AI_BASE 拼接)
           MATRIX=$(echo "$MATRIX" | jq --arg oa "$OA_BASE" \
             'map(.img_url=($oa + .img_suffix) | del(.img_suffix))')
-          # 参数覆盖 (非空才覆盖; 空值保持设备默认)
+          # 参数覆盖 (非空才覆盖; 空值保持设备默认); role 仅对动态设备(dynamic=true)生效
           MATRIX=$(echo "$MATRIX" | jq \
             --arg ip "${{ inputs.lan_ip }}" \
             --arg mask "${{ inputs.lan_mask }}" \
@@ -132,6 +144,7 @@ jobs:
             --arg wifi "${{ inputs.wifi }}" \
             --arg ssid "${{ inputs.wifi_ssid }}" \
             --arg key "${{ inputs.wifi_key }}" \
+            --arg role "${{ inputs.role }}" \
             'map(
               (.lan_ip = (if $ip != "" then $ip else .lan_ip end)) |
               (.lan_mask = (if $mask != "" then $mask else .lan_mask end)) |
@@ -140,7 +153,8 @@ jobs:
               (.ipv6 = (if $ipv6 == "true" then "1" elif $ipv6 == "false" then "0" else .ipv6 end)) |
               (.wifi = (if $wifi == "true" then "1" elif $wifi == "false" then "0" else .wifi end)) |
               (.wifi_ssid = (if $ssid != "" then $ssid else .wifi_ssid end)) |
-              (.wifi_key = (if $key != "" then $key else .wifi_key end))
+              (.wifi_key = (if $key != "" then $key else .wifi_key end)) |
+              (.role = (if (.dynamic == true) and ($role != "") then $role else .role end))
             )')
           # GitHub 的 matrix 必须是对象: 用 include 包一层, fromJSON 才可展开为矩阵
           echo "matrix=$(echo "$MATRIX" | jq -c '{"include": .}')" >> "$GITHUB_OUTPUT"
@@ -183,6 +197,7 @@ jobs:
           WIFI: ${{ matrix.wifi }}
           WIFI_SSID: ${{ matrix.wifi_ssid }}
           WIFI_KEY: ${{ matrix.wifi_key }}
+          DEV_KIND: ${{ matrix.dynamic == true && 'auto' || 'legacy' }}
           ZWRT_FEED: ${{ vars.ZWRT_FEED }}
           HOSTNAME: ${{ inputs.hostname }}
           ROOT_PASS: ${{ inputs.password }}
@@ -241,7 +256,7 @@ jobs:
               --title "$TAG" \
               --notes "Kwrt 引擎 (ImageBuilder 组装)
               构建日期: ${{ steps.date.outputs.date }}
-              内容: x86_64 主路由 / x86_64 旁路由 / WH3000 Pro (eMMC+NAND) / Cudy TR3000 (256mb v1)"
+              内容: 按网站/派发选择的设备 (默认: x86_64 主路由 / x86_64 旁路由 / WH3000 Pro (eMMC+NAND) / Cudy TR3000 (256mb v1))"
           fi
 
       - name: 上传全部固件到 Cloudflare R2 (firmware)
