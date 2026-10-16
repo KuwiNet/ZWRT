@@ -89,7 +89,7 @@ sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__WIFI_KEY__|$WIFI_KEY|g" -e "s|__HOSTNAME__|$HOSTNAME|g" \
     "$ZWRT_DIR/files/etc/uci-defaults/99-zwrt-network" > "$FILES/etc/uci-defaults/99-zwrt-network"
 chmod +x "$FILES/etc/uci-defaults/99-zwrt-network"
-# 3e DNS 主机记录 (zwrt -> LAN IP, 改 IP 自动跟随)
+# 3e DNS 主机记录 (zwrt/nk -> LAN IP, 改 IP 自动跟随; 删除旧 pw 映射)
 mkdir -p "$FILES/etc/hotplug.d/iface"
 cat > "$FILES/etc/hotplug.d/iface/20-zwrt-dns" <<'EOF'
 #!/bin/sh
@@ -98,14 +98,22 @@ cat > "$FILES/etc/hotplug.d/iface/20-zwrt-dns" <<'EOF'
 IP=$(uci get network.lan.ipaddr 2>/dev/null)
 [ -n "$IP" ] || exit 0
 uci get dhcp.@dnsmasq[0].enable >/dev/null 2>&1 || uci add dhcp dnsmasq >/dev/null 2>&1
+# 删除原固件遗留的 pw 主机名映射 (任意 IP)
+uci show dhcp 2>/dev/null | grep "\.address='/pw/" | sed "s/.*\.address='\([^']*\)'.*/\1/" | while read -r v; do
+  uci -q del_list dhcp.@dnsmasq[0].address="$v"
+done
+# zwrt -> 后台地址
 uci -q del_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
 uci add_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
+# nk -> nikki 后台 (http://nk/cgi-bin/luci/admin/services/nikki)
+uci -q del_list dhcp.@dnsmasq[0].address="/nk/$IP"
+uci add_list dhcp.@dnsmasq[0].address="/nk/$IP"
 uci commit dhcp
 /etc/init.d/dnsmasq restart
 exit 0
 EOF
 chmod +x "$FILES/etc/hotplug.d/iface/20-zwrt-dns"
-echo "已配置 DNS 主机记录: 浏览器访问 http://zwrt 打开后台"
+echo "已配置 DNS 主机记录: http://zwrt 后台, http://nk/cgi-bin/luci/admin/services/nikki 直达 nikki"
 # 3f 自定义初始化脚本
 if [ -n "$INIT_B64" ]; then
   echo "$INIT_B64" | base64 -d > "$FILES/etc/uci-defaults/90-zwrt-custom-init"
