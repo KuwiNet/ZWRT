@@ -777,7 +777,7 @@ async function startPoll(a) {
       if (!mine) {
         const runs = await apiJson(await ghAPI("GET", "/repos/" + a.owner + "/" + a.repo + "/actions/runs?event=workflow_dispatch&per_page=5", a.token));
         const cands = runs.workflow_runs.filter((r) => r.path === ".github/workflows/build-openwrt.yml");
-        if (a.since) mine = cands.find((r) => new Date(r.created_at).getTime() >= a.since) || null;
+        if (a.since) mine = cands.find((r) => new Date(r.created_at).getTime() >= (a.since - 120000)) || null;
         else mine = cands[0] || null;
       }
       if (mine) {
