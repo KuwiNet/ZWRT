@@ -83,9 +83,17 @@ if [ -n "$ROOT_PASS" ]; then
     chmod 0640 "$FILES/etc/shadow" 2>/dev/null || true
     echo "已写入 /etc/shadow (root 密码, 覆盖层直写)"
   else
-    printf '#!/bin/sh\nprintf "%%s\n%%s\n" "%s" "%s" | passwd root 2>/dev/null || echo "root:%s" | chpasswd 2>/dev/null || true\nexit 0\n' "$ROOT_PASS" "$ROOT_PASS" "$ROOT_PASS" > "$FILES/etc/uci-defaults/89-zwrt-pass"
-    chmod +x "$FILES/etc/uci-defaults/89-zwrt-pass"
-    echo "已写入管理密码 uci-defaults (fallback)"
+    # fallback: 不依赖 ImageBuilder rootfs, 直接写完整 shadow
+    mkdir -p "$FILES/etc"
+    cat > "$FILES/etc/shadow" <<EOF
+root:$SHADOW_HASH:0:0:99999:7:::
+daemon:*:0:0:99999:7:::
+ftp:*:0:0:99999:7:::
+network:*:0:0:99999:7:::
+nobody:*:0:0:99999:7:::
+EOF
+    chmod 0640 "$FILES/etc/shadow" 2>/dev/null || true
+    echo "已写入 /etc/shadow (root 密码, 完整模板 fallback)"
   fi
 else
   echo "管理密码为空, 保持无密码"
@@ -152,7 +160,17 @@ if [ -n "$REL_SRC" ]; then
       "$REL_SRC" > "$FILES/etc/openwrt_release"
   echo "已写入 /etc/openwrt_release (ZWRT 版本标识: $DISPLAY_DATE)"
 else
-  echo "!! 未找到 ImageBuilder openwrt_release, 跳过版本改写"
+  mkdir -p "$FILES/etc"
+  cat > "$FILES/etc/openwrt_release" <<EOF
+DISTRIB_ID='ZWRT'
+DISTRIB_RELEASE='25.12-SNAPSHOT'
+DISTRIB_REVISION='($DATE)'
+DISTRIB_TARGET='$FEED_TARGET'
+DISTRIB_ARCH='$FEED_ARCH'
+DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
+DISTRIB_TAINTS=''
+EOF
+  echo "已写入 /etc/openwrt_release (ZWRT 完整模板 fallback)"
 fi
 echo ">> 覆盖层: $FILES"
 
