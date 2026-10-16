@@ -52218,25 +52218,6 @@
       "gateway": "192.168.100.1",
       "dns": "192.168.100.1",
       "dynamic": false
-     },
-     {
-      "key": "tr3000-max114",
-      "tag": "tr3000-max114",
-      "family": "mtk",
-      "feed_arch": "aarch64_cortex-a53",
-      "feed_target": "mediatek/filogic",
-      "img_suffix": "/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst",
-      "profile_tags": "cudy_tr3000-256mb-v1-ubootmod,mediatek-filogic-cudy_tr3000-256mb-v1-ubootmod,cudy_tr3000-256mb-v1-ubootmod",
-      "role": "main",
-      "ipv6": "1",
-      "wifi": "1",
-      "wifi_ssid": "ZWRT",
-      "wifi_key": "",
-      "lan_ip": "192.168.100.1",
-      "lan_mask": "255.255.255.0",
-      "gateway": "192.168.100.1",
-      "dns": "192.168.100.1",
-      "dynamic": false
      }
     ]
    }
