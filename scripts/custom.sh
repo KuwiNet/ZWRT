@@ -13,6 +13,7 @@ for f in *; do
     *.bin|*.img|*.img.gz|*.gz|*.tar.gz)
       new="${f/immortalwrt/zwrt}"
       new="${new/openwrt/zwrt}"
+      new="${new/kwrt/zwrt}"
       if [ "$new" != "$f" ]; then
         mv "$f" "$new"
         echo ">> $f  ->  $new"
