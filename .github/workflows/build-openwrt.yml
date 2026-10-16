@@ -123,7 +123,7 @@ jobs:
           else
             # ---- 指定设备: 从 site/public/data/devices.json 的 build.variants 动态查找 ----
             MATRIX=$(jq -c --arg id "${{ inputs.device }}" '
-              [ .devices[] as $d | ($d.build.variants[]? | select(.key == $id)) as $v | $v ]
+              [ .devices[] as $d | ($d.build.variants[]? | select(.key == $id)) as $v | $v | .device = .key ]
             ' site/public/data/devices.json)
             if [ -z "$MATRIX" ] || [ "$MATRIX" = "[]" ]; then
               echo "::error ::设备 ${{ inputs.device }} 未在 site/public/data/devices.json 的 build.variants 中找到 (设备 id 以网站设备列表为准)"
