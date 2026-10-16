@@ -43,4 +43,4 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: 'latest'
           workingDirectory: site
-          command: pages deploy public --project-name=zwrt --branch=main
+          command: pages deploy . --project-name=zwrt --branch=main
