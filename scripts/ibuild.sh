@@ -114,9 +114,32 @@ if [ -n "$INIT_B64" ]; then
   chmod +x "$FILES/etc/uci-defaults/90-zwrt-custom-init"
   echo "已写入自定义初始化脚本 ($(wc -l < "$FILES/etc/uci-defaults/90-zwrt-custom-init") 行)"
 fi
-# 3g 固件版本标识: 静态覆盖 + 首启 uci-defaults 运行时覆盖 (ImageBuilder 打包可能回写 openwrt_release)
+# 3g 固件版本标识: 状态页显示源是 /usr/lib/os-release 的 OPENWRT_RELEASE (非 openwrt_release)
+# 静态覆盖 os-release/openwrt_release/banner + 首启 zzz uci-defaults 运行时兜底 (zzz 排最后, 压过 openwrt.ai 的 99/zz 脚本)
 DISPLAY_DATE="${DATE:6:2}.${DATE:4:2}.${DATE:0:4}"
-mkdir -p "$FILES/etc" "$FILES/etc/uci-defaults"
+mkdir -p "$FILES/etc" "$FILES/usr/lib" "$FILES/etc/uci-defaults"
+cat > "$FILES/usr/lib/os-release" <<EOF
+NAME="ZWRT"
+VERSION="25.12-SNAPSHOT"
+ID="zwrt"
+ID_LIKE="lede openwrt"
+PRETTY_NAME="ZWRT 25.12-SNAPSHOT"
+VERSION_ID="25.12-snapshot"
+HOME_URL="https://zwrt.de/"
+BUG_URL=""
+SUPPORT_URL=""
+FIRMWARE_URL=""
+BUILD_ID="$DATE"
+OPENWRT_BOARD="$FEED_TARGET"
+OPENWRT_ARCH="$FEED_ARCH"
+OPENWRT_TAINTS=""
+OPENWRT_DEVICE_MANUFACTURER=""
+OPENWRT_DEVICE_MANUFACTURER_URL=""
+OPENWRT_DEVICE_PRODUCT=""
+OPENWRT_DEVICE_REVISION=""
+OPENWRT_RELEASE="ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de"
+OPENWRT_BUILD_DATE=""
+EOF
 cat > "$FILES/etc/openwrt_release" <<EOF
 DISTRIB_ID='ZWRT'
 DISTRIB_RELEASE='25.12-SNAPSHOT'
@@ -126,9 +149,36 @@ DISTRIB_ARCH='$FEED_ARCH'
 DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
 DISTRIB_TAINTS=''
 EOF
-cat > "$FILES/etc/uci-defaults/90-zwrt-release" <<SH
+cat > "$FILES/etc/banner" <<'BAN'
+-----------------------------------------
+        ZWRT 25.12-SNAPSHOT by zwrt.de
+-----------------------------------------
+BAN
+cat > "$FILES/etc/uci-defaults/zzz-zwrt-release" <<SH
 #!/bin/sh
-cat > /etc/openwrt_release <<'REL'
+cat > /usr/lib/os-release <<'REL'
+NAME="ZWRT"
+VERSION="25.12-SNAPSHOT"
+ID="zwrt"
+ID_LIKE="lede openwrt"
+PRETTY_NAME="ZWRT 25.12-SNAPSHOT"
+VERSION_ID="25.12-snapshot"
+HOME_URL="https://zwrt.de/"
+BUG_URL=""
+SUPPORT_URL=""
+FIRMWARE_URL=""
+BUILD_ID="$DATE"
+OPENWRT_BOARD="$FEED_TARGET"
+OPENWRT_ARCH="$FEED_ARCH"
+OPENWRT_TAINTS=""
+OPENWRT_DEVICE_MANUFACTURER=""
+OPENWRT_DEVICE_MANUFACTURER_URL=""
+OPENWRT_DEVICE_PRODUCT=""
+OPENWRT_DEVICE_REVISION=""
+OPENWRT_RELEASE="ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de"
+OPENWRT_BUILD_DATE=""
+REL
+cat > /etc/openwrt_release <<'REL2'
 DISTRIB_ID='ZWRT'
 DISTRIB_RELEASE='25.12-SNAPSHOT'
 DISTRIB_REVISION='($DATE)'
@@ -136,11 +186,17 @@ DISTRIB_TARGET='$FEED_TARGET'
 DISTRIB_ARCH='$FEED_ARCH'
 DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
 DISTRIB_TAINTS=''
-REL
+REL2
+cat > /etc/banner <<'BAN'
+-----------------------------------------
+        ZWRT 25.12-SNAPSHOT by zwrt.de
+-----------------------------------------
+BAN
+rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
 exit 0
 SH
-chmod +x "$FILES/etc/uci-defaults/90-zwrt-release"
-echo "已写入 openwrt_release 静态 + uci-defaults 运行时覆盖 (ZWRT: $DISPLAY_DATE)"
+chmod +x "$FILES/etc/uci-defaults/zzz-zwrt-release"
+echo "已写入 os-release + openwrt_release + banner (ZWRT: $DISPLAY_DATE)"
 
 echo ">> 覆盖层: $FILES"
 
