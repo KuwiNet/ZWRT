@@ -63,9 +63,9 @@ on:
         type: string
         default: ''
       password:
-        description: '管理密码 (root 密码; 空 = 用默认 Zpxx1102)'
+        description: '管理密码 (root 密码; 空 = 无密码)'
         type: string
-        default: 'Zpxx1102'
+        default: ''
       packages_common:
         description: '通用软件包清单 (空格分隔; 空 = 设备出厂默认; __none__ = 不装)'
         type: string
