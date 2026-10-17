@@ -39,7 +39,7 @@ fi
 uci set system.@system[0].hostname='__HOSTNAME__'
 uci commit system 2>/dev/null
 
-# ---- WiFi (SSID=__WIFI_SSID__; 填了密码则加密, 否则开放) ----
+# ---- WiFi (SSID=__WIFI_SSID__; 填密码则 WPA3-PSK/WPA3-SAE Mixed Mode, 否则开放) ----
 if [ "__WIFI__" = "1" ]; then
     for radio in $(uci show wireless 2>/dev/null | grep -o 'wireless\.radio[0-9]*\.disabled' | cut -d. -f2 | sort -u); do
         uci set wireless.$radio.disabled='0'
@@ -51,7 +51,7 @@ if [ "__WIFI__" = "1" ]; then
     for sec in $(uci show wireless 2>/dev/null | grep -o 'wireless\.[a-zA-Z0-9_]*\.ssid' | cut -d. -f2 | sort -u); do
         uci set wireless.$sec.ssid='__WIFI_SSID__'
         if [ -n "$WIFI_KEY" ]; then
-            uci set wireless.$sec.encryption='psk2'
+            uci set wireless.$sec.encryption='sae-mixed'
             uci -q set wireless.$sec.key="$WIFI_KEY"
         else
             uci set wireless.$sec.encryption='none'
