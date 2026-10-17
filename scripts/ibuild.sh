@@ -87,7 +87,7 @@ sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__GATEWAY__|$GATEWAY|g" -e "s|__DNS__|$DNS|g" \
     -e "s|__ROLE__|$ROLE|g" -e "s|__IPV6__|$IPV6|g" \
     -e "s|__WIFI__|$WIFI|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" -e "s|__WIFI_KEY_B64__|$WIFI_KEY_B64|g" \
-    -e "s|__HOSTNAME__|$HOSTNAME|g" \
+    -e "s|__WIFI_KEY__|$WIFI_KEY|g" -e "s|__HOSTNAME__|$HOSTNAME|g" \
     "$ZWRT_DIR/files/etc/uci-defaults/99-zwrt-network" > "$FILES/etc/uci-defaults/99-zwrt-network"
 chmod +x "$FILES/etc/uci-defaults/99-zwrt-network"
 # 无线密码用 base64 文件写入 (避免 sed/单引号破坏特殊字符)
@@ -114,10 +114,12 @@ if [ -n "$INIT_B64" ]; then
   chmod +x "$FILES/etc/uci-defaults/90-zwrt-custom-init"
   echo "已写入自定义初始化脚本 ($(wc -l < "$FILES/etc/uci-defaults/90-zwrt-custom-init") 行)"
 fi
-# 3g 固件版本标识: 状态页显示源是 /usr/lib/os-release 的 OPENWRT_RELEASE (非 openwrt_release)
-# 静态覆盖 os-release/openwrt_release/banner + 首启 zzz uci-defaults 运行时兜底 (zzz 排最后, 压过 openwrt.ai 的 99/zz 脚本)
+# 3g 固件版本标识 + 开机自愈: 状态页显示源是 /usr/lib/os-release 的 OPENWRT_RELEASE
+# 四重保险: ①静态覆盖 ②zzz uci-defaults(首启) ③rc.local(每次开机, 版本+无线) ④init.d zwrt-release(每次开机, 版本)
+# 升级保留配置时 uci-defaults 不跑, 故用开机级 rc.local/init.d 兜底
 DISPLAY_DATE="${DATE:6:2}.${DATE:4:2}.${DATE:0:4}"
-mkdir -p "$FILES/etc" "$FILES/usr/lib" "$FILES/etc/uci-defaults"
+mkdir -p "$FILES/etc" "$FILES/usr/lib" "$FILES/etc/uci-defaults" "$FILES/etc/init.d"
+# --- ① 静态覆盖 ---
 cat > "$FILES/usr/lib/os-release" <<EOF
 NAME="ZWRT"
 VERSION="25.12-SNAPSHOT"
@@ -154,6 +156,7 @@ cat > "$FILES/etc/banner" <<'BAN'
         ZWRT 25.12-SNAPSHOT by zwrt.de
 -----------------------------------------
 BAN
+# --- ② zzz uci-defaults (首启兜底) ---
 cat > "$FILES/etc/uci-defaults/zzz-zwrt-release" <<SH
 #!/bin/sh
 cat > /usr/lib/os-release <<'REL'
@@ -196,7 +199,104 @@ rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
 exit 0
 SH
 chmod +x "$FILES/etc/uci-defaults/zzz-zwrt-release"
-echo "已写入 os-release + openwrt_release + banner (ZWRT: $DISPLAY_DATE)"
+# --- ③ rc.local (每次开机: 版本 + 无线密码兜底) ---
+cat > "$FILES/etc/rc.local" <<RC
+#!/bin/sh
+# ZWRT 开机自愈: 版本标识 + 无线密码 (不依赖 uci-defaults 首启, 升级/重启都生效)
+WIFI_KEY="\$(base64 -d '__WIFI_KEY_B64__' 2>/dev/null || true)"
+[ -z "\$WIFI_KEY" ] && [ -f /etc/zwrt-wifi-key.b64 ] && WIFI_KEY="\$(base64 -d /etc/zwrt-wifi-key.b64 2>/dev/null || true)"
+if [ -n "\$WIFI_KEY" ]; then
+  for sec in \$(uci show wireless 2>/dev/null | grep -o '^wireless\.\([a-zA-Z0-9_]*\)\.\(ssid\|device\|encryption\|mode\)' | cut -d. -f2 | sort -u); do
+    uci set wireless.\$sec.ssid='__WIFI_SSID__'
+    uci set wireless.\$sec.encryption='psk2'
+    uci -q set wireless.\$sec.key="\$WIFI_KEY"
+  done
+  uci commit wireless 2>/dev/null
+  wifi reload 2>/dev/null || true
+fi
+cat > /usr/lib/os-release <<'REL'
+NAME="ZWRT"
+VERSION="25.12-SNAPSHOT"
+ID="zwrt"
+ID_LIKE="lede openwrt"
+PRETTY_NAME="ZWRT 25.12-SNAPSHOT"
+VERSION_ID="25.12-snapshot"
+HOME_URL="https://zwrt.de/"
+BUG_URL=""
+SUPPORT_URL=""
+FIRMWARE_URL=""
+BUILD_ID="$DATE"
+OPENWRT_BOARD="$FEED_TARGET"
+OPENWRT_ARCH="$FEED_ARCH"
+OPENWRT_TAINTS=""
+OPENWRT_DEVICE_MANUFACTURER=""
+OPENWRT_DEVICE_MANUFACTURER_URL=""
+OPENWRT_DEVICE_PRODUCT=""
+OPENWRT_DEVICE_REVISION=""
+OPENWRT_RELEASE="ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de"
+OPENWRT_BUILD_DATE=""
+REL
+cat > /etc/openwrt_release <<'REL2'
+DISTRIB_ID='ZWRT'
+DISTRIB_RELEASE='25.12-SNAPSHOT'
+DISTRIB_REVISION='($DATE)'
+DISTRIB_TARGET='$FEED_TARGET'
+DISTRIB_ARCH='$FEED_ARCH'
+DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
+DISTRIB_TAINTS=''
+REL2
+cat > /etc/banner <<'BAN'
+-----------------------------------------
+        ZWRT 25.12-SNAPSHOT by zwrt.de
+-----------------------------------------
+BAN
+rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
+exit 0
+RC
+# rc.local 里内嵌密码/SSID 占位符替换
+sed -e "s|__WIFI_KEY_B64__|$WIFI_KEY_B64|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" "$FILES/etc/rc.local" > "$FILES/etc/rc.local.tmp" && mv "$FILES/etc/rc.local.tmp" "$FILES/etc/rc.local"
+chmod +x "$FILES/etc/rc.local"
+# --- ④ init.d zwrt-release (每次开机版本兜底, 升级后 init.d 全新生效) ---
+cat > "$FILES/etc/init.d/zwrt-release" <<IN
+#!/bin/sh /etc/rc.common
+START=95
+start() {
+cat > /usr/lib/os-release <<'REL'
+NAME="ZWRT"
+VERSION="25.12-SNAPSHOT"
+ID="zwrt"
+ID_LIKE="lede openwrt"
+PRETTY_NAME="ZWRT 25.12-SNAPSHOT"
+VERSION_ID="25.12-snapshot"
+HOME_URL="https://zwrt.de/"
+BUG_URL=""
+SUPPORT_URL=""
+FIRMWARE_URL=""
+BUILD_ID="$DATE"
+OPENWRT_BOARD="$FEED_TARGET"
+OPENWRT_ARCH="$FEED_ARCH"
+OPENWRT_TAINTS=""
+OPENWRT_DEVICE_MANUFACTURER=""
+OPENWRT_DEVICE_MANUFACTURER_URL=""
+OPENWRT_DEVICE_PRODUCT=""
+OPENWRT_DEVICE_REVISION=""
+OPENWRT_RELEASE="ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de"
+OPENWRT_BUILD_DATE=""
+REL
+cat > /etc/openwrt_release <<'REL2'
+DISTRIB_ID='ZWRT'
+DISTRIB_RELEASE='25.12-SNAPSHOT'
+DISTRIB_REVISION='($DATE)'
+DISTRIB_TARGET='$FEED_TARGET'
+DISTRIB_ARCH='$FEED_ARCH'
+DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
+DISTRIB_TAINTS=''
+REL2
+rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
+}
+IN
+chmod +x "$FILES/etc/init.d/zwrt-release"
+echo "已写入版本四重保险 + rc.local 无线兜底 (ZWRT: $DISPLAY_DATE)"
 
 echo ">> 覆盖层: $FILES"
 
