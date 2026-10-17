@@ -70,14 +70,6 @@ if [ -n "$HOSTNAME" ] && [ "$HOSTNAME" != "ZWRT" ]; then
 else
   echo "主机名保持默认 ZWRT"
 fi
-# 3b 管理密码 (空=无密码)
-if [ -n "$ROOT_PASS" ]; then
-  printf '#!/bin/sh\necho "root:%s" | chpasswd 2>/dev/null || { (echo "%s"; echo "%s") | passwd root 2>/dev/null; }\nexit 0\n' "$ROOT_PASS" "$ROOT_PASS" "$ROOT_PASS" > "$FILES/etc/uci-defaults/89-zwrt-pass"
-  chmod +x "$FILES/etc/uci-defaults/89-zwrt-pass"
-  echo "已写入管理密码 uci-defaults"
-else
-  echo "管理密码为空, 保持无密码"
-fi
 # 3c 运行时软件源 (只保留 src/gz 源行, 去掉所有说明注释)
 mkdir -p "$FILES/etc/opkg"
 grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
