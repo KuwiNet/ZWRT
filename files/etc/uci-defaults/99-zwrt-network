@@ -48,15 +48,11 @@ if [ "__WIFI__" = "1" ]; then
     for radio in $(uci show wireless 2>/dev/null | grep -o 'wireless\.radio[0-9]*\.disabled' | cut -d. -f2 | sort -u); do
         uci set wireless.$radio.disabled='0'
     done
-    WIFI_KEY='__WIFI_KEY__'
-    if [ -z "$WIFI_KEY" ] && [ -f /etc/zwrt-wifi-key.b64 ]; then
-        WIFI_KEY=$(base64 -d /etc/zwrt-wifi-key.b64 2>/dev/null || true)
-    fi
-    for sec in $(uci show wireless 2>/dev/null | grep -o '^wireless\.\([a-zA-Z0-9_]*\)\.\(ssid\|device\|encryption\|mode\)' | cut -d. -f2 | sort -u); do
+    for sec in $(uci show wireless 2>/dev/null | grep -o 'wireless\.[a-zA-Z0-9_]*\.ssid' | cut -d. -f2 | sort -u); do
         uci set wireless.$sec.ssid='__WIFI_SSID__'
-        if [ -n "$WIFI_KEY" ]; then
+        if [ -n "__WIFI_KEY__" ]; then
             uci set wireless.$sec.encryption='psk2'
-            uci -q set wireless.$sec.key="$WIFI_KEY"
+            uci set wireless.$sec.key='__WIFI_KEY__'
         else
             uci set wireless.$sec.encryption='none'
             uci -q delete wireless.$sec.key
