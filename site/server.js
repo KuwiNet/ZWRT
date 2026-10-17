@@ -12,6 +12,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 
 const ROOT = path.join(__dirname, 'public');
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -70,6 +71,26 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.txt': 'text/plain; charset=utf-8',
 };
+
+// 可压缩类型
+const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.json', '.svg', '.txt']);
+
+// 静态资源缓存: 数据/脚本 5 分钟 (数据会定期更新), 图片 1 小时
+function cacheControl(ext) {
+  if (ext === '.png' || ext === '.ico') return 'public, max-age=3600';
+  return 'public, max-age=300';
+}
+
+function maybeGzip(req, data, headers) {
+  const ae = (req.headers['accept-encoding'] || '').toLowerCase();
+  if (ae.includes('gzip') && data.length > 512) {
+    const gz = zlib.gzipSync(data);
+    headers['Content-Encoding'] = 'gzip';
+    headers['Vary'] = 'Accept-Encoding';
+    return gz;
+  }
+  return data;
+}
 
 function send(res, status, body, headers) {
   const h = { 'Cache-Control': 'no-store', ...(headers || {}) };
@@ -158,8 +179,14 @@ const server = http.createServer(async (req, res) => {
   try {
     const st = fs.statSync(fp);
     if (st.isDirectory()) fp = path.join(fp, 'index.html');
-    const data = fs.readFileSync(fp);
-    send(res, 200, data, { 'Content-Type': MIME[path.extname(fp).toLowerCase()] || 'application/octet-stream' });
+    const ext = path.extname(fp).toLowerCase();
+    const headers = {
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      'Cache-Control': cacheControl(ext),
+    };
+    let data = fs.readFileSync(fp);
+    if (COMPRESSIBLE.has(ext)) data = maybeGzip(req, data, headers);
+    send(res, 200, data, headers);
   } catch (e) {
     send(res, 404, 'Not Found');
   }
