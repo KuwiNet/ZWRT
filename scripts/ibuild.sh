@@ -113,8 +113,6 @@ done
 # zwrt -> 后台地址 (nikki: http://zwrt/cgi-bin/luci/admin/services/nikki)
 uci -q del_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
 uci add_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
-uci -q del_list dhcp.@dnsmasq[0].address="/nk/$IP"
-uci add_list dhcp.@dnsmasq[0].address="/nk/$IP"
 uci commit dhcp
 /etc/init.d/dnsmasq restart
 exit 0
