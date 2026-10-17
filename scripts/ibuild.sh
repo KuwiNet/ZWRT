@@ -82,7 +82,10 @@ if [ -n "$ROOT_PASS" ]; then
   chmod +x "$FILES/etc/init.d/zwrt-pass"
   echo "已写入管理密码 (uci-defaults 89 + init.d 兜底, 直接写 shadow)"
 else
-  echo "管理密码为空, 保持无密码"
+  # 空密码: 首启清空 root 密码 (防止 ImageBuilder 默认 root/root)
+  printf '#!/bin/sh\nawk '\''BEGIN{FS=OFS=":"} $1=="root"{$2=""} {print}'\'' /etc/shadow > /tmp/shadow.zwrt && mv /tmp/shadow.zwrt /etc/shadow\nexit 0\n' > "$FILES/etc/uci-defaults/89-zwrt-pass"
+  chmod +x "$FILES/etc/uci-defaults/89-zwrt-pass"
+  echo "管理密码为空, 首启清空 root 密码 (防 ImageBuilder 默认 root)"
 fi
 # 3c 运行时软件源 (只保留 src/gz 源行, 去掉所有说明注释)
 mkdir -p "$FILES/etc/opkg"
