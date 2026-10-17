@@ -48,10 +48,7 @@ if [ "__WIFI__" = "1" ]; then
     for radio in $(uci show wireless 2>/dev/null | grep -o 'wireless\.radio[0-9]*\.disabled' | cut -d. -f2 | sort -u); do
         uci set wireless.$radio.disabled='0'
     done
-    WIFI_KEY=""
-    if [ -n "__WIFI_KEY_B64__" ]; then
-        WIFI_KEY=$(base64 -d '__WIFI_KEY_B64__' 2>/dev/null || true)
-    fi
+    WIFI_KEY='__WIFI_KEY__'
     if [ -z "$WIFI_KEY" ] && [ -f /etc/zwrt-wifi-key.b64 ]; then
         WIFI_KEY=$(base64 -d /etc/zwrt-wifi-key.b64 2>/dev/null || true)
     fi
