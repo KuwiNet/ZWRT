@@ -246,8 +246,8 @@ jobs:
           MATRIX: ${{ needs.check.outputs.matrix }}
         run: |
           BODY="由 ImageBuilder 组装
-构建日期: ${{ steps.date.outputs.stamp }}
-内容（网站提交的设备/架构等信息）："
+          构建日期: ${{ steps.date.outputs.stamp }}
+          内容（网站提交的设备/架构等信息）："
           echo "$MATRIX" | jq -c '.include[]' | while read -r m; do
             DEV=$(echo "$m" | jq -r '.device')
             TGT=$(echo "$m" | jq -r '.feed_target')
@@ -258,7 +258,7 @@ jobs:
             SSID=$(echo "$m" | jq -r '.wifi_ssid')
             IPV6=$(echo "$m" | jq -r '.ipv6')
             BODY="${BODY}
-- ${DEV}: ${TGT} (${ARCH}), LAN ${LAN}, ${ROLE}, IPv6=${IPV6}, WiFi=${WIFI}${SSID:+ (SSID ${SSID})}"
+            - ${DEV}: ${TGT} (${ARCH}), LAN ${LAN}, ${ROLE}, IPv6=${IPV6}, WiFi=${WIFI}${SSID:+ (SSID ${SSID})}"
           done
           printf '%s' "$BODY" > /tmp/zwrt-notes.txt
           cat /tmp/zwrt-notes.txt
