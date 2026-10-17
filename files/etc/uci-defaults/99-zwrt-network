@@ -43,7 +43,7 @@ fi
 uci set system.@system[0].hostname='__HOSTNAME__'
 uci commit system 2>/dev/null
 
-# ---- WiFi (SSID=__WIFI_SSID__; 填密码则 WPA3-PSK/WPA3-SAE Mixed Mode, 否则开放) ----
+# ---- WiFi (SSID=__WIFI_SSID__; 填密码则 WPA2-PSK, 否则开放) ----
 if [ "__WIFI__" = "1" ]; then
     for radio in $(uci show wireless 2>/dev/null | grep -o 'wireless\.radio[0-9]*\.disabled' | cut -d. -f2 | sort -u); do
         uci set wireless.$radio.disabled='0'
