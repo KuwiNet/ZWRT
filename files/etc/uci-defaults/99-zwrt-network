@@ -58,7 +58,7 @@ if [ "__WIFI__" = "1" ]; then
     for sec in $(uci show wireless 2>/dev/null | grep -o '^wireless\.\([a-zA-Z0-9_]*\)\.\(ssid\|device\|encryption\|mode\)' | cut -d. -f2 | sort -u); do
         uci set wireless.$sec.ssid='__WIFI_SSID__'
         if [ -n "$WIFI_KEY" ]; then
-            uci set wireless.$sec.encryption='sae-mixed'
+            uci set wireless.$sec.encryption='psk2'
             uci -q set wireless.$sec.key="$WIFI_KEY"
         else
             uci set wireless.$sec.encryption='none'
