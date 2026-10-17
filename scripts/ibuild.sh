@@ -232,36 +232,10 @@ cat > /etc/banner <<'BAN'
 -----------------------------------------
 BAN
 rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
-# --- ZWRT 开机兜底: 后台密码 + 无线 + hosts (每次开机/升级后生效, 覆盖 uci-defaults 未跑场景) ---
-_ROOT_PASS="__ROOT_PASS__"
-_WIFI_CTL="__WIFI_CTL__"
-_WIFI_SSID="__WIFI_SSID__"
-_WIFI_KEY="__WIFI_KEY__"
-_LAN_IP="__LAN_IP__"
-[ -n "$_ROOT_PASS" ] && echo "root:$_ROOT_PASS" | chpasswd 2>/dev/null || true
-if [ "$_WIFI_CTL" = "1" ]; then
-    sleep 2
-    for _sec in $(uci -q show wireless | grep -o 'wireless\.[a-zA-Z0-9_]*\.ssid' | cut -d. -f2 | sort -u); do
-        uci set wireless.$_sec.ssid="$_WIFI_SSID"
-        if [ -n "$_WIFI_KEY" ]; then
-            uci set wireless.$_sec.encryption='psk2'
-            uci set wireless.$_sec.key="$_WIFI_KEY"
-        fi
-    done
-    uci commit wireless
-    wifi reload 2>/dev/null || true
-fi
-grep -q "[[:space:]]zwrt" /etc/hosts 2>/dev/null || echo "$_LAN_IP zwrt" >> /etc/hosts
 exit 0
 RC
-# rc.local 里内嵌密码/SSID/主机名占位符替换 (特殊字符转义)
-_esc() { printf '%s' "$1" | sed 's/[&|\\]/\\&/g'; }
-sed -e "s|__ROOT_PASS__|$(_esc "$ROOT_PASS")|g" \
-    -e "s|__WIFI_CTL__|$WIFI|g" \
-    -e "s|__WIFI_SSID__|$(_esc "$WIFI_SSID")|g" \
-    -e "s|__WIFI_KEY__|$(_esc "$WIFI_KEY")|g" \
-    -e "s|__LAN_IP__|$(_esc "$LAN_IP")|g" \
-    "$FILES/etc/rc.local" > "$FILES/etc/rc.local.tmp" && mv "$FILES/etc/rc.local.tmp" "$FILES/etc/rc.local"
+# rc.local 里内嵌密码/SSID 占位符替换
+sed -e "s|__WIFI_SSID__|$WIFI_SSID|g" "$FILES/etc/rc.local" > "$FILES/etc/rc.local.tmp" && mv "$FILES/etc/rc.local.tmp" "$FILES/etc/rc.local"
 chmod +x "$FILES/etc/rc.local"
 # --- ④ init.d zwrt-release (每次开机版本兜底, 升级后 init.d 全新生效) ---
 cat > "$FILES/etc/init.d/zwrt-release" <<IN
