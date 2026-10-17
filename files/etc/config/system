@@ -1,5 +1,6 @@
 config system
-	option hostname 'ZWRT'
+	option links '0'
+option hostname 'ZWRT'
 	option timezone 'Asia/Shanghai'
 	option ttylogin '0'
 	option log_size '64'
