@@ -104,7 +104,8 @@ cat > "$FILES/etc/hotplug.d/iface/20-zwrt-dns" <<'EOF'
 [ "$INTERFACE" = "lan" ] || exit 0
 IP=$(uci get network.lan.ipaddr 2>/dev/null)
 [ -n "$IP" ] || exit 0
-uci get dhcp.@dnsmasq[0].enable >/dev/null 2>&1 || uci add dhcp dnsmasq >/dev/null 2>&1
+# 注意: 默认 dnsmasq 无 enable 选项, 不能用 uci get 判断存在性 (会误 add 出多余 DNS 实例)
+# 直接复用已有 dnsmasq[0] 写入地址映射
 # 删除原固件遗留的 pw 主机名映射 (任意 IP)
 uci show dhcp 2>/dev/null | grep "\.address='/pw/" | sed "s/.*\.address='\([^']*\)'.*/\1/" | while read -r v; do
   uci -q del_list dhcp.@dnsmasq[0].address="$v"
@@ -112,6 +113,8 @@ done
 # zwrt -> 后台地址 (nikki: http://zwrt/cgi-bin/luci/admin/services/nikki)
 uci -q del_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
 uci add_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
+uci -q del_list dhcp.@dnsmasq[0].address="/nk/$IP"
+uci add_list dhcp.@dnsmasq[0].address="/nk/$IP"
 uci commit dhcp
 /etc/init.d/dnsmasq restart
 exit 0
