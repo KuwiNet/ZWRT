@@ -240,6 +240,29 @@ jobs:
           path: firmware/
           merge-multiple: true
 
+      - name: 生成 Release 备注 (设备/架构/网站提交信息)
+        id: notes
+        env:
+          MATRIX: ${{ needs.check.outputs.matrix }}
+        run: |
+          BODY="由 ImageBuilder 组装
+构建日期: ${{ steps.date.outputs.stamp }}
+内容（网站提交的设备/架构等信息）："
+          echo "$MATRIX" | jq -c '.include[]' | while read -r m; do
+            DEV=$(echo "$m" | jq -r '.device')
+            TGT=$(echo "$m" | jq -r '.feed_target')
+            ARCH=$(echo "$m" | jq -r '.feed_arch')
+            LAN=$(echo "$m" | jq -r '.lan_ip')
+            ROLE=$(echo "$m" | jq -r '.role')
+            WIFI=$(echo "$m" | jq -r '.wifi')
+            SSID=$(echo "$m" | jq -r '.wifi_ssid')
+            IPV6=$(echo "$m" | jq -r '.ipv6')
+            BODY="${BODY}
+- ${DEV}: ${TGT} (${ARCH}), LAN ${LAN}, ${ROLE}, IPv6=${IPV6}, WiFi=${WIFI}${SSID:+ (SSID ${SSID})}"
+          done
+          printf '%s' "$BODY" > /tmp/zwrt-notes.txt
+          cat /tmp/zwrt-notes.txt
+
       - name: 列出待发布固件
         run: ls -lh firmware/
 
@@ -256,9 +279,7 @@ jobs:
             gh release create "$TAG" firmware/zwrt-* \
               --repo "$GITHUB_REPOSITORY" \
               --title "$TAG" \
-              --notes "由 ImageBuilder 组装
-              构建日期: ${{ steps.date.outputs.date }}
-              内容：网站提交的设备信息"
+              --notes-file /tmp/zwrt-notes.txt
           fi
 
       - name: 上传全部固件到 Cloudflare R2 (firmware)
