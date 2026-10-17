@@ -1,0 +1,12 @@
+#!/bin/sh /etc/rc.common
+# ZWRT 主机名映射开机兜底: zwrt -> LAN IP (每次开机/升级保留配置也生效; LanIP 修改后自动跟随)
+START=93
+STOP=01
+start() {
+    _ip="$(uci -q get network.lan.ipaddr)"
+    [ -n "$_ip" ] || _ip="192.168.100.1"
+    # 先清旧 zwrt 行, 再写当前 LAN IP, 保证跟随 LanIP 修改
+    sed -i '/[[:space:]]zwrt/d' /etc/hosts 2>/dev/null
+    echo "$_ip zwrt" >> /etc/hosts
+    /etc/init.d/dnsmasq reload 2>/dev/null || true
+}
