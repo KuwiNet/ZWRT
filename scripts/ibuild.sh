@@ -81,22 +81,14 @@ fi
 # 3c 运行时软件源 (只保留 src/gz 源行, 去掉所有说明注释)
 mkdir -p "$FILES/etc/opkg"
 grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
-WIFI_KEY_B64="$(printf '%s' "$WIFI_KEY" | base64 | tr -d '\n')"
 # 3d 网络变体
 sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__GATEWAY__|$GATEWAY|g" -e "s|__DNS__|$DNS|g" \
     -e "s|__ROLE__|$ROLE|g" -e "s|__IPV6__|$IPV6|g" \
-    -e "s|__WIFI__|$WIFI|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" -e "s|__WIFI_KEY_B64__|$WIFI_KEY_B64|g" \
+    -e "s|__WIFI__|$WIFI|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" \
     -e "s|__WIFI_KEY__|$WIFI_KEY|g" -e "s|__HOSTNAME__|$HOSTNAME|g" \
     "$ZWRT_DIR/files/etc/uci-defaults/99-zwrt-network" > "$FILES/etc/uci-defaults/99-zwrt-network"
 chmod +x "$FILES/etc/uci-defaults/99-zwrt-network"
-# 无线密码用 base64 文件写入 (避免 sed/单引号破坏特殊字符)
-if [ -n "$WIFI_KEY" ]; then
-  printf '%s' "$WIFI_KEY" | base64 > "$FILES/etc/zwrt-wifi-key.b64"
-  echo "无线密码已写入 (base64 文件)"
-else
-  echo "无线密码为空, WiFi 开放"
-fi
 # 3e DNS 主机记录: /etc/hosts 写 zwrt -> LAN IP (dnsmasq 默认读 hosts, 零 commit/零 restart, 不干扰 DHCP)
 mkdir -p "$FILES/etc"
 if [ -f "$FILES/etc/hosts" ]; then
@@ -202,18 +194,7 @@ chmod +x "$FILES/etc/uci-defaults/zzz-zwrt-release"
 # --- ③ rc.local (每次开机: 版本 + 无线密码兜底) ---
 cat > "$FILES/etc/rc.local" <<RC
 #!/bin/sh
-# ZWRT 开机自愈: 版本标识 + 无线密码 (不依赖 uci-defaults 首启, 升级/重启都生效)
-WIFI_KEY="\$(base64 -d '__WIFI_KEY_B64__' 2>/dev/null || true)"
-[ -z "\$WIFI_KEY" ] && [ -f /etc/zwrt-wifi-key.b64 ] && WIFI_KEY="\$(base64 -d /etc/zwrt-wifi-key.b64 2>/dev/null || true)"
-if [ -n "\$WIFI_KEY" ]; then
-  for sec in \$(uci show wireless 2>/dev/null | grep -o '^wireless\.\([a-zA-Z0-9_]*\)\.\(ssid\|device\|encryption\|mode\)' | cut -d. -f2 | sort -u); do
-    uci set wireless.\$sec.ssid='__WIFI_SSID__'
-    uci set wireless.\$sec.encryption='psk2'
-    uci -q set wireless.\$sec.key="\$WIFI_KEY"
-  done
-  uci commit wireless 2>/dev/null
-  wifi reload 2>/dev/null || true
-fi
+# ZWRT 开机自愈: 版本标识 (升级/重启都生效)
 cat > /usr/lib/os-release <<'REL'
 NAME="ZWRT"
 VERSION="25.12-SNAPSHOT"
@@ -254,7 +235,7 @@ rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
 exit 0
 RC
 # rc.local 里内嵌密码/SSID 占位符替换
-sed -e "s|__WIFI_KEY_B64__|$WIFI_KEY_B64|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" "$FILES/etc/rc.local" > "$FILES/etc/rc.local.tmp" && mv "$FILES/etc/rc.local.tmp" "$FILES/etc/rc.local"
+sed -e "s|__WIFI_SSID__|$WIFI_SSID|g" "$FILES/etc/rc.local" > "$FILES/etc/rc.local.tmp" && mv "$FILES/etc/rc.local.tmp" "$FILES/etc/rc.local"
 chmod +x "$FILES/etc/rc.local"
 # --- ④ init.d zwrt-release (每次开机版本兜底, 升级后 init.d 全新生效) ---
 cat > "$FILES/etc/init.d/zwrt-release" <<IN
@@ -296,7 +277,7 @@ rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
 }
 IN
 chmod +x "$FILES/etc/init.d/zwrt-release"
-echo "已写入版本四重保险 + rc.local 无线兜底 (ZWRT: $DISPLAY_DATE)"
+echo "已写入版本四重保险 (ZWRT: $DISPLAY_DATE)"
 
 echo ">> 覆盖层: $FILES"
 
