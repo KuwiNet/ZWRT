@@ -96,29 +96,17 @@ if [ -n "$WIFI_KEY" ]; then
 else
   echo "无线密码为空, WiFi 开放"
 fi
-# 3e DNS 主机记录 (zwrt -> LAN IP, 改 IP 自动跟随; 删除旧 pw 映射)
-mkdir -p "$FILES/etc/hotplug.d/iface"
-cat > "$FILES/etc/hotplug.d/iface/20-zwrt-dns" <<'EOF'
-#!/bin/sh
-[ "$ACTION" = "ifup" ] || exit 0
-[ "$INTERFACE" = "lan" ] || exit 0
-IP=$(uci get network.lan.ipaddr 2>/dev/null)
-[ -n "$IP" ] || exit 0
-# 注意: 默认 dnsmasq 无 enable 选项, 不能用 uci get 判断存在性 (会误 add 出多余 DNS 实例)
-# 直接复用已有 dnsmasq[0] 写入地址映射
-# 删除原固件遗留的 pw 主机名映射 (任意 IP)
-uci show dhcp 2>/dev/null | grep "\.address='/pw/" | sed "s/.*\.address='\([^']*\)'.*/\1/" | while read -r v; do
-  uci -q del_list dhcp.@dnsmasq[0].address="$v"
-done
-# zwrt -> 后台地址 (nikki: http://zwrt/cgi-bin/luci/admin/services/nikki)
-uci -q del_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
-uci add_list dhcp.@dnsmasq[0].address="/zwrt/$IP"
-uci commit dhcp
-/etc/init.d/dnsmasq restart
-exit 0
-EOF
-chmod +x "$FILES/etc/hotplug.d/iface/20-zwrt-dns"
-echo "已配置 DNS 主机记录: http://zwrt 打开后台 / nikki 直达 http://zwrt/cgi-bin/luci/admin/services/nikki"
+# 3e DNS 主机记录: /etc/hosts 写 zwrt -> LAN IP (dnsmasq 默认读 hosts, 零 commit/零 restart, 不干扰 DHCP)
+mkdir -p "$FILES/etc"
+if [ -f "$FILES/etc/hosts" ]; then
+  HOSTS_BASE=$(grep -v "[[:space:]]zwrt" "$FILES/etc/hosts" 2>/dev/null || true)
+else
+  HOSTS_BASE="127.0.0.1 localhost
+::1 localhost ip6-localhost ip6-loopback"
+fi
+printf '%s\n%s\n' "$HOSTS_BASE" "$LAN_IP zwrt" > "$FILES/etc/hosts"
+echo "已写 /etc/hosts: $LAN_IP zwrt (http://zwrt 打开后台 / nikki 直达 http://zwrt/cgi-bin/luci/admin/services/nikki)"
+
 # 3f 自定义初始化脚本
 if [ -n "$INIT_B64" ]; then
   echo "$INIT_B64" | base64 -d > "$FILES/etc/uci-defaults/90-zwrt-custom-init"
