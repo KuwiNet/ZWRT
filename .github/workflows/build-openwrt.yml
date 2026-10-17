@@ -248,7 +248,8 @@ jobs:
           BODY="由 ImageBuilder 组装
           构建日期: ${{ steps.date.outputs.stamp }}
           内容（网站提交的设备/架构等信息）："
-          echo "$MATRIX" | jq -c '.include[]' | while read -r m; do
+          mapfile -t ROWS < <(echo "$MATRIX" | jq -c '.include[]')
+          for m in "${ROWS[@]}"; do
             DEV=$(echo "$m" | jq -r '.device')
             TGT=$(echo "$m" | jq -r '.feed_target')
             ARCH=$(echo "$m" | jq -r '.feed_arch')
