@@ -125,6 +125,19 @@ if [ -n "$INIT_B64" ]; then
   chmod +x "$FILES/etc/uci-defaults/90-zwrt-custom-init"
   echo "已写入自定义初始化脚本 ($(wc -l < "$FILES/etc/uci-defaults/90-zwrt-custom-init") 行)"
 fi
+# 3g 固件版本标识 (openwrt_release 覆盖; 纯文本, 不涉及 shadow 不会导致重启)
+DISPLAY_DATE="${DATE:6:2}.${DATE:4:2}.${DATE:0:4}"
+mkdir -p "$FILES/etc"
+cat > "$FILES/etc/openwrt_release" <<EOF
+DISTRIB_ID='ZWRT'
+DISTRIB_RELEASE='25.12-SNAPSHOT'
+DISTRIB_REVISION='($DATE)'
+DISTRIB_TARGET='$FEED_TARGET'
+DISTRIB_ARCH='$FEED_ARCH'
+DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
+DISTRIB_TAINTS=''
+EOF
+echo "已写入 /etc/openwrt_release (ZWRT 版本标识: $DISPLAY_DATE)"
 echo ">> 覆盖层: $FILES"
 
 echo "==== [4/7] 生成 PACKAGES 清单 ===="
