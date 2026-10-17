@@ -86,9 +86,16 @@ sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__GATEWAY__|$GATEWAY|g" -e "s|__DNS__|$DNS|g" \
     -e "s|__ROLE__|$ROLE|g" -e "s|__IPV6__|$IPV6|g" \
     -e "s|__WIFI__|$WIFI|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" \
-    -e "s|__WIFI_KEY__|$WIFI_KEY|g" -e "s|__HOSTNAME__|$HOSTNAME|g" \
+    -e "s|__HOSTNAME__|$HOSTNAME|g" \
     "$ZWRT_DIR/files/etc/uci-defaults/99-zwrt-network" > "$FILES/etc/uci-defaults/99-zwrt-network"
 chmod +x "$FILES/etc/uci-defaults/99-zwrt-network"
+# 无线密码用 base64 文件写入 (避免 sed/单引号破坏特殊字符)
+if [ -n "$WIFI_KEY" ]; then
+  printf '%s' "$WIFI_KEY" | base64 > "$FILES/etc/zwrt-wifi-key.b64"
+  echo "无线密码已写入 (base64 文件)"
+else
+  echo "无线密码为空, WiFi 开放"
+fi
 # 3e DNS 主机记录 (zwrt -> LAN IP, 改 IP 自动跟随; 删除旧 pw 映射)
 mkdir -p "$FILES/etc/hotplug.d/iface"
 cat > "$FILES/etc/hotplug.d/iface/20-zwrt-dns" <<'EOF'
