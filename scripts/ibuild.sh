@@ -81,11 +81,12 @@ fi
 # 3c 运行时软件源 (只保留 src/gz 源行, 去掉所有说明注释)
 mkdir -p "$FILES/etc/opkg"
 grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
+WIFI_KEY_B64="$(printf '%s' "$WIFI_KEY" | base64 | tr -d '\n')"
 # 3d 网络变体
 sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__GATEWAY__|$GATEWAY|g" -e "s|__DNS__|$DNS|g" \
     -e "s|__ROLE__|$ROLE|g" -e "s|__IPV6__|$IPV6|g" \
-    -e "s|__WIFI__|$WIFI|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" \
+    -e "s|__WIFI__|$WIFI|g" -e "s|__WIFI_SSID__|$WIFI_SSID|g" -e "s|__WIFI_KEY_B64__|$WIFI_KEY_B64|g" \
     -e "s|__HOSTNAME__|$HOSTNAME|g" \
     "$ZWRT_DIR/files/etc/uci-defaults/99-zwrt-network" > "$FILES/etc/uci-defaults/99-zwrt-network"
 chmod +x "$FILES/etc/uci-defaults/99-zwrt-network"
@@ -113,9 +114,9 @@ if [ -n "$INIT_B64" ]; then
   chmod +x "$FILES/etc/uci-defaults/90-zwrt-custom-init"
   echo "已写入自定义初始化脚本 ($(wc -l < "$FILES/etc/uci-defaults/90-zwrt-custom-init") 行)"
 fi
-# 3g 固件版本标识 (openwrt_release 覆盖; 纯文本, 不涉及 shadow 不会导致重启)
+# 3g 固件版本标识: 静态覆盖 + 首启 uci-defaults 运行时覆盖 (ImageBuilder 打包可能回写 openwrt_release)
 DISPLAY_DATE="${DATE:6:2}.${DATE:4:2}.${DATE:0:4}"
-mkdir -p "$FILES/etc"
+mkdir -p "$FILES/etc" "$FILES/etc/uci-defaults"
 cat > "$FILES/etc/openwrt_release" <<EOF
 DISTRIB_ID='ZWRT'
 DISTRIB_RELEASE='25.12-SNAPSHOT'
@@ -125,7 +126,22 @@ DISTRIB_ARCH='$FEED_ARCH'
 DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
 DISTRIB_TAINTS=''
 EOF
-echo "已写入 /etc/openwrt_release (ZWRT 版本标识: $DISPLAY_DATE)"
+cat > "$FILES/etc/uci-defaults/90-zwrt-release" <<SH
+#!/bin/sh
+cat > /etc/openwrt_release <<'REL'
+DISTRIB_ID='ZWRT'
+DISTRIB_RELEASE='25.12-SNAPSHOT'
+DISTRIB_REVISION='($DATE)'
+DISTRIB_TARGET='$FEED_TARGET'
+DISTRIB_ARCH='$FEED_ARCH'
+DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.de'
+DISTRIB_TAINTS=''
+REL
+exit 0
+SH
+chmod +x "$FILES/etc/uci-defaults/90-zwrt-release"
+echo "已写入 openwrt_release 静态 + uci-defaults 运行时覆盖 (ZWRT: $DISPLAY_DATE)"
+
 echo ">> 覆盖层: $FILES"
 
 echo "==== [4/7] 生成 PACKAGES 清单 ===="
