@@ -1,12 +1,12 @@
 /**
  * ZWRT Builder — VPS 单文件 Node 服务（零依赖，Node 18+）
- * 用法: ACCESS_PASSWORD=xxx GH_TOKEN=ghp_xxx PORT=8080 node server.js
+ * 用法: ACCESS_PASSWORD=xxx GH_TOKEN=ghp_xxx PORT=8090 node server.js
  * 静态目录: 同目录 public/  (index.html / app.js / data/ ...)
  * 登录: 除 /api/login 外全部校验 zwrt_auth Cookie（与 Cloudflare Pages 版行为一致）
  * 环境变量:
  *   ACCESS_PASSWORD  网站访问密码 (留空 = 不设密码)
  *   GH_TOKEN         GitHub Token (调用 GitHub API / 代理下载)
- *   PORT             监听端口 (默认 8080, 供 Nginx/1Panel 反代)
+ *   PORT             监听端口 (默认 8090, 供 Nginx/1Panel 反代)
  */
 'use strict';
 const http = require('http');
@@ -15,7 +15,7 @@ const path = require('path');
 const zlib = require('zlib');
 
 const ROOT = path.join(__dirname, 'public');
-const PORT = parseInt(process.env.PORT || '8080', 10);
+const PORT = parseInt(process.env.PORT || '8090', 10);
 const ACCESS_PASSWORD = (process.env.ACCESS_PASSWORD || '').toString();
 const GH_TOKEN = process.env.GH_TOKEN || '';
 
