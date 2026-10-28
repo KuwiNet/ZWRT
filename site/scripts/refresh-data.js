@@ -109,6 +109,9 @@ const dedup = (a) => [...new Set(a)];
     }
     const zr = await get(`${ZWRT}/${a}/Packages.gz`, true);
     if (zr.s === 200 && zr.b.length > 200) parsePackages(unzip(zr.b), merged);
+    // 合并 all 架构源（luci-app-afrp / luci-app-5gmodem / luci-theme-zwrt 等架构无关包），所有设备目录可见
+    const za = await get(`${ZWRT}/all/Packages.gz`, true);
+    if (za.s === 200 && za.b.length > 200) parsePackages(unzip(za.b), merged);
     const arr = Object.entries(merged).map(([n, v]) => [n, v.desc]).sort((x, y) => x[0].localeCompare(y[0]));
     const fname = "packages-" + a + ".json"; // x86_64 / aarch64_cortex-a53
     fs.writeFileSync(path.join(OUT, fname), JSON.stringify({ count: arr.length, pkgs: arr }));
