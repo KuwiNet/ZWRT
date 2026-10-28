@@ -102,10 +102,10 @@ jobs:
       - name: 生成构建矩阵 (all=默认 / 设备id=动态查找 + 参数覆盖)
         id: mtx
         env:
-          OA_BASE: ${{ vars.OPENWRT_AI_BASE }}
+          OA_BASE: ${{ vars.OPENWRT_AI_BASE || 'https://dl.openwrt.ai/releases/25.12' }}
         run: |
           if [ -z "$OA_BASE" ]; then
-            echo "::error ::未配置仓库 Variables OPENWRT_AI_BASE (Kwrt 引擎需要第三方源基础地址)"
+            echo "::error ::未配置仓库 Variables OPENWRT_AI_BASE (已使用默认 dl.openwrt.ai/releases/25.12; 可在仓库 Variables 覆盖)"
             exit 1
           fi
           if [ -z "${{ inputs.device }}" ] || [ "${{ inputs.device }}" = "all" ]; then
