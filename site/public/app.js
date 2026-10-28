@@ -325,7 +325,7 @@ const COMMON_PKGS = [
 
   ["luci-app-adbyby-plus", "adbyby去广告"], ["luci-app-adguardhome", "ADG去广告"],
 
-  ["luci-app-airplay2", "Airplay2音箱"], ["luci-app-aliyundrive-webdav", "阿里云盘WebDAV"],
+  ["luci-app-afrp", "AFRP内网穿透"], ["luci-app-airplay2", "Airplay2音箱"], ["luci-app-aliyundrive-webdav", "阿里云盘WebDAV"],
 
   ["luci-app-ap-modem", "访问AP/光猫"], ["luci-app-aria2", "Aria2下载工具"],
 
