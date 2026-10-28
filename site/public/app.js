@@ -1871,7 +1871,7 @@ async function loadDownloads(owner, repo) {
 
         } else {
 
-          const gh = el("a", "", "GitHub ↓（私库需登录）"); gh.href = "/api/dl?u=" + encodeURIComponent(a.browser_download_url); gh.target = "_blank"; gh.rel = "noopener";
+          const gh = el("a", "", "GitHub ↓"); gh.href = a.browser_download_url; gh.target = "_blank"; gh.rel = "noopener";
 
           l.appendChild(gh);
 
