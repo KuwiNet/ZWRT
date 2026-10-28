@@ -8,6 +8,8 @@ on:
 
 jobs:
   deploy:
+    # 未配置 VPS secrets 时跳过（如 fork 仓库），避免报错；主仓库配置后正常部署
+    if: ${{ secrets.VPS_HOST != '' && secrets.VPS_KEY != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
