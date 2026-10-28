@@ -445,11 +445,11 @@ const state = {
 
   params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", wifi_ssid: "", wifi_key: "" },
 
-  net: new Set(["nikki"]),
+  net: new Set([]),
 
-  themes: new Set(["luci-theme-zwrt", "luci-theme-openwrt"]),
+  themes: new Set([]),
 
-  defaultTheme: "luci-theme-zwrt",
+  defaultTheme: "",
 
   pkgInput: "",
 
@@ -577,9 +577,9 @@ function renderDeviceList(filter) {
 
 
 
-  // legacy 置顶（按 id 是否内置 wfDeviceMain 判定；兼容数据里的 legacy 字段）
+  // legacy 置顶（仅按数据里的 legacy 标记；wfDeviceMain 仅作派发键，不再算常用）
 
-  const isLegacy = (d) => !!(d.legacy || d.wfDeviceMain);
+  const isLegacy = (d) => !!d.legacy;
 
   const legacy = hits.filter(isLegacy).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -1262,7 +1262,7 @@ function renderSummary() {
 
   rows.push(["互联网", state.net.size ? [...state.net].join("、") : "无"]);
 
-  rows.push(["主题", [...new Set([...state.themes, state.defaultTheme])].length + " 个 · 默认 " + state.defaultTheme.replace("luci-theme-", "")]);
+  rows.push(["主题", [...new Set([...state.themes, state.defaultTheme].filter(Boolean))].length + " 个 · 默认 " + (state.defaultTheme ? state.defaultTheme.replace("luci-theme-", "") : "—")]);
 
   rows.push(["构建账号", accountOwner() + "/" + accountRepo()]);
 

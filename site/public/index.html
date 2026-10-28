@@ -144,7 +144,7 @@
         <label>仓库名 <input id="p-acct" value="KuWiNet/ZWRT" placeholder="所有者/仓库名，如 你的用户名/ZWRT" autocomplete="off"></label>
         <label>GH Token <input id="p-token" type="password" placeholder="你的 GitHub Token（仅存本浏览器）" autocomplete="off"></label>
       </div>
-      <p class="field-hint" style="margin:0 0 12px">填你自己的 fork 仓库（如 你的用户名/ZWRT）和你的 Token，构建就在你自己的 GitHub Actions 上完成，固件发布到你自己的 Release。Fork 后需先到该仓库 Actions 页启用工作流。</p>
+      <p class="field-hint" style="margin:0 0 12px">① 填你自己的 fork 仓库（如 你的用户名/ZWRT）和你的 Token，构建就在你自己的 GitHub Actions 上完成，固件发布到你自己的 Release。<br>② Fork 后需先到该仓库 <b>Actions 页点「启用工作流」</b>，否则触发构建会报 404。<br>③ Token 权限：Classic PAT 勾选 <b>repo</b> 和 <b>workflow</b>；Fine-grained PAT 需勾选该仓库的 <b>Actions 读/写</b>。<br>④ Token 仅存本浏览器 localStorage，不上传本站服务器。</p>
       <div class="actions">
         <button id="btnBuild" class="primary">开始构建</button>
         <button id="btnPreview" class="ghost">预览提交 JSON</button>

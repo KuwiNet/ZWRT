@@ -51318,7 +51318,7 @@
    ],
    "whExtra": [],
    "note": "软路由/虚拟机通用镜像 (UEFI+Legacy)。可勾选旁路由/IPv6/无线/蜂窝上网。",
-   "legacy": true,
+   "legacy": false,
    "built": true,
    "target": "x86/64",
    "subtarget": "64",
@@ -51758,7 +51758,7 @@
     "kmod-usb-xhci-mtk"
    ],
    "note": "MT7981B (eMMC+NAND)。默认开 IPv6 与无线 (SSID=ZWRT)。",
-   "legacy": true,
+   "legacy": false,
    "built": true,
    "target": "mediatek/filogic",
    "subtarget": "filogic",
@@ -52176,7 +52176,7 @@
     "kmod-usb-xhci-mtk"
    ],
    "note": "MT7981B (256MB RAM, 128MB NAND)。已刷 OpenWrt 可直接升级。默认开 IPv6 与无线 (SSID=ZWRT)。",
-   "legacy": true,
+   "legacy": false,
    "built": true,
    "target": "mediatek/filogic",
    "subtarget": "filogic",
