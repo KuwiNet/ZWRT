@@ -10,18 +10,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      VPS_KEY: ${{ secrets.VPS_KEY }}
     steps:
-      # secrets 不可用于 job 级 if，用 step 级跳过（fork 无 secrets 时绿色跳过，不报错）
+      # secrets 不能用于 if（GitHub 限制），通过 env 中转后用 env 判断；fork 无 secrets 时绿色跳过
       - name: 未配置 VPS secrets，跳过部署
-        if: ${{ secrets.VPS_HOST == '' || secrets.VPS_KEY == '' }}
+        if: ${{ env.VPS_HOST == '' || env.VPS_KEY == '' }}
         run: echo "跳过：未配置 VPS_HOST/VPS_KEY secrets（fork 仓库无需部署 VPS）"
       - name: SSH to VPS and update
-        if: ${{ secrets.VPS_HOST != '' && secrets.VPS_KEY != '' }}
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_PORT: ${{ secrets.VPS_PORT }}
-          VPS_KEY: ${{ secrets.VPS_KEY }}
+        if: ${{ env.VPS_HOST != '' && env.VPS_KEY != '' }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$VPS_KEY" > ~/.ssh/id_ed25519

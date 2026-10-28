@@ -23,17 +23,20 @@ jobs:
   deploy:
     name: 部署网站到 Cloudflare Pages
     runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
-      # secrets 不可用于 job 级 if，用 step 级跳过（fork 无 secrets 时绿色跳过，不报错）
+      # secrets 不能用于 if（GitHub 限制），通过 env 中转后用 env 判断；fork 无 secrets 时绿色跳过
       - name: 未配置 Cloudflare secrets，跳过部署
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' || secrets.CLOUDFLARE_ACCOUNT_ID == '' }}
+        if: ${{ env.CF_TOKEN == '' || env.CF_ACCOUNT == '' }}
         run: echo "跳过：未配置 CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID secrets（fork 仓库无需部署 Pages）"
       - name: 确保 Pages 项目 zwrt 存在 (不存在则创建)
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+        if: ${{ env.CF_TOKEN != '' && env.CF_ACCOUNT != '' }}
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CF_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT }}
         run: |
           if ! npx --yes wrangler pages project list --json 2>/dev/null | grep -q '"zwrt"'; then
             echo "Pages 项目 zwrt 不存在, 创建中..."
@@ -42,11 +45,11 @@ jobs:
             echo "Pages 项目 zwrt 已存在"
           fi
       - name: 部署到 Cloudflare Pages
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+        if: ${{ env.CF_TOKEN != '' && env.CF_ACCOUNT != '' }}
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CF_TOKEN }}
+          accountId: ${{ env.CF_ACCOUNT }}
           wranglerVersion: 'latest'
           workingDirectory: site
           command: pages deploy public --project-name=zwrt --branch=main
