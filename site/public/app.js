@@ -499,7 +499,8 @@ async function loadData() {
 
   state.device = state.devices[0];
 
-  await loadCatalog(state.device.arch);
+  // 默认加载 x86_64 包目录（自建源覆盖最全，不选设备也能搜到包）；选择设备后按设备架构切换
+  await loadCatalog("x86_64");
 
   await ensureDevicePkgs(state.device);
 
