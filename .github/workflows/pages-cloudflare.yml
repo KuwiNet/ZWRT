@@ -22,12 +22,15 @@ concurrency:
 jobs:
   deploy:
     name: 部署网站到 Cloudflare Pages
-    # 未配置 Cloudflare secrets 时跳过（如 fork 仓库），避免报错；主仓库配置后正常部署
-    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # secrets 不可用于 job 级 if，用 step 级跳过（fork 无 secrets 时绿色跳过，不报错）
+      - name: 未配置 Cloudflare secrets，跳过部署
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' || secrets.CLOUDFLARE_ACCOUNT_ID == '' }}
+        run: echo "跳过：未配置 CLOUDFLARE_API_TOKEN/CLOUDFLARE_ACCOUNT_ID secrets（fork 仓库无需部署 Pages）"
       - name: 确保 Pages 项目 zwrt 存在 (不存在则创建)
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -39,6 +42,7 @@ jobs:
             echo "Pages 项目 zwrt 已存在"
           fi
       - name: 部署到 Cloudflare Pages
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -8,12 +8,15 @@ on:
 
 jobs:
   deploy:
-    # 未配置 VPS secrets 时跳过（如 fork 仓库），避免报错；主仓库配置后正常部署
-    if: ${{ secrets.VPS_HOST != '' && secrets.VPS_KEY != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # secrets 不可用于 job 级 if，用 step 级跳过（fork 无 secrets 时绿色跳过，不报错）
+      - name: 未配置 VPS secrets，跳过部署
+        if: ${{ secrets.VPS_HOST == '' || secrets.VPS_KEY == '' }}
+        run: echo "跳过：未配置 VPS_HOST/VPS_KEY secrets（fork 仓库无需部署 VPS）"
       - name: SSH to VPS and update
+        if: ${{ secrets.VPS_HOST != '' && secrets.VPS_KEY != '' }}
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
