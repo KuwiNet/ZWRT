@@ -315,6 +315,12 @@ esac
 COMMON_P="$(apply_src "$PKG_COMMON" "$COMMON_BASE")"
 DEV_P="$(apply_src "$PKG_WH3000" "$DEV_BASE")"
 PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+# 强制内置 luci-app-afrp（自建源已发布架构; 前端剔除也不影响; 其他架构源无此包则不强制, 避免 make image 失败）
+case "$FEED_ARCH" in
+  x86_64|aarch64_cortex-a53)
+    PACKAGES="$( { echo "$PACKAGES"; echo "luci-app-afrp"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+    ;;
+esac
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 
 echo "==== [5/7] 组装固件 (ImageBuilder make image) ===="
