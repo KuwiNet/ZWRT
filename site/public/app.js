@@ -818,7 +818,9 @@ function readParams() {
 
   state.params.pppoe_pass = $("p-ppppass").value.trim();
 
-  state.account.str = "KuWiNet/ZWRT";
+  state.account.str = $("p-acct").value.trim() || "KuWiNet/ZWRT";
+
+  state.account.token = $("p-token").value.trim();
 
 }
 
@@ -833,6 +835,28 @@ function updateGHA() {
   if (!a) return;
 
   a.href = "https://github.com/" + accountOwner() + "/" + accountRepo() + "/actions";
+
+}
+
+/* 构建账号（仓库名 + Token）仅存本浏览器 localStorage，不上传任何服务器 */
+
+function saveAcct() {
+
+  try { localStorage.setItem("zwrt_acct", JSON.stringify({ str: $("p-acct").value.trim(), token: $("p-token").value.trim() })); } catch (e) {}
+
+}
+
+function restoreAcct() {
+
+  try {
+
+    const ac = JSON.parse(localStorage.getItem("zwrt_acct") || "null");
+
+    if (ac && ac.str) $("p-acct").value = ac.str;
+
+    if (ac && ac.token) $("p-token").value = ac.token;
+
+  } catch (e) {}
 
 }
 
@@ -1437,11 +1461,15 @@ function composeInputs() {
 
 function ghAPI(method, path, token, body) {
 
+  if (token === undefined) token = state.account.token; // 未显式传 token 时用当前构建账号
+
   const opt = { method, headers: { "User-Agent": "zwrt-builder", Accept: "application/vnd.github+json" } };
+
+  if (token) opt.headers["Authorization"] = "Bearer " + token;
 
   if (body) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
 
-  return fetch("/api/gh?m=" + encodeURIComponent(method) + "&p=" + encodeURIComponent(path), opt);
+  return fetch("https://api.github.com" + path, opt);
 
 }
 
@@ -1453,7 +1481,7 @@ async function apiJson(res) {
 
   if (!res.ok) throw new Error((j && j.message) || ("HTTP " + res.status));
 
-  if (j === null) throw new Error("非 JSON 响应（可能未登录或登录已过期，请重新登录）");
+  if (j === null) throw new Error("非 JSON 响应（请检查仓库名是否正确、GH Token 是否有效）");
 
   return j;
 
@@ -1468,6 +1496,8 @@ function validate() {
   const parts = str.split("/").filter(Boolean);
 
   if (parts.length < 2 || !parts[0] || !parts[1]) return "仓库需填 所有者/仓库名（如 KuWiNet/ZWRT）";
+
+  if (!state.account.token) return "请填写 GH Token（你自己的 GitHub Token，用于触发构建）";
 
   const ip = state.params.lan_ip, mk = state.params.lan_mask;
 
@@ -1979,6 +2009,10 @@ function bindStatic() {
 
   });
 
+  on("p-acct", "input", () => { readParams(); updateGHA(); renderSummary(); saveAcct(); });
+
+  on("p-token", "input", () => { readParams(); saveAcct(); });
+
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); renderBaseChips(); renderCommonChips(); });
 
   on("initScript", "input", (e) => { state.initScript = e.target.value; renderSummary(); });
@@ -2010,6 +2044,10 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     initTheme();
 
     bindStatic();
+
+    restoreAcct();
+
+    readParams();
 
     updateGHA();
 

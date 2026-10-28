@@ -139,7 +139,12 @@
 
     <!-- ===== 5 构建 ===== -->
     <div class="card" data-step="5">
-      <div class="card-head"><span class="stepno">5</span><h3>构建</h3><span class="acct-hint">仓库 <a href="https://github.com/KuWiNet/ZWRT" target="_blank" rel="noopener">KuWiNet/ZWRT</a>（私库，Token 由 Worker 持有）</span></div>
+      <div class="card-head"><span class="stepno">5</span><h3>构建</h3></div>
+      <div class="fields" style="margin:12px 0">
+        <label>仓库名 <input id="p-acct" value="KuWiNet/ZWRT" placeholder="所有者/仓库名，如 你的用户名/ZWRT" autocomplete="off"></label>
+        <label>GH Token <input id="p-token" type="password" placeholder="你的 GitHub Token（仅存本浏览器）" autocomplete="off"></label>
+      </div>
+      <p class="field-hint" style="margin:0 0 12px">填你自己的 fork 仓库（如 你的用户名/ZWRT）和你的 Token，构建就在你自己的 GitHub Actions 上完成，固件发布到你自己的 Release。Fork 后需先到该仓库 Actions 页启用工作流。</p>
       <div class="actions">
         <button id="btnBuild" class="primary">开始构建</button>
         <button id="btnPreview" class="ghost">预览提交 JSON</button>
@@ -170,7 +175,7 @@
   </aside>
 </main>
 
-<footer class="foot">ZWRT Builder · 私有站点 · GitHub Token 由 Worker 持有 · 构建在你的 GitHub Actions 上完成</footer>
+<footer class="foot">ZWRT Builder · 公开站点 · 填写你自己的 GitHub Token · 构建在你的 GitHub Actions 上完成</footer>
 
 <div id="toast"></div>
 
