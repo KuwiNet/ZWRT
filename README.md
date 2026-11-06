@@ -15,7 +15,7 @@
 - **全量设备支持**：16 个目标（target）/ 26 个子目标，929 台设备（含官方未构建设备）；网站设备下拉任选一台即可在线定制构建，出厂软件包可逐项剔除
 - **workflow_dispatch 全参数定制**：动态矩阵 + 主机名 / LAN IP / 网关 / DNS / 管理密码 / IPv6 / 无线 / 软件包清单 / 初始化脚本
 - 固件默认：主题 `ZWRT`、LAN `192.168.100.1`（旁路由 `.100.10`）、后台密码空、WiFi SSID `ZWRT`、签名 `kuwi.net`
-- 软件源：默认源（Kwrt 引擎，基础地址由仓库 Variables `OPENWRT_AI_BASE` 配置）→ `mirror.zwrt.de/packages/all`
+- 软件源：默认源（Kwrt 引擎，基础地址由仓库 Variables `OPENWRT_AI_BASE` 配置）→ `mirror.zwrt.cc/packages/all`
 - 自动发布：单个 Release（`ZWRT-日期`）；R2 只保留最近 2 版
 
 ## 目录结构
@@ -56,7 +56,7 @@
 - 主机名：`ZWRT`；LAN IP：`192.168.100.1`（旁路由 `.100.10`，网关 `.100.1`）
 - 后台密码：空（**首次登录进入修改密码页面**）；WiFi SSID：`ZWRT`、密码空
 - 默认主题：`luci-theme-zwrt`；签名：`kuwi.net`
-- 软件源：默认源（25.12 / 6.12 内核，基础地址经仓库 Variables `OPENWRT_AI_BASE` 配置）→ `mirror.zwrt.de/packages/all`
+- 软件源：默认源（25.12 / 6.12 内核，基础地址经仓库 Variables `OPENWRT_AI_BASE` 配置）→ `mirror.zwrt.cc/packages/all`
 
 ## 构建方式
 
@@ -82,7 +82,7 @@
 
 ## 软件源
 
-`files/etc/opkg/distfeeds.conf` 定义软件源：默认源（Kwrt 引擎，`OPENWRT_AI_BASE`）优先，其后为自建源 `mirror.zwrt.de/packages/all`（不再内置 `luci.zwrt.de` 备份源）。
+`files/etc/opkg/distfeeds.conf` 定义软件源：默认源（Kwrt 引擎，`OPENWRT_AI_BASE`）优先，其后为自建源 `mirror.zwrt.cc/packages/all`（不再内置 `luci.zwrt.de` 备份源）。
 
 ## 去中心化构建：Fork 到自己的库（推荐私有）
 

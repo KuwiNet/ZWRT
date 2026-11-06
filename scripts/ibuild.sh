@@ -315,7 +315,7 @@ esac
 COMMON_P="$(apply_src "$PKG_COMMON" "$COMMON_BASE")"
 DEV_P="$(apply_src "$PKG_WH3000" "$DEV_BASE")"
 PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
-# 强制内置 luci-app-afrp（all 架构源 mirror/luci.zwrt.de/packages/all，所有设备可装；前端剔除不影响）
+# 强制内置 luci-app-afrp（all 架构源 mirror.zwrt.cc/packages/all，所有设备可装；前端剔除不影响）
 PACKAGES="$( { echo "$PACKAGES"; echo "luci-app-afrp"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 
