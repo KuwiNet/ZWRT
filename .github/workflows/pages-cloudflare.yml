@@ -4,8 +4,8 @@
 # 依赖仓库配置:
 #   - Secret  CLOUDFLARE_API_TOKEN (Cloudflare API Token, 含 Cloudflare Pages: Edit 权限)
 #   - Secret  CLOUDFLARE_ACCOUNT_ID (Cloudflare 账户 ID)
-# 访问地址: https://zwrt.de
-# Pages Functions: site/public/functions/ (随 pages deploy public 自动部署)
+# 访问地址: https://zwrt.cc （Cloudflare Pages 自定义域 op.zwrt.cc；无需访问密码）
+# Pages Functions: 已移除（前端直连 GitHub API，无服务端鉴权/代理）
 # =============================================================
 name: Deploy Site to Cloudflare Pages
 on:

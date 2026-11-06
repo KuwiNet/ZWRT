@@ -2,7 +2,7 @@
 
 基于 GitHub Actions + Cloudflare Pages 的自建 **OpenWrt 固件在线定制与构建**项目。
 
-- **在线构建器**：https://zwrt.de （同时发布到 GitHub Pages）
+- **在线构建器**：https://zwrt.cc （Cloudflare Pages 与 VPS 双部署）
 - 选设备、开功能开关（旁路由 / IPv6 / 无线 / WWAN / Docker / HTTPS 后台 / DHCP / iStoreOS）、选软件包、写初始化脚本 → **一键触发 GitHub Actions 构建**
 - 构建产物自动发布到 GitHub Release；固件可选上传 R2/B2（下载地址由 `R2_PUBLIC_URL` 自定义）
 - **去中心化**：任何人 fork 到自己的库即可构建，不依赖本项目配额
@@ -61,7 +61,7 @@
 ## 构建方式
 
 ### 1. 在线构建器（推荐）
-访问 https://zwrt.de ，填写设备 / 功能开关 / 软件包 / 初始化脚本后，前端直连 GitHub API 触发 `workflow_dispatch` 构建。构建账号默认 `KuWiNet/ZWRT`，**也可填你自己 fork 的仓库**。
+访问 https://zwrt.cc ，填写设备 / 功能开关 / 软件包 / 初始化脚本后，前端直连 GitHub API 触发 `workflow_dispatch` 构建。构建账号默认 `KuWiNet/ZWRT`，**也可填你自己 fork 的仓库**。
 
 ### 2. 手动触发（Actions → Run workflow）
 `workflow_dispatch` 支持以下 inputs：
