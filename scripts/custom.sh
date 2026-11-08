@@ -1,10 +1,14 @@
 #!/bin/bash
-# ===== 固件重命名: 只把 ImageBuilder 生成的 immortalwrt/openwrt 前缀换成 zwrt, 其余完整保留 =====
-# 用法: scripts/custom.sh <bin目录> [日期] [发布标签] [镜像身份串]
-# 命名示例(ImmortalWrt 官方格式): immortalwrt-mediatek-filogic-20261001-cudy_tr3000-v1-256mb-squashfs-sysupgrade.bin
-#                           转换后: zwrt-     mediatek-filogic-20261001-cudy_tr3000-v1-256mb-squashfs-sysupgrade.bin
+# ===== 固件重命名: 前缀换成 zwrt, 并在镜像类型前插入构建日期 =====
+# 用法: scripts/custom.sh <bin目录> [日期 YYYYMMDD] [发布标签] [镜像身份串]
+# 示例: kwrt-x86-64-generic-squashfs-combined.img.gz
+#    -> zwrt-x86-64-generic-20261108-squashfs-combined.img.gz
+#       kwrt-mediatek-filogic-cudy_tr3000-256mb-v1-squashfs-sysupgrade.bin
+#    -> zwrt-mediatek-filogic-cudy_tr3000-256mb-v1-20261108-squashfs-sysupgrade.bin
 set -e
 BIN_DIR="$1"
+DATE="${2:-${DATE:-}}"
+[ -n "$DATE" ] || DATE="$(TZ='Asia/Shanghai' date +%Y%m%d)"
 
 cd "$BIN_DIR"
 for f in *; do
@@ -14,11 +18,23 @@ for f in *; do
       new="${f/immortalwrt/zwrt}"
       new="${new/openwrt/zwrt}"
       new="${new/kwrt/zwrt}"
+      # 已带本次日期则不重复插入
+      case "$new" in
+        *-"$DATE"-*|*"$DATE".*) ;;
+        *)
+          for kw in squashfs ext4 targz kernel initramfs ubi; do
+            case "$new" in
+              *-"$kw"-*) new="${new/-$kw-/-$DATE-$kw-}"; break ;;
+              *-"$kw".*) new="${new/-$kw./-$DATE-$kw.}"; break ;;
+            esac
+          done
+          ;;
+      esac
       if [ "$new" != "$f" ]; then
         mv "$f" "$new"
         echo ">> $f  ->  $new"
       else
-        echo ">> 跳过(无 immortalwrt/openwrt 前缀): $f"
+        echo ">> 跳过(无变更): $f"
       fi
       ;;
   esac
