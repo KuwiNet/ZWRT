@@ -103,6 +103,7 @@ EOF
   cat "$FILES/etc/apk/repositories.d/customfeeds.list"
 else
   # opkg: 只保留 src/gz 源行, 去掉所有说明注释
+  rm -rf "$FILES/etc/apk"
   mkdir -p "$FILES/etc/opkg"
   grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
 fi
