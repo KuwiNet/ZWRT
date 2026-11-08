@@ -135,8 +135,11 @@ if [ -n "$INIT_B64" ]; then
   echo "已写入自定义初始化脚本 ($(wc -l < "$FILES/etc/uci-defaults/90-zwrt-custom-init") 行)"
 fi
 # 3g 固件版本标识 + 开机自愈: 状态页显示源是 /usr/lib/os-release 的 OPENWRT_RELEASE
-# 四重保险: ①静态覆盖 ②zzz uci-defaults(首启) ③rc.local(每次开机, 版本+无线) ④init.d zwrt-release(每次开机, 版本)
+# os-release 四重保险: ①静态覆盖 ②zzz uci-defaults(首启) ③rc.local(每次开机) ④init.d zwrt-release(每次开机)
 # 升级保留配置时 uci-defaults 不跑, 故用开机级 rc.local/init.d 兜底
+# 注意: /etc/banner 只做静态覆盖(下面 ①), 不在 uci-defaults/rc.local 重写。原因: banner 含反引号/反斜杠,
+# 而这两个文件用无引号外层 heredoc (<<SH/<<RC) 生成, 内层 <<'BAN' 的单引号无法阻止外层解析,
+# 反引号会被当成命令替换、反斜杠被转义, 导致 banner 损坏(6 行被吞成 1 行)。banner 内容固定无变量, 静态覆盖即可。
 DISPLAY_DATE="${DATE:6:2}.${DATE:4:2}.${DATE:0:4}"
 mkdir -p "$FILES/etc" "$FILES/usr/lib" "$FILES/etc/uci-defaults" "$FILES/etc/init.d"
 # --- ① 静态覆盖 ---
@@ -216,17 +219,6 @@ DISTRIB_ARCH='$FEED_ARCH'
 DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.cc'
 DISTRIB_TAINTS=''
 REL2
-cat > /etc/banner <<'BAN'
-       _______  _       _  ___   _____
-      (_____  )( )  _  ( )|  _`\(_   _)
-           /'/'| | ( ) | || (_) ) | |
-         /'/'  | | | | | || ,  /  | |
-       /'/'___ | (_/ \_) || |\ \  | |
-      (_______)`\___x___/'(_) (_) (_)
- -------------------------------------------
-        ZWRT 25.12-SNAPSHOT by zwrt.cc
- -------------------------------------------
-BAN
 rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
 exit 0
 SH
@@ -266,17 +258,6 @@ DISTRIB_ARCH='$FEED_ARCH'
 DISTRIB_DESCRIPTION='ZWRT 25.12-SNAPSHOT $DISPLAY_DATE by zwrt.cc'
 DISTRIB_TAINTS=''
 REL2
-cat > /etc/banner <<'BAN'
-       _______  _       _  ___   _____
-      (_____  )( )  _  ( )|  _`\(_   _)
-           /'/'| | ( ) | || (_) ) | |
-         /'/'  | | | | | || ,  /  | |
-       /'/'___ | (_/ \_) || |\ \  | |
-      (_______)`\___x___/'(_) (_) (_)
- -------------------------------------------
-        ZWRT 25.12-SNAPSHOT by zwrt.cc
- -------------------------------------------
-BAN
 rm -f /tmp/luci-indexcache /tmp/luci-modulecache 2>/dev/null
 exit 0
 RC
