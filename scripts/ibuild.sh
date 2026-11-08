@@ -385,8 +385,16 @@ if [ "$BASE" = "immortalwrt" ]; then
   fi
   # 2) mihomo 改用 nikki 源的 mihomo-meta (provides mihomo), 显式替换确保可解析
   PACKAGES="$(echo "$PACKAGES" | tr ' ' '\n' | sed 's/^mihomo$/mihomo-meta/' | sed '/^$/d' | sort -u | tr '\n' ' ')"
-  # 3) 确保代理三件套在: mihomo-meta + nikki + luci-app-nikki + 中文包
-  PACKAGES="$( { echo "$PACKAGES"; echo "mihomo-meta nikki luci-app-nikki luci-i18n-nikki-zh-cn"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+  # 3) 确保代理三件套在: mihomo-meta + nikki + luci-app-nikki
+  PACKAGES="$( { echo "$PACKAGES"; echo "mihomo-meta nikki luci-app-nikki"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+  # 4) 全套简体中文语言包 (均为 noarch, 跨架构通用; 已用 adbdump 核实源内真实存在)
+  #    核心模块 luci-mod-network/status/system/admin-full 的翻译已合并进 base 翻译域,
+  #    故装 luci-i18n-base-zh-cn 即覆盖网络/DHCP/DNS/状态/系统等核心界面。
+  #    unblockneteasemusic、afrp 界面为作者硬编码中文, 无需语言包。
+  ZHCN="luci-i18n-base-zh-cn luci-i18n-dashboard-zh-cn luci-i18n-firewall-zh-cn \
+luci-i18n-package-manager-zh-cn luci-i18n-diskman-zh-cn luci-i18n-ttyd-zh-cn \
+luci-i18n-upnp-zh-cn luci-i18n-ddns-go-zh-cn luci-i18n-wifihistory-zh-cn luci-i18n-nikki-zh-cn"
+  PACKAGES="$( { echo "$PACKAGES"; echo "$ZHCN"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
 fi
 
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
