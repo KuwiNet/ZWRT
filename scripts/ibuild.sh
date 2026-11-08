@@ -389,6 +389,27 @@ fi
 
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 
+# ImageBuilder 内 mkisofs 是指向 /usr/bin/genisoimage 的绝对符号链接,
+# 部分构建环境 (如新版 Ubuntu runner) 未预装 genisoimage 导致断链, ISO 目标报 Error 127
+MKISOFS_LINK="$IB_DIR/staging_dir/host/bin/mkisofs"
+if [ -L "$MKISOFS_LINK" ] && [ ! -e "$MKISOFS_LINK" ]; then
+  echo ">> 检测到 mkisofs 断链 -> $(readlink "$MKISOFS_LINK"), 尝试修复"
+  if command -v genisoimage >/dev/null 2>&1; then
+    ln -sf "$(command -v genisoimage)" "$MKISOFS_LINK"
+    echo ">> 已重新链接到 genisoimage: $(command -v genisoimage)"
+  elif command -v xorriso >/dev/null 2>&1; then
+    rm -f "$MKISOFS_LINK"
+    {
+      echo '#!/bin/sh'
+      echo 'exec xorriso -as mkisofs "$@"'
+    } > "$MKISOFS_LINK"
+    chmod +x "$MKISOFS_LINK"
+    echo ">> 已用 xorriso 生成 mkisofs 兼容垫片"
+  else
+    echo "!! 警告: 未找到 genisoimage/xorriso, ISO 镜像将无法构建" >&2
+  fi
+fi
+
 echo "==== [5/7] 组装固件 (ImageBuilder make image) ===="
 BIN_DIR="$ZWRT_DIR/$IB_DIR/bin/targets/$FEED_TARGET"
 mapfile -d ';' -t PKG_GROUPS < <(printf '%s;' "$PROFILE_TAGS")
