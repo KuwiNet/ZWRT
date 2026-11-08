@@ -59,10 +59,11 @@ h1,h2,h3{margin:0;line-height:1.2}
 
 /* ---- combo (searchable dropdown) ---- */
 .combo{position:relative}
-.combo input,.fields input,.fields textarea,#pkgInput,#initScript{
+.combo input,.fields input,.fields select,.fields textarea,#pkgInput,#initScript{
   width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--txt);
 }
-.combo input:focus,.fields input:focus,.fields textarea:focus,#pkgInput:focus,#initScript:focus{outline:none;border-color:var(--accent)}
+.combo input:focus,.fields input:focus,.fields select:focus,.fields textarea:focus,#pkgInput:focus,#initScript:focus{outline:none;border-color:var(--accent)}
+.fields select{appearance:none;-webkit-appearance:none;cursor:pointer}
 .combo-arrow{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);font-size:16px;padding:6px;cursor:pointer}
 .combo-list{list-style:none;margin:6px 0 0;padding:0;background:var(--bg2);border:1px solid var(--line2);border-radius:10px;max-height:340px;overflow:auto;display:none;position:absolute;z-index:30;left:0;right:0}
 .combo.open .combo-list{display:block}

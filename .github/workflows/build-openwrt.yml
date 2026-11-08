@@ -1,7 +1,8 @@
 # =============================================================
 # ZWRT-openwrt 自动构建工作流 (方案 A: ImageBuilder 组装, Kwrt 引擎)
 #   - 不再从源码全量编译, 改用 ImageBuilder 几分钟出固件
-#   - Kwrt 引擎 (openwrt.ai), 自定义第三方源地址通过仓库 Variables 配置 (不写明文)
+#   - 双基座可选: kwrt (Kwrt/openwrt.ai, opkg 源) / immortalwrt (ImmortalWrt 25.12, apk 源)
+#   - 自定义第三方源地址通过仓库 Variables 配置 (不写明文)
 #   - 全量设备支持: 设备矩阵从 site/public/data/devices.json 的 build.variants 动态查找
 #     (网站设备下拉全量; 手动 dispatch 可填任意设备 id, 如 xiaomi_redmi-router-ax6000)
 #   - workflow_dispatch 可指定设备/参数/软件包/初始化脚本; device=all 或空 = 默认 4 台
@@ -18,6 +19,14 @@ on:
         description: '构建目标: all/空 = 默认设备(x86_64主旁+WH3000Pro+TR3000); 或填设备 id(网站设备列表, 如 xiaomi_redmi-router-ax6000)'
         type: string
         default: all
+      base:
+        description: '构建基座: kwrt = Kwrt/openwrt.ai (opkg 源); immortalwrt = ImmortalWrt 25.12 (apk 源, 内核与模块同版本)'
+        type: choice
+        required: true
+        options:
+          - kwrt
+          - immortalwrt
+        default: kwrt
       role:
         description: '路由角色 (旁路由生效: 关WAN/关DHCP, 需填网关/DNS)'
         type: choice
@@ -102,11 +111,19 @@ jobs:
       - name: 生成构建矩阵 (all=默认 / 设备id=动态查找 + 参数覆盖)
         id: mtx
         env:
+          BASE: ${{ inputs.base || 'kwrt' }}
           OA_BASE: ${{ vars.OPENWRT_AI_BASE || 'https://dl.openwrt.ai/releases/25.12' }}
+          IMM_BASE: ${{ vars.OPENWRT_IMM_BASE || 'https://downloads.immortalwrt.org/releases/25.12.2' }}
         run: |
           if [ -z "$OA_BASE" ]; then
             echo "::error ::未配置仓库 Variables OPENWRT_AI_BASE (已使用默认 dl.openwrt.ai/releases/25.12; 可在仓库 Variables 覆盖)"
             exit 1
+          fi
+          if [ "$BASE" = "immortalwrt" ]; then
+            echo "构建基座: ImmortalWrt 25.12 (apk) -> $IMM_BASE"
+          else
+            BASE="kwrt"
+            echo "构建基座: Kwrt (opkg) -> $OA_BASE"
           fi
           if [ -z "${{ inputs.device }}" ] || [ "${{ inputs.device }}" = "all" ]; then
             # ---- 默认设备矩阵 (与既有 4 台行为完全一致) ----
@@ -127,9 +144,25 @@ jobs:
             fi
             echo "动态设备: ${{ inputs.device }}"
           fi
-          # 计算 img_url (kwrt 用 vars.OPENWRT_AI_BASE 拼接)
-          MATRIX=$(echo "$MATRIX" | jq --arg oa "$OA_BASE" \
-            'map(.img_url=($oa + .img_suffix) | del(.img_suffix))')
+          # ---- 按基座选 ImageBuilder 下载地址 ----
+          if [ "$BASE" = "immortalwrt" ]; then
+            # ImmortalWrt 仅 x86/64 与 mediatek/filogic 有对应 ImageBuilder
+            MATRIX=$(echo "$MATRIX" | jq '
+              map(if .feed_target == "x86/64" then
+                    .img_suffix = "/targets/x86/64/immortalwrt-imagebuilder-25.12.2-x86-64.Linux-x86_64.tar.zst"
+                  elif .feed_target == "mediatek/filogic" then
+                    .img_suffix = "/targets/mediatek/filogic/immortalwrt-imagebuilder-25.12.2-mediatek-filogic.Linux-x86_64.tar.zst"
+                  else .img_suffix = "__unsupported__" end)')
+            if echo "$MATRIX" | jq -e 'any(.[]; .img_suffix == "__unsupported__")' >/dev/null; then
+              echo "::error ::ImmortalWrt 基座目前仅支持 x86-64 与 filogic 设备, 该设备请改用 kwrt 基座"
+              exit 1
+            fi
+            MATRIX=$(echo "$MATRIX" | jq --arg oa "$IMM_BASE" \
+              'map(.img_url=($oa + .img_suffix) | del(.img_suffix))')
+          else
+            MATRIX=$(echo "$MATRIX" | jq --arg oa "$OA_BASE" \
+              'map(.img_url=($oa + .img_suffix) | del(.img_suffix))')
+          fi
           # 参数覆盖 (非空才覆盖; 空值保持设备默认); role 仅对动态设备(dynamic=true)生效
           MATRIX=$(echo "$MATRIX" | jq \
             --arg ip "${{ inputs.lan_ip }}" \
@@ -178,6 +211,7 @@ jobs:
       - name: 组装固件 (ImageBuilder 预编译包)
         id: ibuild
         env:
+          BASE: ${{ inputs.base || 'kwrt' }}
           DEVICE: ${{ matrix.device }}
           DATE: ${{ steps.date.outputs.date }}
           FEED_ARCH: ${{ matrix.feed_arch }}
@@ -242,6 +276,7 @@ jobs:
         run: |
           BODY="由 ImageBuilder 组装
           构建日期: ${{ steps.date.outputs.stamp }}
+          构建基座: ${{ inputs.base || 'kwrt' }}
           内容（网站提交的设备/架构等信息）："
           mapfile -t ROWS < <(echo "$MATRIX" | jq -c '.include[]')
           for m in "${ROWS[@]}"; do

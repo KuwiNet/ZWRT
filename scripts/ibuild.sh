@@ -4,8 +4,9 @@
 # 由 build-openwrt.yml 的 build job 调用, 通过环境变量传参
 #
 # 环境变量:
+#   BASE                     构建基座: kwrt (opkg) / immortalwrt (apk, ImmortalWrt 25.12)
 #   FEED_ARCH / FEED_TARGET  软件源架构/目标 (如 x86_64 / x86/64)
-#   IMG_URL                  对应目标 kwrt-imagebuilder 下载地址
+#   IMG_URL                  对应基座 ImageBuilder 下载地址
 #   PROFILE_TAGS             分号分隔多组, 每组 "profile,identity,tag"
 #   LAN_IP / LAN_MASK / GATEWAY / DNS / ROLE / IPV6 / WIFI / WIFI_SSID / WIFI_KEY
 #   HOSTNAME / ROOT_PASS / INIT_B64
@@ -37,9 +38,13 @@ ROOT_PASS="${ROOT_PASS:-}"
 INIT_B64="${INIT_B64:-}"
 PKG_COMMON="${PKG_COMMON:-}"
 PKG_WH3000="${PKG_WH3000:-}"
+BASE="${BASE:-kwrt}"
+# apk 体系 (immortalwrt) 追加的自定义源; 可用环境变量覆盖
+APK_FEED_ZWRT="${ZWRT_APK_FEED:-https://mirror.zwrt.cc/packages/all/packages.adb}"
+APK_FEED_NIKKI="${NIKKI_FEED_BASE:-https://nikkinikki.pages.dev}/openwrt-25.12/$FEED_ARCH/nikki/packages.adb"
 
 echo "=============================================================="
-echo " ZWRT ImageBuilder 组装  device=$DEVICE arch=$FEED_ARCH"
+echo " ZWRT ImageBuilder 组装  device=$DEVICE arch=$FEED_ARCH base=$BASE"
 echo "=============================================================="
 
 echo "==== [1/7] 下载并解压 ImageBuilder ===="
@@ -50,14 +55,29 @@ IB_DIR="$(ls -d *imagebuilder-*/ 2>/dev/null | head -1)"
 [ -n "$IB_DIR" ] && IB_DIR="${IB_DIR%/}"
 echo ">> ImageBuilder 目录: $IB_DIR (engine=$ENGINE)"
 
-echo "==== [2/7] 写入源配置 (构建时拉包源, opkg) ===="
-# 由固件运行时源 distfeeds.conf 生成(替换架构占位符)
-sed -e "s|__FEED_ARCH__|$FEED_ARCH|g" -e "s|__FEED_TARGET__|$FEED_TARGET|g" \
-    "$ZWRT_DIR/files/etc/opkg/distfeeds.conf" > /tmp/zwrt-distfeeds.conf
-# opkg 引擎 (kwrt): 由 distfeeds.conf 生成 repositories.conf
-grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$IB_DIR/repositories.conf"
-echo ">> opkg 源 (repositories.conf):"
-cat "$IB_DIR/repositories.conf"
+echo "==== [2/7] 写入源配置 (构建时拉包源) ===="
+if [ "$BASE" = "immortalwrt" ]; then
+  # ImageBuilder 自带的 repositories 已含 ImmortalWrt 官方 apk 源 (含 kmods 版本目录),
+  # 这里只追加自定义源, 不手拼官方源 —— kmods 目录哈希随版本变化, 硬编码会失效
+  mkdir -p "$IB_DIR/keys"
+  for k in zwrt-feed.pem nikki.pem; do
+    if [ -f "$ZWRT_DIR/files/etc/apk/keys/$k" ]; then
+      cp "$ZWRT_DIR/files/etc/apk/keys/$k" "$IB_DIR/keys/"
+    fi
+  done
+  grep -qxF "$APK_FEED_ZWRT"  "$IB_DIR/repositories" || echo "$APK_FEED_ZWRT"  >> "$IB_DIR/repositories"
+  grep -qxF "$APK_FEED_NIKKI" "$IB_DIR/repositories" || echo "$APK_FEED_NIKKI" >> "$IB_DIR/repositories"
+  echo ">> apk 源 (repositories):"
+  cat "$IB_DIR/repositories"
+else
+  # 由固件运行时源 distfeeds.conf 生成(替换架构占位符)
+  sed -e "s|__FEED_ARCH__|$FEED_ARCH|g" -e "s|__FEED_TARGET__|$FEED_TARGET|g" \
+      "$ZWRT_DIR/files/etc/opkg/distfeeds.conf" > /tmp/zwrt-distfeeds.conf
+  # opkg 引擎 (kwrt): 由 distfeeds.conf 生成 repositories.conf
+  grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$IB_DIR/repositories.conf"
+  echo ">> opkg 源 (repositories.conf):"
+  cat "$IB_DIR/repositories.conf"
+fi
 
 echo "==== [3/7] 生成覆盖层 FILES 目录 ===="
 FILES="$ZWRT_DIR/overlay-$DEVICE"
@@ -70,9 +90,22 @@ if [ -n "$HOSTNAME" ] && [ "$HOSTNAME" != "ZWRT" ]; then
 else
   echo "主机名保持默认 ZWRT"
 fi
-# 3c 运行时软件源 (只保留 src/gz 源行, 去掉所有说明注释)
-mkdir -p "$FILES/etc/opkg"
-grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
+# 3c 运行时软件源
+if [ "$BASE" = "immortalwrt" ]; then
+  # apk: 官方源由 ImmortalWrt 自带 distfeeds 提供, 自定义源单独成文件
+  rm -rf "$FILES/etc/opkg"
+  mkdir -p "$FILES/etc/apk/repositories.d"
+  cat > "$FILES/etc/apk/repositories.d/customfeeds.list" <<EOF
+$APK_FEED_ZWRT
+$APK_FEED_NIKKI
+EOF
+  echo "已写 /etc/apk/repositories.d/customfeeds.list:"
+  cat "$FILES/etc/apk/repositories.d/customfeeds.list"
+else
+  # opkg: 只保留 src/gz 源行, 去掉所有说明注释
+  mkdir -p "$FILES/etc/opkg"
+  grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
+fi
 # 3d 网络变体
 sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
     -e "s|__GATEWAY__|$GATEWAY|g" -e "s|__DNS__|$DNS|g" \
@@ -317,6 +350,24 @@ DEV_P="$(apply_src "$PKG_WH3000" "$DEV_BASE")"
 PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
 # 强制内置 luci-app-afrp（all 架构源 mirror.zwrt.cc/packages/all，所有设备可装；前端剔除不影响）
 PACKAGES="$( { echo "$PACKAGES"; echo "luci-app-afrp"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+
+if [ "$BASE" = "immortalwrt" ]; then
+  # ---- ImmortalWrt 25.12 (apk) 专属处理 ----
+  # 1) 剔除官方 apk 源没有、自定义源也未提供的包 (见 plugins/immortalwrt-drop.txt)
+  DROP_FILE="$ZWRT_DIR/plugins/immortalwrt-drop.txt"
+  if [ -f "$DROP_FILE" ]; then
+    DROP="$(clean "$(cat "$DROP_FILE")")"
+    for p in $DROP; do
+      PACKAGES="$(echo "$PACKAGES" | tr ' ' '\n' | grep -vxF "$p" | tr '\n' ' ' || true)"
+    done
+    echo ">> 已剔除 ImmortalWrt 缺包 ($(echo "$DROP" | wc -w) 个): $DROP"
+  fi
+  # 2) mihomo 改用 nikki 源的 mihomo-meta (provides mihomo), 显式替换确保可解析
+  PACKAGES="$(echo "$PACKAGES" | tr ' ' '\n' | sed 's/^mihomo$/mihomo-meta/' | sed '/^$/d' | sort -u | tr '\n' ' ')"
+  # 3) 确保代理三件套在: mihomo-meta + nikki + luci-app-nikki + 中文包
+  PACKAGES="$( { echo "$PACKAGES"; echo "mihomo-meta nikki luci-app-nikki luci-i18n-nikki-zh-cn"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+fi
+
 echo "PACKAGES ($(echo "$PACKAGES" | wc -w) 个): $PACKAGES"
 
 echo "==== [5/7] 组装固件 (ImageBuilder make image) ===="
@@ -345,4 +396,36 @@ done
 
 echo "==== [7/7] 固件产物 ===="
 ls -lh "$BIN_DIR" | grep '^.*zwrt-' || ls -lh "$BIN_DIR" | tail -30
+
+if [ "$BASE" = "immortalwrt" ]; then
+  echo "==== [8/8] 内核指纹校验: 跳过 (ImmortalWrt 基座内核与模块同源发布, 不适用 openwrt.ai 白名单) ===="
+else
+echo "==== [8/8] 内核数据指纹校验 (防 openwrt.ai 内核变更导致变砖) ===="
+ALLOWLIST="$ZWRT_DIR/scripts/firmware-kernel-allowlist.txt"
+if [ ! -f "$ALLOWLIST" ]; then
+  echo "!! 缺少内核白名单 $ALLOWLIST, 中止发布" >&2
+  exit 1
+fi
+KNOWN="$(grep -v '^\s*#' "$ALLOWLIST" | grep -v '^\s*$' | awk '{print $1}' | tr '\n' ',')"
+KNOWN="${KNOWN%,}"
+if [ -z "$KNOWN" ]; then
+  echo "!! 内核白名单为空, 中止发布" >&2
+  exit 1
+fi
+echo ">> 已知正常内核指纹: $KNOWN"
+FAIL=0
+for bin in "$BIN_DIR"/zwrt-*-squashfs-sysupgrade.bin; do
+  [ -f "$bin" ] || continue
+  echo ">> 校验内核指纹: $(basename "$bin")"
+  if python3 "$ZWRT_DIR/scripts/firmware-kernel-check.py" "$bin" --known "$KNOWN"; then
+    echo "   PASS"
+  else
+    echo "   FAIL —— openwrt.ai ImageBuilder 内核已变更 (kernel MD5 不在白名单), 禁止发布!" >&2
+    FAIL=1
+  fi
+done
+[ "$FAIL" = "1" ] && exit 1
+echo "==== 内核指纹全部 PASS ===="
+fi
+
 echo "==== ibuild.sh 完成 ===="

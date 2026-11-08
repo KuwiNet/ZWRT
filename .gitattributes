@@ -1,0 +1,2 @@
+# apk 公钥对换行敏感, 禁止任何换行转换 (autocrlf 开时保持原样)
+files/etc/apk/keys/*.pem -text

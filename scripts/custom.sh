@@ -18,6 +18,9 @@ for f in *; do
       new="${f/immortalwrt/zwrt}"
       new="${new/openwrt/zwrt}"
       new="${new/kwrt/zwrt}"
+      # 去掉基座版本号段: immortalwrt-25.12.2-x86-64-generic -> zwrt-x86-64-generic
+      # (保证 R2 按 zwrt-YYYYMMDD-* 清理旧版本时能正确匹配)
+      new="$(echo "$new" | sed -E 's/^zwrt-[0-9]+\.[0-9]+\.[0-9]+-/zwrt-/')"
       # 已带本次日期则不重复插入
       case "$new" in
         *-"$DATE"-*|*"$DATE".*) ;;

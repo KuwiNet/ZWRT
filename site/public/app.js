@@ -234,6 +234,8 @@ function buildInputs(o) {
 
   return {
 
+    base: o.base || "kwrt",
+
     device: dispatchKey(d, o.bypass),
 
     role,
@@ -454,6 +456,8 @@ const state = {
   pkgInput: "",
 
   initScript: "",
+
+  base: "kwrt",             // 构建基座: kwrt (opkg 源) / immortalwrt (apk 源)
 
   account: { str: "KuWiNet/ZWRT", token: "" },
 
@@ -822,6 +826,9 @@ function readParams() {
   state.account.str = $("p-acct").value.trim() || "KuWiNet/ZWRT";
 
   state.account.token = $("p-token").value.trim();
+
+  const baseEl = $("p-base");
+  state.base = (baseEl && baseEl.value) || "kwrt";
 
 }
 
@@ -1229,6 +1236,8 @@ function renderSummary() {
 
   const rows = [
 
+    ["基座", state.base === "immortalwrt" ? "ImmortalWrt 25.12（apk）" : "Kwrt（opkg）"],
+
     ["设备", d.name],
 
     ["模式", state.features.bypass ? "旁路由（仅 LAN）" : "主路由"],
@@ -1404,6 +1413,8 @@ function composeInputs() {
   const script = composeInitScript();
 
   const inputs = buildInputs({
+
+    base: state.base,
 
     device: state.device,
 
@@ -2013,6 +2024,8 @@ function bindStatic() {
   on("p-acct", "input", () => { readParams(); updateGHA(); renderSummary(); saveAcct(); });
 
   on("p-token", "input", () => { readParams(); saveAcct(); });
+
+  on("p-base", "change", () => { readParams(); renderSummary(); });
 
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); renderBaseChips(); renderCommonChips(); });
 
