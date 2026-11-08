@@ -10,6 +10,18 @@
 
 
 
+/* ImmortalWrt 25.12 支持的 target（按 target 粒度；其余 target 仅 Kwrt 可构建。
+   profile 级不匹配由 check job 的 __unsupported__ 兜底，故此处无需静态 profile 名单） */
+const IMM_TARGETS = new Set([
+  "ramips/mt7621", "mediatek/filogic", "rockchip/armv8", "ipq40xx/generic",
+  "qualcommax/ipq807x", "mvebu/cortexa9", "ipq806x/generic", "ath79/nand",
+  "sunxi/cortexa7", "qualcommax/ipq60xx", "mediatek/mt7622",
+  "qualcommax/ipq50xx", "sunxi/cortexa53", "bcm53xx/generic", "siflower/sf21",
+  "bcm27xx/bcm2712", "bcm27xx/bcm2711", "bcm27xx/bcm2710",
+  "bcm27xx/bcm2709", "bcm27xx/bcm2708", "armsr/armv8", "x86/64"
+]);
+function immSupported(d) { return !!d && IMM_TARGETS.has(d.target); }
+
 /* 互联网（科学上网）多选方案：与 openwrt.ai 一致，默认勾选 nikki */
 
 const INTERNET_SCHEMES = [
@@ -279,7 +291,7 @@ if (typeof globalThis !== "undefined") {
 
   globalThis.ZWRT = {
 
-    INTERNET_SCHEMES, THEMES, PROTECTED_EXACT, isProtected,
+    INTERNET_SCHEMES, THEMES, PROTECTED_EXACT, isProtected, immSupported, IMM_TARGETS,
 
     parsePkgInput, deviceBaseList, dispatchKey, prefillDefaults, fmtFlash, fmtFwSize, buildInputs,
 
@@ -598,7 +610,8 @@ function renderDeviceList(filter) {
 
     const sub = [d.archLabel || d.arch, d.target, flash].filter(Boolean).join(" · ");
 
-    return '<span class="dn">' + d.name + "</span><span class=\"sub\">" + sub + "</span>";
+    return '<span class="dn">' + d.name + "</span><span class=\"sub\">" + sub + "</span>" +
+      (immSupported(d) ? "" : '<em class="kw-only">仅 Kwrt</em>');
 
   };
 
@@ -1501,6 +1514,23 @@ async function apiJson(res) {
 
 
 
+/* 基座-设备即时校验：ImmortalWrt 不支持当前 target 时禁用构建按钮并显示提示 */
+function validateBase() {
+  const warn = $("baseWarn");
+  const btn = $("btnBuild");
+  if (!warn || !btn) return true;
+  if (state.base === "immortalwrt" && !immSupported(state.device)) {
+    warn.textContent = "当前设备「" + state.device.name + "」的 target（" + state.device.target +
+      "）不在 ImmortalWrt 支持范围，请切回 Kwrt 基座或更换设备。";
+    warn.hidden = false;
+    btn.disabled = true;
+    return false;
+  }
+  warn.hidden = true;
+  if (!state.triggering) btn.disabled = false;
+  return true;
+}
+
 function validate() {
 
   const str = state.account.str;
@@ -1520,6 +1550,9 @@ function validate() {
   if (!v4(mk)) return "子网掩码不是有效 IPv4";
 
   if (state.features.bypass && !v4(state.params.gateway)) return "旁路由需填写有效网关";
+
+  if (state.base === "immortalwrt" && !immSupported(state.device))
+    return "当前设备不支持 ImmortalWrt 基座，请切回 Kwrt 或更换设备";
 
   if (!/^[A-Za-z0-9_-]{1,63}$/.test(state.params.hostname)) return "主机名只能含字母/数字/下划线/连字符";
 
@@ -1921,7 +1954,13 @@ function logc(msg, cls) {
 
 }
 
-function setBusy(b) { state.triggering = b; const btn = $("#btnBuild"); btn.disabled = b; btn.textContent = b ? "构建中…" : "开始构建"; }
+function setBusy(b) {
+  state.triggering = b;
+  const btn = $("#btnBuild");
+  btn.disabled = b;
+  btn.textContent = b ? "构建中…" : "开始构建";
+  if (!b) validateBase();
+}
 
 
 
@@ -1989,6 +2028,8 @@ function render() {
 
   renderSummary();
 
+  validateBase();
+
 }
 
 
@@ -2025,7 +2066,7 @@ function bindStatic() {
 
   on("p-token", "input", () => { readParams(); saveAcct(); });
 
-  on("p-base", "change", () => { readParams(); renderSummary(); });
+  on("p-base", "change", () => { readParams(); validateBase(); renderSummary(); });
 
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); renderBaseChips(); renderCommonChips(); });
 
