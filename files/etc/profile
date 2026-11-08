@@ -1,11 +1,13 @@
 # ZWRT: 清除 BusyBox 交互式 shell 自动打印的 "BusyBox ... built-in shell (ash)" 行。
-# 相对光标定位在部分终端(如 FinalShell)上不可靠, 改用最通用的清屏序列: 光标归位 + 清全屏 + 清滚动缓冲。
+# 清屏序列: 光标归位 (ESC[H) + 清全屏 (ESC[2J)。
+# 不使用 ESC[3J (清滚动缓冲): FinalShell 对 3J 的实现有 bug, 会破坏终端行状态,
+# 导致后续多行 banner 被压成一行重叠。去掉 3J 后 FinalShell/tmux 均正常。
 # 哑终端 (dumb) 不支持, 跳过以免出现乱码。
 case "$TERM" in
 	dumb)
 		;;
 	*)
-		printf '\033[H\033[2J\033[3J'
+		printf '\033[H\033[2J'
 		;;
 esac
 
