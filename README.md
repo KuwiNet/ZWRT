@@ -138,7 +138,7 @@
 ## 发布与部署
 
 - **GitHub Release**：单 tag `ZWRT-日期`，含全部设备固件。
-- **R2/B2 对象存储（可选）**：配置 R2 密钥后固件自动上传，上传完成后把下载地址写进 Release 描述。下载地址前缀由仓库 Variable `R2_PUBLIC_URL` 定义（默认 `https://dl.zwrt.de`），R2 只保留最近 2 版。前端"固件下载"优先显示该地址，无则回退 GitHub Release 直链。
+- **R2/B2 对象存储（可选）**：配置 R2 密钥后固件自动上传，上传完成后把下载地址写进 Release 描述。下载地址前缀固定为 R2 桶自定义域 `https://dl.zwrt.cc`（在 `build-openwrt.yml` / `upload-release.yml` 的 `R2_PUBLIC_URL` 一行，换域名改这里），R2 只保留最近 2 版。前端"固件下载"优先显示该地址，无则回退 GitHub Release 直链。
 - **网站**：`site/public` 由 `pages-cloudflare.yml`（Cloudflare Pages）与 `pages.yml`（GitHub Pages）双发布；推送 `site/public/**` 自动触发。
 
 ## 本地构建
