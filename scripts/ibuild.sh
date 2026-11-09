@@ -108,6 +108,8 @@ else
   grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$FILES/etc/opkg/distfeeds.conf"
   # kwrt(opkg) 不使用 apk: 移除 apk 对照表, 登录只显示 ZWRT banner
   rm -f "$FILES/etc/profile.d/apk-cheatsheet.sh"
+  # kwrt 基座已自带登录系统状态信息(负载/内存/IP/CPU 等), 移除 ZWRT 版避免重复显示
+  rm -f "$FILES/etc/profile.d/10-sysinfo.sh"
 fi
 # 3d 网络变体
 sed -e "s|__LAN_IP__|$LAN_IP|g" -e "s|__LAN_MASK__|$LAN_MASK|g" \
