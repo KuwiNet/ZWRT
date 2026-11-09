@@ -279,6 +279,8 @@ function buildInputs(o) {
 
     init_script_b64: o.initScriptB64 || "",
 
+    custom_pkgs: o.customPkgFiles || "",
+
   };
 
 }
@@ -478,6 +480,8 @@ const state = {
   runId: null,
 
   triggering: false,
+
+  customPkgs: [],          // 已上传自定义插件（当前基座对应格式）：{name,size,sha,selected}
 
 };
 
@@ -1417,6 +1421,134 @@ function composeInitScript() {
 
 
 
+/* ---------- custom packages (custom-pkgs/ via Contents API) ---------- */
+
+const PKG_DIR = "custom-pkgs";
+const MAX_PKG_BYTES = 100 * 1024 * 1024;
+function pkgExt() { return state.base === "immortalwrt" ? ".apk" : ".ipk"; }
+function fmtBytes(n) {
+  if (n == null) return "";
+  const mb = n / 1048576;
+  return mb >= 1 ? mb.toFixed(mb >= 10 ? 0 : 1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+}
+
+/* 列出 custom-pkgs/ 目录，只保留当前基座对应格式；目录不存在(404)视为空 */
+async function loadCustomPkgs() {
+  const prev = new Map(state.customPkgs.map((p) => [p.name, p.selected]));
+  const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
+  let items = [];
+  if (token) {
+    try {
+      const res = await ghAPI("GET", "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR, token);
+      if (res.status !== 404) {
+        const j = await apiJson(res);
+        const ext = pkgExt();
+        const arr = Array.isArray(j) ? j : [];
+        items = arr.filter((f) => f.type === "file" && f.name.toLowerCase().endsWith(ext))
+          .map((f) => ({ name: f.name, size: f.size, sha: f.sha,
+                         selected: prev.has(f.name) ? prev.get(f.name) : true }));
+      }
+    } catch (e) {
+      console.warn("loadCustomPkgs:", e.message);   // 加载失败保留旧列表，不打断用户
+      return;
+    }
+  }
+  state.customPkgs = items.sort((a, b) => a.name.localeCompare(b.name));
+  renderCustomPkgs();
+}
+
+function renderCustomPkgs() {
+  const box = $("customPkgList");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!state.customPkgs.length) {
+    box.appendChild(el("p", "dim", "尚未上传插件，点「上传插件」添加。"));
+    return;
+  }
+  state.customPkgs.forEach((p) => {
+    const row = el("div", "cp-item");
+    const ck = document.createElement("input");
+    ck.type = "checkbox"; ck.checked = !!p.selected;
+    ck.addEventListener("change", () => { p.selected = ck.checked; renderSummary(); });
+    row.appendChild(ck);
+    row.appendChild(el("span", "cp-name", p.name));
+    row.appendChild(el("span", "cp-size", fmtBytes(p.size)));
+    const del = el("button", "cp-del", "删除");
+    del.type = "button";
+    del.addEventListener("click", () => deleteCustomPkg(p));
+    row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(",")[1]);
+    fr.onerror = () => reject(fr.error || new Error("读取文件失败"));
+    fr.readAsDataURL(file);
+  });
+}
+
+async function uploadCustomPkg(file) {
+  const ext = pkgExt();
+  if (!file.name.toLowerCase().endsWith(ext)) {
+    toast("「" + file.name + "」格式不符：当前基座仅支持 " + ext + " 文件");
+    return false;
+  }
+  if (file.size > MAX_PKG_BYTES) {
+    toast("「" + file.name + "」超过 100MB 上限，无法上传");
+    return false;
+  }
+  const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
+  const existing = state.customPkgs.find((p) => p.name === file.name);
+  try {
+    const content = await readFileAsBase64(file);
+    const body = { message: "ZWRT custom package: " + file.name, content };
+    if (existing) body.sha = existing.sha;
+    const res = await ghAPI("PUT",
+      "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR + "/" + encodeURIComponent(file.name),
+      token, body);
+    if (!res.ok) throw new Error(await res.text());
+    return true;
+  } catch (e) {
+    toast("上传「" + file.name + "」失败：" + e.message);
+    return false;
+  }
+}
+
+async function handlePkgFiles(fileList) {
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  let ok = 0;
+  for (const f of files) {
+    if (await uploadCustomPkg(f)) ok++;
+  }
+  if (ok) {
+    toast("已上传 " + ok + " 个插件");
+    await loadCustomPkgs();
+  }
+}
+
+async function deleteCustomPkg(p) {
+  const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
+  try {
+    const res = await ghAPI("DELETE",
+      "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR + "/" + encodeURIComponent(p.name),
+      token, { message: "ZWRT remove custom package: " + p.name, sha: p.sha });
+    if (!res.ok) throw new Error(await res.text());
+    toast("已删除「" + p.name + "」");
+    await loadCustomPkgs();
+  } catch (e) {
+    toast("删除「" + p.name + "」失败：" + e.message);
+  }
+}
+
+/* 本次构建选中的自定义插件文件名（空格分隔） */
+function selectedCustomPkgFiles() {
+  return state.customPkgs.filter((p) => p.selected).map((p) => p.name).join(" ");
+}
+
 /* ---------- dispatch ---------- */
 
 function composeInputs() {
@@ -1473,6 +1605,8 @@ function composeInputs() {
     initScript: script,
 
     initScriptB64: btoa(unescape(encodeURIComponent(script || ""))),
+
+    customPkgFiles: selectedCustomPkgFiles(),
 
   });
 
@@ -2066,7 +2200,18 @@ function bindStatic() {
 
   on("p-token", "input", () => { readParams(); saveAcct(); });
 
-  on("p-base", "change", () => { readParams(); validateBase(); renderSummary(); });
+  on("p-base", "change", () => { readParams(); validateBase(); renderSummary(); loadCustomPkgs(); });
+
+  on("btnUploadPkg", "click", () => $("pkgFile").click());
+
+  on("pkgFile", "change", (e) => {
+    handlePkgFiles(e.target.files);
+    e.target.value = "";   // 清空，允许再次选择同一文件
+  });
+
+  on("p-acct", "change", () => { readParams(); loadCustomPkgs(); });
+
+  on("p-token", "change", () => { readParams(); loadCustomPkgs(); });
 
   on("pkgInput", "input", (e) => { state.pkgInput = e.target.value; $("m-selected").textContent = parsePkgInput(state.pkgInput).length; autoGrow(e.target); renderSummary(); renderBaseChips(); renderCommonChips(); });
 
@@ -2135,6 +2280,9 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
       }
 
     } catch (e) {}
+
+    readParams();
+    loadCustomPkgs();
 
   })();
 

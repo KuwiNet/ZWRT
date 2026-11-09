@@ -87,6 +87,10 @@ on:
         description: '自定义系统初始化脚本 (base64 编码, 推荐以规避多行转义问题)'
         type: string
         default: ''
+      custom_pkgs:
+        description: '自定义插件文件名 (custom-pkgs/ 目录内, 空格分隔, 可空)'
+        type: string
+        default: ''
 
 concurrency:
   group: zwrt-openwrt-build
@@ -233,6 +237,7 @@ jobs:
           INIT_B64: ${{ inputs.init_script_b64 }}
           PKG_COMMON: ${{ inputs.packages_common }}
           PKG_WH3000: ${{ inputs.packages_wh3000 }}
+          CUSTOM_PKGS: ${{ inputs.custom_pkgs }}
         run: bash scripts/ibuild.sh "$GITHUB_WORKSPACE"
 
       - name: 收集固件到顶层

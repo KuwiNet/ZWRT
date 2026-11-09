@@ -38,6 +38,7 @@ ROOT_PASS="${ROOT_PASS:-}"
 INIT_B64="${INIT_B64:-}"
 PKG_COMMON="${PKG_COMMON:-}"
 PKG_WH3000="${PKG_WH3000:-}"
+CUSTOM_PKGS="${CUSTOM_PKGS:-}"
 BASE="${BASE:-kwrt}"
 # apk 体系 (immortalwrt) 追加的自定义源; 可用环境变量覆盖
 APK_FEED_ZWRT="${ZWRT_APK_FEED:-https://mirror.zwrt.cc/packages/all/packages.adb}"
@@ -315,6 +316,33 @@ echo "已写入版本四重保险 (ZWRT: $DISPLAY_DATE)"
 echo ">> 覆盖层: $FILES"
 
 echo "==== [4/7] 生成 PACKAGES 清单 ===="
+# ---- 自定义插件: 复制到 ImageBuilder 本地 packages/ 并重建索引, 再提取真实包名 ----
+# ImageBuilder 原生支持 packages/ 本地源: apk 自动生成 EC P-256 密钥+mkndx 签名,
+# opkg 自动 ipkg-make-index; 无需手动写 repositories 或管理密钥。
+LOCAL_NAMES=""
+if [ -n "$CUSTOM_PKGS" ]; then
+  echo ">> 准备自定义插件: $CUSTOM_PKGS"
+  mkdir -p "$IB_DIR/packages"
+  for cname in $CUSTOM_PKGS; do
+    src="$ZWRT_DIR/custom-pkgs/$cname"
+    if [ ! -f "$src" ]; then
+      echo "!! 警告: 自定义插件不存在, 跳过: $cname" >&2
+      continue
+    fi
+    cp -f "$src" "$IB_DIR/packages/$cname"
+    echo "   - 已加入本地包目录: $cname"
+  done
+  if [ "$BASE" = "immortalwrt" ]; then
+    make -C "$IB_DIR" _check_keys >/dev/null 2>&1 || true
+    make -C "$IB_DIR" package_index >/dev/null 2>&1 || true
+    LOCAL_NAMES="$("$IB_DIR/staging_dir/host/bin/apk" adbdump "$IB_DIR/packages/packages.adb" 2>/dev/null \
+      | grep -E '^\s*- name:' | awk '{print $3}' | tr '\n' ' ')"
+  else
+    make -C "$IB_DIR" package_index >/dev/null 2>&1 || true
+    LOCAL_NAMES="$(grep -E '^Package: ' "$IB_DIR/packages/Packages" 2>/dev/null | awk '{print $2}' | tr '\n' ' ')"
+  fi
+  echo ">> 本地源解析出的包名: $LOCAL_NAMES"
+fi
 clean() { echo "$1" | sed '1s/^\xEF\xBB\xBF//' | grep -v '^\s*#' | grep -v '^\s*$' | tr '\n' ' ' || true; }
 # 按来源组装覆盖 (空=默认; __none__=不装; 其它=以清单为准)
 apply_src() {
@@ -358,6 +386,10 @@ DEV_P="$(apply_src "$PKG_WH3000" "$DEV_BASE")"
 PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
 # 强制内置 luci-app-afrp（all 架构源 mirror.zwrt.cc/packages/all，所有设备可装；前端剔除不影响）
 PACKAGES="$( { echo "$PACKAGES"; echo "luci-app-afrp"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+# 自定义插件真实包名（来自本地 packages/ 源）
+if [ -n "$LOCAL_NAMES" ]; then
+  PACKAGES="$( { echo "$PACKAGES"; echo "$LOCAL_NAMES"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
+fi
 
 if [ "$BASE" = "immortalwrt" ]; then
   # ---- ImmortalWrt 25.12 (apk) 专属处理 ----
