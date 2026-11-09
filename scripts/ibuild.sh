@@ -184,9 +184,13 @@ cat > "$FILES/etc/banner" <<'BAN'
        /'/'___ | (_/ \_) || |\ \  | |
       (_______)`\___x___/'(_) (_) (_)
  -------------------------------------------
-        ZWRT 25.12-SNAPSHOT by zwrt.cc
+  ZWRT 25.12-SNAPSHOT __BDATE___ by zwrt.cc
  -------------------------------------------
 BAN
+# 单引号 heredoc 原样保留占位符(同时保护大字反引号/反斜杠), 此处替换为构建日期;
+# 占位符 __BDATE___ 与日期(DD.MM.YYYY)同为 10 字符, 替换后长度不变, 居中不偏移;
+# 版本内容比横杠内容区短 2, 左右各空 1 格(离两侧横杠各一个空格)
+sed -i "s/__BDATE___/$DISPLAY_DATE/" "$FILES/etc/banner"
 # --- ② zzz uci-defaults (首启兜底) ---
 cat > "$FILES/etc/uci-defaults/zzz-zwrt-release" <<SH
 #!/bin/sh
