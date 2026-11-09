@@ -1,5 +1,6 @@
 # ZWRT: 登录时在 banner 下显示系统状态(负载/内存/存储 + 运行时间/IP/CPU)
-# 原生控制台(TERM=linux, 如 PVE noVNC/显示器)内核字体不含中文, 那里输出英文版避免方块; SSH 终端输出中文
+# 已知图形终端(SSH 的 xterm/screen/tmux/putty 等)输出中文; 控制台及未知 TERM(linux/vt100/空, 如 noVNC)
+# 内核字体不含中文, 默认输出英文版避免方块
 # 兼容 BusyBox ash: 仅用 POSIX 语法、整数算术, 动态值均为纯 ASCII
 
 # --- 负载 (1/5/15 分钟) ---
@@ -60,17 +61,18 @@ line() {
 	printf '%s%s\n' "$rlabel" "$rval"
 }
 
+# 已知支持中文的图形终端走中文; 其余(linux/vt100/空/dumb/未知控制台)默认英文, 避免无中文字体时出方块
 case "$TERM" in
-linux)
-	LW=10; COL2=26
-	line "$(printf '%-10s' 'Load:')"   "$LOAD" "$(printf '%-10s' 'Uptime:')" "$UPTIME"
-	line "$(printf '%-10s' 'Memory:')" "$MEM"  "$(printf '%-10s' 'IP:')"     "$IP"
-	line "$(printf '%-10s' 'Disk:')"   "$DISK" "$(printf '%-10s' 'CPU:')"    "$CPU"
-	;;
-*)
+xterm*|screen*|tmux*|putty*|rxvt*|*color*)
 	LW=9; COL2=26
 	line '系统负载：' "$LOAD" '运行时间：' "$UPTIME"
 	line '内存已用：' "$MEM"  'IP  地址：' "$IP"
 	line '系统存储：' "$DISK" 'CPU 信息：' "$CPU"
+	;;
+*)
+	LW=10; COL2=26
+	line "$(printf '%-10s' 'Load:')"   "$LOAD" "$(printf '%-10s' 'Uptime:')" "$UPTIME"
+	line "$(printf '%-10s' 'Memory:')" "$MEM"  "$(printf '%-10s' 'IP:')"     "$IP"
+	line "$(printf '%-10s' 'Disk:')"   "$DISK" "$(printf '%-10s' 'CPU:')"    "$CPU"
 	;;
 esac
