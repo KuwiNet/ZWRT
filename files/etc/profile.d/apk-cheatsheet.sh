@@ -5,6 +5,7 @@ if [ -x /usr/bin/apk ] ; then
 case "$TERM" in
 xterm*|screen*|tmux*|putty*|rxvt*|*color*)
 cat << 'EOF'
+
  OpenWrt 已切换至 "apk" 软件包管理器!
 
 OPKG 命令            APK 对应命令       说明
@@ -21,6 +22,7 @@ EOF
 ;;
 *)
 cat << 'EOF'
+
  OpenWrt switched to the "apk" package manager!
 
 OPKG Command         APK Equivalent     Description

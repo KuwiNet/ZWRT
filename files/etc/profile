@@ -1,7 +1,11 @@
-# ZWRT: 保留 BusyBox 交互式 shell 自动打印的 "BusyBox ... built-in shell (ash)" 行,
-# 不做任何清屏/光标定位。原因: 清屏序列 (ESC[H/2J, 尤其 ESC[3J) 在 FinalShell 等终端
-# 实现有 bug, 会破坏终端行状态, 导致紧随其后的多行 banner 被压成一行重叠。
-# 让 banner 自然跟在 BusyBox 行下方输出 (纯文本 + 标准 LF), 各终端渲染均稳定。
+# ZWRT: ImmortalWrt(apk) 基座下擦除 BusyBox 交互 shell 自动打印的 "BusyBox ... built-in shell (ash)" 行。
+# 该行在 /etc/profile 读取之前就已由 ash 打印, 无运行时开关 (源头关闭需编译期 FEATURE_SH_EXTRA_QUIET,
+# ImageBuilder 不重编译 BusyBox)。这里用 CUP 光标定位(ESC[行;1H) + EL 整行擦除(ESC[2K])精确擦除固定 4 行,
+# 不用 2J/3J 清屏 —— 清屏在 FinalShell 有 bug 会把多行 banner 压成一行; 2K 只清字符、不改行结构,
+# 已在 tmux 与真实 VT 验证稳定。仅在 /usr/bin/apk 存在(apk 基座)时执行, Kwrt(opkg) 不受影响。
+if [ -x /usr/bin/apk ]; then
+	printf '\033[1;1H\033[2K\033[2;1H\033[2K\033[3;1H\033[2K\033[4;1H\033[2K\033[1;1H'
+fi
 
 unset FAILSAFE
 [ -e /tmp/.failsafe ] && export FAILSAFE=1
