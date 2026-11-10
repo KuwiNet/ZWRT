@@ -250,7 +250,7 @@ function buildInputs(o) {
 
   return {
 
-    base: o.base || "kwrt",
+    base: o.base || "immortalwrt",
 
     device: dispatchKey(d, o.bypass),
 
@@ -477,7 +477,7 @@ const state = {
 
   initScript: "",
 
-  base: "kwrt",             // 构建基座: kwrt (opkg 源) / immortalwrt (apk 源)
+  base: "immortalwrt",      // 构建基座: kwrt (opkg 源) / immortalwrt (apk 源)
 
   account: { str: "KuWiNet/ZWRT", token: "" },
 
@@ -853,7 +853,7 @@ function readParams() {
   state.account.token = $("p-token").value.trim();
 
   const baseEl = $("p-base");
-  state.base = (baseEl && baseEl.value) || "kwrt";
+  state.base = (baseEl && baseEl.value) || "immortalwrt";
 
 }
 
@@ -1508,11 +1508,11 @@ async function uploadCustomPkg(file) {
   const ext = pkgExt();
   if (!file.name.toLowerCase().endsWith(ext)) {
     toast("「" + file.name + "」格式不符：当前格式仅支持 " + ext + " 文件");
-    return false;
+    return null;
   }
   if (file.size > MAX_PKG_BYTES) {
     toast("「" + file.name + "」超过 100MB 上限，无法上传");
-    return false;
+    return null;
   }
   const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
   const existing = state.customPkgs.find((p) => p.name === file.name);
@@ -1524,24 +1524,37 @@ async function uploadCustomPkg(file) {
       "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR + "/" + encodeURIComponent(file.name),
       token, body);
     if (!res.ok) throw new Error(await res.text());
-    return true;
+    const j = await res.json();
+    const c = j && j.content;
+    return c ? { name: c.name, size: c.size, sha: c.sha } : null;
   } catch (e) {
     toast("上传「" + file.name + "」失败：" + e.message);
-    return false;
+    return null;
   }
 }
 
 async function handlePkgFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
-  let ok = 0;
+  toast("正在上传…");
+  const added = [];
   for (const f of files) {
-    if (await uploadCustomPkg(f)) ok++;
+    const c = await uploadCustomPkg(f);
+    if (c) added.push(c);
   }
-  if (ok) {
-    toast("已上传 " + ok + " 个软件包");
-    await loadCustomPkgs();
+  if (!added.length) return;
+  toast("已上传 " + added.length + " 个软件包");
+  const prev = new Map(state.customPkgs.map((p) => [p.name, p.selected]));
+  for (const c of added) {
+    const item = { name: c.name, size: c.size, sha: c.sha,
+                   selected: prev.has(c.name) ? prev.get(c.name) : true };
+    const idx = state.customPkgs.findIndex((p) => p.name === c.name);
+    if (idx >= 0) state.customPkgs[idx] = item; else state.customPkgs.push(item);
   }
+  state.customPkgs.sort((a, b) => a.name.localeCompare(b.name));
+  renderCustomPkgs();
+  renderSummary();
+  loadCustomPkgs();
 }
 
 async function deleteCustomPkg(p) {
@@ -1638,7 +1651,7 @@ function ghAPI(method, path, token, body) {
 
   if (token === undefined) token = state.account.token; // 未显式传 token 时用当前构建账号
 
-  const opt = { method, headers: { "User-Agent": "zwrt-builder", Accept: "application/vnd.github+json" } };
+  const opt = { method, cache: "no-store", headers: { "User-Agent": "zwrt-builder", Accept: "application/vnd.github+json" } };
 
   if (token) opt.headers["Authorization"] = "Bearer " + token;
 
