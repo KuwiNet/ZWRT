@@ -1273,7 +1273,7 @@ function renderSummary() {
 
     ["主机名", state.params.hostname],
 
-    ["后台密码", state.params.root_pass || "默认root(ipk)/空(apk)"],
+    ["后台密码", state.params.root_pass || "默认 root（ipk）/ 空（apk）"],
 
     ["LAN IP", state.params.lan_ip + " / " + state.params.lan_mask],
 
@@ -1291,7 +1291,7 @@ function renderSummary() {
 
   rows.push(["伪装 iStoreOS", state.features.istore ? "开" : "关"]);
 
-  if (state.features.wifi) rows.push(["无线", "SSID " + (state.params.wifi_ssid || "—") + (state.params.wifi_key ? "（加密）" : "（无密码）")]);
+  if (state.features.wifi) rows.push(["无线", "SSID " + (state.params.wifi_ssid || "—") + " · 密码 " + (state.params.wifi_key || "无密码")]);
 
   else rows.push(["无线", "关"]);
 
