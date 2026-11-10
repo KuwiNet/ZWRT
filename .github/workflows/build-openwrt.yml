@@ -20,7 +20,7 @@ on:
         type: string
         default: all
       base:
-        description: '构建基座: kwrt = Kwrt/openwrt.ai (opkg 源); immortalwrt = ImmortalWrt 25.12 (apk 源, 内核与模块同版本)'
+        description: '软件包格式: kwrt = ipk(.ipk, opkg 源); immortalwrt = apk(.apk, 内核与模块同版本)'
         type: choice
         required: true
         options:
@@ -290,9 +290,10 @@ jobs:
         env:
           MATRIX: ${{ needs.check.outputs.matrix }}
         run: |
+          if [ "${{ inputs.base || 'kwrt' }}" = "immortalwrt" ]; then PKG_FMT="apk(.apk)"; else PKG_FMT="ipk(.ipk)"; fi
           BODY="由 ImageBuilder 组装
           构建日期: ${{ steps.date.outputs.stamp }}
-          构建基座: ${{ inputs.base || 'kwrt' }}
+          软件包格式: $PKG_FMT
           内容（网站提交的设备/架构等信息）："
           mapfile -t ROWS < <(echo "$MATRIX" | jq -c '.include[]')
           for m in "${ROWS[@]}"; do
