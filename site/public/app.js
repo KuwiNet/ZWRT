@@ -1453,7 +1453,9 @@ async function ensurePkgBranch() {
   const chk = await ghAPI("GET", "/repos/" + owner + "/" + repo + "/branches/" + PKG_BRANCH, token);
   if (chk.ok) return true;
   if (chk.status !== 404) throw new Error(await chk.text());
-  const tr = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/git/trees", token, { tree: [] });
+  // GitHub 不接受完全空的 tree (422 Invalid tree info)，放一个空 .gitkeep 占位
+  const tr = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/git/trees", token,
+    { tree: [{ path: ".gitkeep", mode: "100644", type: "blob", content: "" }] });
   if (!tr.ok) throw new Error(await tr.text());
   const tj = await tr.json();
   const cr = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/git/commits", token,
