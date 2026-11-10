@@ -2,7 +2,7 @@ name: Deploy ZWRT site to VPS
 
 on:
   push:
-    branches: [main]
+    branches: [zwrt-web]
     paths:
       - 'site/**'
 

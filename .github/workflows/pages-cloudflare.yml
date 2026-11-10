@@ -10,7 +10,7 @@
 name: Deploy Site to Cloudflare Pages
 on:
   push:
-    branches: [ main ]
+    branches: [ zwrt-web ]
     paths:
       - 'site/**'
   workflow_dispatch:
