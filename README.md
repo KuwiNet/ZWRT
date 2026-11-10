@@ -15,7 +15,7 @@
 - **全量设备支持**：16 个目标（target）/ 26 个子目标，929 台设备（含官方未构建设备）；网站设备下拉任选一台即可在线定制构建，出厂软件包可逐项剔除
 - **workflow_dispatch 全参数定制**：动态矩阵 + 主机名 / LAN IP / 网关 / DNS / 管理密码 / IPv6 / 无线 / 软件包清单 / 初始化脚本
 - 固件默认：主题 `ZWRT`、LAN `192.168.100.1`（旁路由 `.100.10`）、后台密码空、WiFi SSID `ZWRT`、签名 `kuwi.net`
-- 软件源：默认源（Kwrt 引擎，基础地址由仓库 Variables `OPENWRT_AI_BASE` 配置）→ `mirror.zwrt.cc/packages/all`
+- 软件源：默认源（基础地址由仓库 Variables `OPENWRT_AI_BASE` 配置）→ `mirror.zwrt.cc/packages/all`
 - 自动发布：单个 Release（`ZWRT-日期`）；R2 只保留最近 2 版
 
 ## 目录结构
@@ -82,7 +82,7 @@
 
 ## 软件源
 
-`files/etc/opkg/distfeeds.conf` 定义软件源：默认源（Kwrt 引擎，`OPENWRT_AI_BASE`）优先，其后为自建源 `mirror.zwrt.cc/packages/all`（不再内置 `luci.zwrt.de` 备份源）。
+`files/etc/opkg/distfeeds.conf` 定义软件源：默认源（`OPENWRT_AI_BASE`）优先，其后为自建源 `mirror.zwrt.cc/packages/all`（不再内置 `luci.zwrt.de` 备份源）。
 
 ## 去中心化构建：Fork 到自己的库（推荐私有）
 
@@ -145,7 +145,10 @@
 
 ```bash
 git clone https://github.com/KuWiNet/ZWRT.git
-git clone --depth=1 --branch openwrt-25.12 https://github.com/immortalwrt/immortalwrt.git openwrt
+# 准备 OpenWrt 系上游源码（仓库须含 openwrt-25.12 分支）：
+#   把下面 UPSTREAM 替换为你选用的 OpenWrt 发行版源码仓库地址
+UPSTREAM="https://github.com/<your-openwrt-dist>/source.git"
+git clone --depth=1 --branch openwrt-25.12 "$UPSTREAM" openwrt
 cd openwrt
 bash ../ZWRT/scripts/merge-feeds.sh ../ZWRT .
 bash ../ZWRT/scripts/merge-config.sh ../ZWRT x86-64-main .config

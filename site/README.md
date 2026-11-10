@@ -63,7 +63,7 @@ ZWRT 仓库已内置 `.github/workflows/pages.yml`：每次 `push` 改动 `site/
 
 ## 重新生成包目录
 
-包目录是从默认源（Kwrt 引擎，`OPENWRT_AI_BASE`）与 luci.zwrt.de 拉取生成。如需更新：
+包目录是从默认源（`OPENWRT_AI_BASE`）与 luci.zwrt.de 拉取生成。如需更新：
 
 ```bash
 node scripts/refresh-data.js            # 默认 KuwiNet/ZWRT
