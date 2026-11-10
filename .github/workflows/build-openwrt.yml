@@ -209,6 +209,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 取回自定义软件包分支 (zwrt-pkgs)
+        run: |
+          git fetch --no-tags --depth=1 origin zwrt-pkgs || { echo "无 zwrt-pkgs 分支，跳过"; exit 0; }
+          rm -rf custom-pkgs
+          git checkout FETCH_HEAD -- custom-pkgs || echo "分支无 custom-pkgs，跳过"
+
       - name: 安装构建依赖 (zstd 解压 + qemu-img 打包 x86 镜像 + genisoimage 生成 ISO)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq zstd qemu-utils genisoimage 2>/dev/null || true
 

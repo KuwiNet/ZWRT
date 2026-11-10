@@ -1438,6 +1438,7 @@ function composeInitScript() {
 /* ---------- custom packages (custom-pkgs/ via Contents API) ---------- */
 
 const PKG_DIR = "custom-pkgs";
+const PKG_BRANCH = "zwrt-pkgs";
 const MAX_PKG_BYTES = 100 * 1024 * 1024;
 function pkgExt() { return state.base === "immortalwrt" ? ".apk" : ".ipk"; }
 function fmtBytes(n) {
@@ -1446,14 +1447,33 @@ function fmtBytes(n) {
   return mb >= 1 ? mb.toFixed(mb >= 10 ? 0 : 1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
 }
 
-/* 列出 custom-pkgs/ 目录，只保留当前基座对应格式；目录不存在(404)视为空 */
+/* 确保独立软件包分支 zwrt-pkgs 存在；不存在则创建不含 main 历史的孤儿分支 */
+async function ensurePkgBranch() {
+  const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
+  const chk = await ghAPI("GET", "/repos/" + owner + "/" + repo + "/branches/" + PKG_BRANCH, token);
+  if (chk.ok) return true;
+  if (chk.status !== 404) throw new Error(await chk.text());
+  const tr = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/git/trees", token, { tree: [] });
+  if (!tr.ok) throw new Error(await tr.text());
+  const tj = await tr.json();
+  const cr = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/git/commits", token,
+    { message: "init " + PKG_BRANCH, tree: tj.sha });
+  if (!cr.ok) throw new Error(await cr.text());
+  const cj = await cr.json();
+  const rr = await ghAPI("POST", "/repos/" + owner + "/" + repo + "/git/refs", token,
+    { ref: "refs/heads/" + PKG_BRANCH, sha: cj.sha });
+  if (!rr.ok) throw new Error(await rr.text());
+  return true;
+}
+
+/* 列出 custom-pkgs/ 目录（独立分支），只保留当前基座对应格式；分支/目录不存在(404)视为空 */
 async function loadCustomPkgs() {
   const prev = new Map(state.customPkgs.map((p) => [p.name, p.selected]));
   const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
   let items = [];
   if (token) {
     try {
-      const res = await ghAPI("GET", "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR, token);
+      const res = await ghAPI("GET", "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR + "?ref=" + PKG_BRANCH, token);
       if (res.status !== 404) {
         const j = await apiJson(res);
         const ext = pkgExt();
@@ -1517,8 +1537,9 @@ async function uploadCustomPkg(file) {
   const owner = accountOwner(), repo = accountRepo(), token = state.account.token;
   const existing = state.customPkgs.find((p) => p.name === file.name);
   try {
+    await ensurePkgBranch();
     const content = await readFileAsBase64(file);
-    const body = { message: "ZWRT custom package: " + file.name, content };
+    const body = { message: "ZWRT custom package: " + file.name, content, branch: PKG_BRANCH };
     if (existing) body.sha = existing.sha;
     const res = await ghAPI("PUT",
       "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR + "/" + encodeURIComponent(file.name),
@@ -1562,7 +1583,7 @@ async function deleteCustomPkg(p) {
   try {
     const res = await ghAPI("DELETE",
       "/repos/" + owner + "/" + repo + "/contents/" + PKG_DIR + "/" + encodeURIComponent(p.name),
-      token, { message: "ZWRT remove custom package: " + p.name, sha: p.sha });
+      token, { message: "ZWRT remove custom package: " + p.name, sha: p.sha, branch: PKG_BRANCH });
     if (!res.ok) throw new Error(await res.text());
     toast("已删除「" + p.name + "」");
     await loadCustomPkgs();
