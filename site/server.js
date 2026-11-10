@@ -87,7 +87,8 @@ async function proxy(req, res, target, extraHeaders) {
 }
 
 /* ---- 360 小鸟壁纸：每天一张（同一天固定，次日自动更换） ---- */
-const BIRD_CIDS = [9, 36, 15, 26]; // 风景 / 4K / 小清新 / 动漫
+const BIRD_CIDS = [9, 36, 15, 26, 6, 11]; // 风景 / 4K / 小清新 / 动漫 / 美女模特 / 明星风尚
+const BIRD_CATEGORY = { 9: '风景大片', 36: '4K专区', 15: '小清新', 26: '动漫卡通', 6: '美女模特', 11: '明星风尚' };
 let birdCache = { ymd: '', payload: null };
 
 function dailyBirdSeed() {
@@ -109,7 +110,7 @@ async function getBirdWallpaper() {
   const j = await resp.json();
   const item = j && j.data && j.data[0];
   if (!item || !item.url) throw new Error('壁纸接口返回为空');
-  const payload = { date: seed.ymd, cid: seed.cid, url: item.url.replace(/^http:\/\//, 'https://') };
+  const payload = { date: seed.ymd, cid: seed.cid, category: BIRD_CATEGORY[seed.cid] || String(seed.cid), url: item.url.replace(/^http:\/\//, 'https://') };
   birdCache = { ymd: seed.ymd, payload };
   return payload;
 }
