@@ -1673,6 +1673,13 @@ function validateBase() {
   return true;
 }
 
+/* 后台密码提示随软件包格式切换：ipk 默认密码 root，apk 为空密码（仅显示，不改构建逻辑） */
+function updatePassHint() {
+  const el = $("p-passhint");
+  if (!el) return;
+  el.textContent = state.base === "immortalwrt" ? "空密码" : "默认密码 root";
+}
+
 function validate() {
 
   const str = state.account.str;
@@ -2172,6 +2179,8 @@ function render() {
 
   validateBase();
 
+  updatePassHint();
+
 }
 
 
@@ -2208,7 +2217,7 @@ function bindStatic() {
 
   on("p-token", "input", () => { readParams(); saveAcct(); });
 
-  on("p-base", "change", () => { readParams(); validateBase(); renderSummary(); loadCustomPkgs(); });
+  on("p-base", "change", () => { readParams(); updatePassHint(); validateBase(); renderSummary(); loadCustomPkgs(); });
 
   on("btnUploadPkg", "click", () => $("pkgFile").click());
 
@@ -2318,6 +2327,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     } catch (e) {}
 
     readParams();
+    updatePassHint();
     loadCustomPkgs();
 
   })();
