@@ -323,19 +323,40 @@ LOCAL_NAMES=""
 if [ -n "$CUSTOM_PKGS" ]; then
   echo ">> 准备自定义插件: $CUSTOM_PKGS"
   mkdir -p "$IB_DIR/packages"
+  HOST_APK="$IB_DIR/staging_dir/host/bin/apk"
   for cname in $CUSTOM_PKGS; do
     src="$ZWRT_DIR/custom-pkgs/$cname"
     if [ ! -f "$src" ]; then
       echo "!! 警告: 自定义插件不存在, 跳过: $cname" >&2
       continue
     fi
-    cp -f "$src" "$IB_DIR/packages/$cname"
-    echo "   - 已加入本地包目录: $cname"
+    if [ "$BASE" = "immortalwrt" ]; then
+      # apk v3 客户端按 <pkgname>-<pkgver>.apk 在仓库内定位文件, 索引里不存文件名。
+      # 若原始文件名不规范 (如带架构/版本前缀), 重建索引后会报
+      # "package mentioned in index not found", 故按包内真实 name/version 重命名。
+      pv="$("$HOST_APK" adbdump "$src" 2>/dev/null | awk '
+        /^info:/{f=1;next} /^paths:/{f=0}
+        f&&/^  name:/{n=$2} f&&/^  version:/{v=$2}
+        END{print n" "v}')"
+      pname="${pv%% *}"
+      pver="${pv##* }"
+      if [ -n "$pname" ] && [ -n "$pver" ] && [ "$pv" != " " ]; then
+        dst="$pname-$pver.apk"
+      else
+        dst="$cname"
+        echo "!! 警告: 无法解析 apk 包名/版本, 保留原始文件名: $cname" >&2
+      fi
+      cp -f "$src" "$IB_DIR/packages/$dst"
+      echo "   - 已加入本地包目录: $cname -> $dst"
+    else
+      cp -f "$src" "$IB_DIR/packages/$cname"
+      echo "   - 已加入本地包目录: $cname"
+    fi
   done
   if [ "$BASE" = "immortalwrt" ]; then
     make -C "$IB_DIR" _check_keys >/dev/null 2>&1 || true
     make -C "$IB_DIR" package_index >/dev/null 2>&1 || true
-    LOCAL_NAMES="$("$IB_DIR/staging_dir/host/bin/apk" adbdump "$IB_DIR/packages/packages.adb" 2>/dev/null \
+    LOCAL_NAMES="$("$HOST_APK" adbdump "$IB_DIR/packages/packages.adb" 2>/dev/null \
       | grep -E '^\s*- name:' | awk '{print $3}' | tr '\n' ' ')"
   else
     make -C "$IB_DIR" package_index >/dev/null 2>&1 || true
