@@ -3,7 +3,7 @@
 #   - 不再从源码全量编译, 改用 ImageBuilder 几分钟出固件
 #   - 双基座可选: kwrt (Kwrt/openwrt.ai, opkg 源) / immortalwrt (ImmortalWrt 25.12, apk 源)
 #   - 自定义第三方源地址通过仓库 Variables 配置 (不写明文)
-#   - 全量设备支持: 设备矩阵从 site/public/data/devices.json 的 build.variants 动态查找
+#   - 全量设备支持: 设备矩阵从 targets/devices.json 的 build.variants 动态查找
 #     (网站设备下拉全量; 手动 dispatch 可填任意设备 id, 如 xiaomi_redmi-router-ax6000)
 #   - workflow_dispatch 可指定设备/参数/软件包/初始化脚本; device=all 或空 = 默认 4 台
 #   - 主机名统一 ZWRT, 固件命名 zwrt-YYYYMMDD-设备
@@ -142,12 +142,12 @@ jobs:
               {"device":"tr3000","tag":"tr3000","family":"mtk","feed_arch":"aarch64_cortex-a53","feed_target":"mediatek/filogic","img_suffix":"/targets/mediatek/filogic/kwrt-imagebuilder-mediatek-filogic.Linux-x86_64.tar.zst","profile_tags":"cudy_tr3000-256mb-v1,cudy_tr3000-256mb-v1,tr3000","lan_ip":"192.168.100.1","lan_mask":"255.255.255.0","gateway":"192.168.100.1","dns":"192.168.100.1","role":"main","ipv6":"1","wifi":"1","wifi_ssid":"ZWRT","wifi_key":"","dynamic":false}
             ]'
           else
-            # ---- 指定设备: 从 site/public/data/devices.json 的 build.variants 动态查找 ----
+            # ---- 指定设备: 从 targets/devices.json 的 build.variants 动态查找 ----
             MATRIX=$(jq -c --arg id "${{ inputs.device }}" '
               [ .devices[] as $d | ($d.build.variants[]? | select(.key == $id)) as $v | $v | .device = .key ]
-            ' site/public/data/devices.json)
+            ' targets/devices.json)
             if [ -z "$MATRIX" ] || [ "$MATRIX" = "[]" ]; then
-              echo "::error ::设备 ${{ inputs.device }} 未在 site/public/data/devices.json 的 build.variants 中找到 (设备 id 以网站设备列表为准)"
+              echo "::error ::设备 ${{ inputs.device }} 未在 targets/devices.json 的 build.variants 中找到 (设备 id 以网站设备列表为准)"
               exit 1
             fi
             echo "动态设备: ${{ inputs.device }}"
