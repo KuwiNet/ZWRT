@@ -86,6 +86,34 @@ async function proxy(req, res, target, extraHeaders) {
   }
 }
 
+/* ---- 360 小鸟壁纸：每天一张（同一天固定，次日自动更换） ---- */
+const BIRD_CIDS = [9, 36, 15, 26]; // 风景 / 4K / 小清新 / 动漫
+let birdCache = { ymd: '', payload: null };
+
+function dailyBirdSeed() {
+  // 按 UTC+8 当天日期生成确定性 seed，保证同一天壁纸固定、跨天自动换
+  const d = new Date(Date.now() + 8 * 3600 * 1000);
+  const ymd = d.toISOString().slice(0, 10).replace(/-/g, '');
+  let h = 0;
+  for (const ch of ymd) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { ymd, cid: BIRD_CIDS[h % BIRD_CIDS.length], start: h % 1500 };
+}
+
+async function getBirdWallpaper() {
+  const seed = dailyBirdSeed();
+  if (birdCache.ymd === seed.ymd && birdCache.payload) return birdCache.payload;
+  // 360 接口仅 http 可用（https 证书无效），由服务端代理抓取
+  const api = 'http://wallpaper.apc.360.cn/index.php?c=WallPaper&a=getAppsByCategory' +
+    '&from=360chrome&count=1&cid=' + seed.cid + '&start=' + seed.start;
+  const resp = await fetch(api, { headers: { 'User-Agent': 'zwrt-builder' } });
+  const j = await resp.json();
+  const item = j && j.data && j.data[0];
+  if (!item || !item.url) throw new Error('壁纸接口返回为空');
+  const payload = { date: seed.ymd, cid: seed.cid, url: item.url.replace(/^http:\/\//, 'https://') };
+  birdCache = { ymd: seed.ymd, payload };
+  return payload;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
 
@@ -107,6 +135,19 @@ const server = http.createServer(async (req, res) => {
     const headers = { 'User-Agent': 'zwrt-builder' };
     if (GH_TOKEN) headers['Authorization'] = 'Bearer ' + GH_TOKEN;
     return proxy(req, res, u, headers);
+  }
+
+  // 6) /api/bird — 360 小鸟壁纸（每天一张）
+  if (url.pathname === '/api/bird') {
+    try {
+      const payload = await getBirdWallpaper();
+      return send(res, 200, JSON.stringify(payload), {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=3600',
+      });
+    } catch (e) {
+      return send(res, 502, JSON.stringify({ error: '壁纸获取失败: ' + e.message }), { 'Content-Type': 'application/json' });
+    }
   }
 
   // 5) 静态文件（public/）

@@ -5,16 +5,21 @@
   --accent:#2dd4bf; --accent2:#38bdf8; --warn:#f59e0b; --danger:#f87171;
   --mono:"SFMono-Regular",ui-monospace,Consolas,"Liberation Mono",Menlo,monospace;
   --sans:-apple-system,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  --wall-overlay:linear-gradient(180deg,rgba(11,19,34,.70),rgba(11,19,34,.85));
 }
 [data-theme="light"]{
   --bg:#f4f7fb; --bg2:#eef2f8; --card:#ffffff; --card2:#f0f4fa;
   --line:#d5e0ee; --line2:#c2d1e6;
   --txt:#0e1a2c; --dim:#42566f; --faint:#8295ad;
   --accent:#0d9488; --accent2:#0284c7; --warn:#b45309; --danger:#dc2626;
+  --wall-overlay:linear-gradient(180deg,rgba(244,247,251,.82),rgba(244,247,251,.93));
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:15px;line-height:1.55}
+.bg-wall{position:fixed;inset:0;z-index:-1;opacity:0;background-size:cover;background-position:center;transition:opacity .6s ease}
+.bg-wall.ready{opacity:1}
+.bg-wall::after{content:"";position:absolute;inset:0;background:var(--wall-overlay)}
 a{color:var(--accent2);text-decoration:none}
 a:hover{text-decoration:underline}
 input,textarea,select,button{font-family:inherit;font-size:16px;color:var(--txt)}

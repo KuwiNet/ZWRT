@@ -2250,6 +2250,23 @@ function applyVersionMeta() {
   setText("m-kernel", FW_META.kernel);
 }
 
+/* 360 小鸟壁纸：每天一张，由 VPS /api/bird 代理返回；图片预加载成功再淡入，
+   失败或纯静态环境(无该端点)时静默兜底，保持纯色背景，不影响使用 */
+async function loadBirdWallpaper() {
+  try {
+    const resp = await fetch("api/bird", { headers: { Accept: "application/json" } });
+    if (!resp.ok) return;
+    const info = await resp.json();
+    if (!info || !info.url) return;
+    const wall = $("bgWall");
+    if (!wall) return;
+    const img = new Image();
+    img.onload = () => { wall.style.backgroundImage = 'url("' + info.url + '")'; wall.classList.add("ready"); };
+    img.onerror = () => {};
+    img.src = info.url;
+  } catch (e) { /* 无 /api/bird 端点时保持纯色，不打扰用户 */ }
+}
+
 /* 浏览器入口（Node 测试环境无 window/document，自动跳过） */
 
 if (typeof window !== "undefined" && typeof document !== "undefined") {
@@ -2259,6 +2276,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     initTheme();
 
     applyVersionMeta();
+
+    loadBirdWallpaper();
 
     bindStatic();
 
