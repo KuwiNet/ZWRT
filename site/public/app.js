@@ -2242,7 +2242,7 @@ function bindStatic() {
 
   on("pkgSearch", "focus", (e) => { if (e.target.value.trim()) renderPkgSuggest(e.target.value); });
 
-  ["p-hostname", "p-lanip", "p-gateway", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass"].forEach((id) => {
+  ["p-hostname", "p-lanip", "p-gateway", "p-wifissid", "p-wifikey", "p-pppuser", "p-ppppass", "p-passwd"].forEach((id) => {
 
     on(id, "input", () => { readParams(); renderSummary(); });
 
