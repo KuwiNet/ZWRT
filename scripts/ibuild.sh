@@ -331,6 +331,27 @@ echo "==== [4/7] 生成 PACKAGES 清单 ===="
 # ImageBuilder 原生支持 packages/ 本地源: apk 自动生成 EC P-256 密钥+mkndx 签名,
 # opkg 自动 ipkg-make-index; 无需手动写 repositories 或管理密钥。
 LOCAL_NAMES=""
+# 从单个 ipk 提取 control 字段(如 Package/Version)。兼容 tar.ipk 与 ar.ipk,
+# 以及 gz/xz/zst 压缩的 control.tar —— 用于只解析用户放入的包, 不碰内置全量索引。
+ipk_field() {
+  local ipk="$1" field="$2" magic inner tmp
+  magic="$(head -c 8 "$ipk" | cat -v)"
+  tmp="$(mktemp -d)"
+  if printf '%s' "$magic" | grep -q '^!<arch>'; then
+    inner="$(ar t "$ipk" 2>/dev/null | grep -E '^control\.tar' | head -1)"
+    ar p "$ipk" "$inner" > "$tmp/ctl" 2>/dev/null
+  else
+    inner="$(tar tf "$ipk" 2>/dev/null | grep -E 'control\.tar' | head -1 | sed 's/^\.\///')"
+    tar -xOf "$ipk" "./$inner" 2>/dev/null > "$tmp/ctl" || tar -xOf "$ipk" "$inner" 2>/dev/null > "$tmp/ctl"
+  fi
+  case "$inner" in
+    *.gz)  tar -xzO -f "$tmp/ctl" ./control 2>/dev/null || tar -xzO -f "$tmp/ctl" control 2>/dev/null ;;
+    *.xz)  tar -xJO -f "$tmp/ctl" ./control 2>/dev/null || tar -xJO -f "$tmp/ctl" control 2>/dev/null ;;
+    *.zst) tar --zstd -xO -f "$tmp/ctl" ./control 2>/dev/null || tar --zstd -xO -f "$tmp/ctl" control 2>/dev/null ;;
+    *)     tar -xO -f "$tmp/ctl" ./control 2>/dev/null || tar -xO -f "$tmp/ctl" control 2>/dev/null ;;
+  esac | grep -E "^$field:" | head -1 | awk '{print $2}'
+  rm -rf "$tmp"
+}
 if [ -n "$CUSTOM_PKGS" ]; then
   echo ">> 准备自定义插件: $CUSTOM_PKGS"
   mkdir -p "$IB_DIR/packages"
@@ -359,20 +380,22 @@ if [ -n "$CUSTOM_PKGS" ]; then
       fi
       cp -f "$src" "$IB_DIR/packages/$dst"
       echo "   - 已加入本地包目录: $cname -> $dst"
+      [ -n "$pname" ] && LOCAL_NAMES="$LOCAL_NAMES $pname"
     else
       cp -f "$src" "$IB_DIR/packages/$cname"
       echo "   - 已加入本地包目录: $cname"
+      pn="$(ipk_field "$src" Package)"
+      if [ -n "$pn" ]; then LOCAL_NAMES="$LOCAL_NAMES $pn"; else echo "!! 警告: 无法解析 ipk 包名: $cname" >&2; fi
     fi
   done
+  # 重建本地源索引 (ImageBuilder 安装时需要)。包名以循环内逐文件解析为准:
+  # 该 ImageBuilder 的 packages/ 内置上千个包, 若 grep 整个 Packages/packages.adb
+  # 索引会把内置包全部误当本地包, 导致 make image 安装全源、固件暴涨。
   if [ "$BASE" = "immortalwrt" ]; then
     make -C "$IB_DIR" _check_keys >/dev/null 2>&1 || true
-    make -C "$IB_DIR" package_index >/dev/null 2>&1 || true
-    LOCAL_NAMES="$("$HOST_APK" adbdump "$IB_DIR/packages/packages.adb" 2>/dev/null \
-      | grep -E '^\s*- name:' | awk '{print $3}' | tr '\n' ' ')"
-  else
-    make -C "$IB_DIR" package_index >/dev/null 2>&1 || true
-    LOCAL_NAMES="$(grep -E '^Package: ' "$IB_DIR/packages/Packages" 2>/dev/null | awk '{print $2}' | tr '\n' ' ')"
   fi
+  make -C "$IB_DIR" package_index >/dev/null 2>&1 || true
+  LOCAL_NAMES="$(echo "$LOCAL_NAMES" | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ')"
   echo ">> 本地源解析出的包名: $LOCAL_NAMES"
 fi
 clean() { echo "$1" | sed '1s/^\xEF\xBB\xBF//' | grep -v '^\s*#' | grep -v '^\s*$' | tr '\n' ' ' || true; }
