@@ -131,6 +131,17 @@ fi
 printf '%s\n%s\n' "$HOSTS_BASE" "$LAN_IP zwrt" > "$FILES/etc/hosts"
 echo "已写 /etc/hosts: $LAN_IP zwrt (http://zwrt 打开后台 / nikki 直达 http://zwrt/cgi-bin/luci/admin/services/nikki)"
 
+# 3b 自定义后台密码 (留空=基座默认; 非空=构建期生成 sha512 hash, 首启由 uci-defaults 写入 shadow)
+if [ -n "$ROOT_PASS" ]; then
+  ROOT_HASH="$(openssl passwd -6 "$ROOT_PASS")"
+  printf '%s\n' '#!/bin/sh' "sed -i 's|^root:[^:]*|root:${ROOT_HASH}|' /etc/shadow" \
+    > "$FILES/etc/uci-defaults/60-zwrt-root-passwd"
+  chmod +x "$FILES/etc/uci-defaults/60-zwrt-root-passwd"
+  echo "后台密码已自定义: 构建期生成 sha512 hash, 首启写入 /etc/shadow"
+else
+  echo "后台密码未自定义: 保持基座默认 (ipk=root / apk=空)"
+fi
+
 # 3f 自定义初始化脚本
 if [ -n "$INIT_B64" ]; then
   echo "$INIT_B64" | base64 -d > "$FILES/etc/uci-defaults/90-zwrt-custom-init"

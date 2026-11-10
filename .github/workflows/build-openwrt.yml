@@ -39,6 +39,10 @@ on:
         description: '主机名 (默认 ZWRT)'
         type: string
         default: ''
+      password:
+        description: '后台 root 密码 (空 = 基座默认 root(ipk)/空(apk); 非空 = 首启写入 /etc/shadow)'
+        type: string
+        default: ''
       lan_ip:
         description: 'LAN IP (空 = 设备默认)'
         type: string
@@ -234,6 +238,7 @@ jobs:
           DEV_KIND: ${{ matrix.dynamic == true && 'auto' || 'legacy' }}
           ZWRT_FEED: ${{ vars.ZWRT_FEED }}
           HOSTNAME: ${{ inputs.hostname }}
+          ROOT_PASS: ${{ inputs.password }}
           INIT_B64: ${{ inputs.init_script_b64 }}
           PKG_COMMON: ${{ inputs.packages_common }}
           PKG_WH3000: ${{ inputs.packages_wh3000 }}

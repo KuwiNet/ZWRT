@@ -285,6 +285,8 @@ function buildInputs(o) {
 
     custom_pkgs: o.customPkgFiles || "",
 
+    password: o.rootPass || "",
+
   };
 
 }
@@ -463,7 +465,7 @@ const state = {
 
   features: { bypass: false, ipv6: false, wifi: false, wwan: false, docker: false, https: false, dhcp: false, istore: false },
 
-  params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", wifi_ssid: "", wifi_key: "" },
+  params: { hostname: "ZWRT", lan_ip: "", lan_mask: "", gateway: "", wifi_ssid: "", wifi_key: "", root_pass: "" },
 
   net: new Set([]),
 
@@ -843,6 +845,8 @@ function readParams() {
   state.params.pppoe_user = $("p-pppuser").value.trim();
 
   state.params.pppoe_pass = $("p-ppppass").value.trim();
+
+  state.params.root_pass = $("p-passwd") ? $("p-passwd").value : "";
 
   state.account.str = $("p-acct").value.trim() || "KuWiNet/ZWRT";
 
@@ -1269,6 +1273,8 @@ function renderSummary() {
 
     ["主机名", state.params.hostname],
 
+    ["后台密码", state.params.root_pass ? "已自定义" : "默认（root(ipk)/空(apk)）"],
+
     ["LAN IP", state.params.lan_ip + " / " + state.params.lan_mask],
 
   ];
@@ -1616,6 +1622,8 @@ function composeInputs() {
 
     customPkgFiles: selectedCustomPkgFiles(),
 
+    rootPass: state.params.root_pass,
+
   });
 
   const base = deviceBaseList(state.device, state.devicePkgs);
@@ -1671,13 +1679,6 @@ function validateBase() {
   warn.hidden = true;
   if (!state.triggering) btn.disabled = false;
   return true;
-}
-
-/* 后台密码提示随软件包格式切换：ipk 默认密码 root，apk 为空密码（仅显示，不改构建逻辑） */
-function updatePassHint() {
-  const el = $("p-passhint");
-  if (!el) return;
-  el.textContent = state.base === "immortalwrt" ? "空密码" : "默认密码 root";
 }
 
 function validate() {
@@ -2179,8 +2180,6 @@ function render() {
 
   validateBase();
 
-  updatePassHint();
-
 }
 
 
@@ -2217,7 +2216,7 @@ function bindStatic() {
 
   on("p-token", "input", () => { readParams(); saveAcct(); });
 
-  on("p-base", "change", () => { readParams(); updatePassHint(); validateBase(); renderSummary(); loadCustomPkgs(); });
+  on("p-base", "change", () => { readParams(); validateBase(); renderSummary(); loadCustomPkgs(); });
 
   on("btnUploadPkg", "click", () => $("pkgFile").click());
 
@@ -2327,7 +2326,6 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     } catch (e) {}
 
     readParams();
-    updatePassHint();
     loadCustomPkgs();
 
   })();
