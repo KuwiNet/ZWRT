@@ -22,6 +22,10 @@ const IMM_TARGETS = new Set([
 ]);
 function immSupported(d) { return !!d && IMM_TARGETS.has(d.target); }
 
+/* 固件版本元数据：上游升级 OpenWrt/内核后，只改这里两个值，
+   顶部标题下提示、hero 统计、构建摘要全部自动同步，无需逐处改硬编码。 */
+const FW_META = { openwrt: "25.12", kernel: "6.12" };
+
 /* 互联网（科学上网）多选方案：与 openwrt.ai 一致，默认勾选 nikki */
 
 const INTERNET_SCHEMES = [
@@ -1253,6 +1257,10 @@ function renderSummary() {
 
   const rows = [
 
+    ["OpenWrt 版本", FW_META.openwrt],
+
+    ["内核版本", FW_META.kernel],
+
     ["软件包格式", state.base === "immortalwrt" ? "apk(.apk)" : "ipk(.ipk)"],
 
     ["设备", d.name],
@@ -2233,7 +2241,14 @@ function bindStatic() {
 
 }
 
-
+/* 把 FW_META 写入顶部标题下提示与 hero 统计；上游升级只改常量即可，无需改 HTML */
+function applyVersionMeta() {
+  const setText = (id, val) => { const n = $(id); if (n) n.textContent = val; };
+  setText("tv-openwrt", FW_META.openwrt);
+  setText("tv-kernel", FW_META.kernel);
+  setText("m-openwrt", FW_META.openwrt);
+  setText("m-kernel", FW_META.kernel);
+}
 
 /* 浏览器入口（Node 测试环境无 window/document，自动跳过） */
 
@@ -2242,6 +2257,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   (async function init() {
 
     initTheme();
+
+    applyVersionMeta();
 
     bindStatic();
 
