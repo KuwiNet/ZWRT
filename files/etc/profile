@@ -10,6 +10,8 @@ fi
 unset FAILSAFE
 [ -e /tmp/.failsafe ] && export FAILSAFE=1
 
+# 本地控制台启动期内核 printk 与登录 banner 并发会逐行交错，打印前临时抑制控制台 info 日志
+case "$(tty 2>/dev/null)" in /dev/tty[0-9]*|/dev/console) dmesg -n 1 2>/dev/null ;; esac
 [ -f /etc/banner ] && cat /etc/banner
 [ -n "$FAILSAFE" ] && [ -f /etc/banner.failsafe ] && cat /etc/banner.failsafe
 
