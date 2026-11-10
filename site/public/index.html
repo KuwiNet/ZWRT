@@ -163,7 +163,7 @@
           <button type="button" class="ghost cp-btn" id="btnUploadPkg">上传软件包</button>
           <input type="file" id="pkgFile" multiple accept=".ipk,.apk" hidden>
         </div>
-        <p class="field-hint" id="cpHint">仅支持 .ipk 或 .apk，并须与目标设备架构一致。请只上传来源可信的软件包：架构不匹配、依赖缺失或不兼容的包可能导致构建失败，甚至固件无法正常使用。单个文件不超过 100MB，软件包依赖的其他包需在已配置软件源中可获取。</p>
+        <p class="field-hint" id="cpHint">仅支持 .ipk 或 .apk，并须与目标设备架构一致。请只上传来源可信的软件包：架构不匹配、依赖缺失或不兼容的包可能导致构建失败，甚至固件无法正常使用。单个文件不超过 100MB，软件包依赖的其他包需在已配置软件源中可获取。上传文件保存在仓库 zwrt-pkgs 分支的 custom-pkgs 目录，不影响 main 分支。</p>
         <div class="cp-list" id="customPkgList">
           <p class="dim">尚未上传软件包，点「上传软件包」添加。</p>
         </div>
