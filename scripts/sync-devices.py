@@ -17,9 +17,30 @@ sync-devices.py — 把 zwrt-web 的网站设备库同步到 main 的构建设�
   工作区干净(无未提交改动)。脚本会临时切到 main，再切回原分支。
 """
 import os
+import shutil
 import subprocess
 import sys
 
+
+def find_git():
+    """解析 git 可执行文件路径（Windows 上 git 常不在 PATH）。"""
+    found = shutil.which("git")
+    if found:
+        return found
+    candidates = [
+        os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"),
+                     "Git", "cmd", "git.exe"),
+        r"C:\Program Files\Git\cmd\git.exe",
+        r"C:\Program Files (x86)\Git\cmd\git.exe",
+        "/usr/bin/git",
+    ]
+    for cand in candidates:
+        if cand and os.path.exists(cand):
+            return cand
+    return "git"
+
+
+GIT_BIN = find_git()
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_BRANCH = "zwrt-web"
 SRC_PATH = "site/public/data/devices.json"
@@ -28,7 +49,7 @@ COMMIT_MSG = "chore: 同步 devices.json 至 zwrt-web 最新设备库"
 
 
 def git(*args, check=True):
-    r = subprocess.run(["git", *args], cwd=REPO,
+    r = subprocess.run([GIT_BIN, *args], cwd=REPO,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if check and r.returncode != 0:
         raise RuntimeError("git %s 失败(%d): %s" % (
