@@ -51313,8 +51313,7 @@
     "luci-app-timedreboot",
     "luci-proto-ipv6",
     "wpa-supplicant",
-    "hostapd",
-    "luci-app-afrp"
+    "hostapd"
    ],
    "whExtra": [],
    "note": "软路由/虚拟机通用镜像 (UEFI+Legacy)。可勾选旁路由/IPv6/无线/蜂窝上网。",
@@ -51746,8 +51745,7 @@
     "luci-app-timedreboot",
     "luci-proto-ipv6",
     "wpa-supplicant",
-    "hostapd",
-    "luci-app-afrp"
+    "hostapd"
    ],
    "whExtra": [
     "fitblk",
@@ -52167,8 +52165,7 @@
     "luci-app-timedreboot",
     "luci-proto-ipv6",
     "wpa-supplicant",
-    "hostapd",
-    "luci-app-afrp"
+    "hostapd"
    ],
    "whExtra": [
     "ubi-utils",
