@@ -615,7 +615,7 @@ function renderDeviceList(filter) {
     const sub = [d.archLabel || d.arch, d.target, flash].filter(Boolean).join(" · ");
 
     return '<span class="dn">' + d.name + "</span><span class=\"sub\">" + sub + "</span>" +
-      (immSupported(d) ? "" : '<em class="kw-only">仅 Kwrt</em>');
+      (immSupported(d) ? "" : '<em class="kw-only">仅 ipk</em>');
 
   };
 
@@ -1253,7 +1253,7 @@ function renderSummary() {
 
   const rows = [
 
-    ["基座", state.base === "immortalwrt" ? "ImmortalWrt 25.12（apk）" : "Kwrt（opkg）"],
+    ["软件包格式", state.base === "immortalwrt" ? "apk(.apk)" : "ipk(.ipk)"],
 
     ["设备", d.name],
 
@@ -1462,7 +1462,7 @@ function renderCustomPkgs() {
   if (!box) return;
   box.innerHTML = "";
   if (!state.customPkgs.length) {
-    box.appendChild(el("p", "dim", "尚未上传插件，点「上传插件」添加。"));
+    box.appendChild(el("p", "dim", "尚未上传软件包，点「上传软件包」添加。"));
     return;
   }
   state.customPkgs.forEach((p) => {
@@ -1493,7 +1493,7 @@ function readFileAsBase64(file) {
 async function uploadCustomPkg(file) {
   const ext = pkgExt();
   if (!file.name.toLowerCase().endsWith(ext)) {
-    toast("「" + file.name + "」格式不符：当前基座仅支持 " + ext + " 文件");
+    toast("「" + file.name + "」格式不符：当前格式仅支持 " + ext + " 文件");
     return false;
   }
   if (file.size > MAX_PKG_BYTES) {
@@ -1525,7 +1525,7 @@ async function handlePkgFiles(fileList) {
     if (await uploadCustomPkg(f)) ok++;
   }
   if (ok) {
-    toast("已上传 " + ok + " 个插件");
+    toast("已上传 " + ok + " 个软件包");
     await loadCustomPkgs();
   }
 }
@@ -1655,7 +1655,7 @@ function validateBase() {
   if (!warn || !btn) return true;
   if (state.base === "immortalwrt" && !immSupported(state.device)) {
     warn.textContent = "当前设备「" + state.device.name + "」的 target（" + state.device.target +
-      "）不在 ImmortalWrt 支持范围，请切回 Kwrt 基座或更换设备。";
+      "）不在 apk 格式支持范围，请切回 ipk 格式或更换设备。";
     warn.hidden = false;
     btn.disabled = true;
     return false;
@@ -1686,7 +1686,7 @@ function validate() {
   if (state.features.bypass && !v4(state.params.gateway)) return "旁路由需填写有效网关";
 
   if (state.base === "immortalwrt" && !immSupported(state.device))
-    return "当前设备不支持 ImmortalWrt 基座，请切回 Kwrt 或更换设备";
+    return "当前设备不支持 apk 格式，请切回 ipk 或更换设备";
 
   if (!/^[A-Za-z0-9_-]{1,63}$/.test(state.params.hostname)) return "主机名只能含字母/数字/下划线/连字符";
 
