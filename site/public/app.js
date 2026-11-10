@@ -1273,7 +1273,7 @@ function renderSummary() {
 
     ["主机名", state.params.hostname],
 
-    ["后台密码", state.params.root_pass ? "已自定义" : "默认root(ipk)/空(apk)"],
+    ["后台密码", state.params.root_pass || "默认root(ipk)/空(apk)"],
 
     ["LAN IP", state.params.lan_ip + " / " + state.params.lan_mask],
 
