@@ -160,6 +160,7 @@ button.ghost{background:none;border-color:var(--line2);color:var(--dim)}
 .console .err{color:var(--danger)}
 .console .muted{color:var(--faint)}
 .card-head .hint{font-size:12px;color:var(--faint);font-weight:400}
+.card-head .hint-warn{font-weight:700;color:var(--warn)}
 .card-head .fork-link{font-size:12px;font-weight:400;color:var(--faint);text-decoration:none;white-space:nowrap;border-bottom:1px dashed var(--line);padding-bottom:1px}
 .card-head .fork-link:hover{color:var(--accent);border-bottom-color:var(--accent)}
 .jobsteps{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;font-size:12px}
