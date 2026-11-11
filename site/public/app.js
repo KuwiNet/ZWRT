@@ -236,7 +236,11 @@ function buildInputs(o) {
 
   // packages_common = 出厂包(已剔除用户删除项) + 可选点选 + 互联网方案 + 主题 + 蜂窝 + 功能开关，合并去重
 
-  const common = [...new Set([...base, ...sel, ...netPkgs, ...themePkgs, ...wwan, ...featurePkgs])];
+  // apk（immortalwrt）ImageBuilder 默认基线已内置 wpad-openssl（提供 hostapd/wpa_supplicant）；
+  // 显式再装 wpad-basic-mbedtls 会与 wpad-openssl 互斥，导致 package_install 失败。apk 模式剔除，
+  // 由默认 wpad-openssl 接管；ipk（kwrt）模式保留。
+  const commonRaw = [...new Set([...base, ...sel, ...netPkgs, ...themePkgs, ...wwan, ...featurePkgs])];
+  const common = o.base === "immortalwrt" ? commonRaw.filter((p) => p !== "wpad-basic-mbedtls") : commonRaw;
 
   // packages_wh3000 仅 wh3000pro 设备传 whExtra+wwan，其余传空串
 
@@ -443,7 +447,28 @@ const COMMON_PKGS = [
 
 ];
 
-
+/* apk(immortalwrt) 源当前未提供的常用包：经真实 apk 全源(官方 7 源 + 自建 mirror.zwrt.cc + nikki)
+   adbdump 核对(25.12.2 / x86_64)。apk 模式下隐藏这些包，避免点选后构建被剔除；ipk 模式不受影响。
+   上游补包后，从该集合删除对应名字即可。 */
+const APK_COMMON_MISSING = new Set([
+  "luci-app-accesscontrol-plus", "luci-app-adbyby-plus", "luci-app-aliyundrive-webdav",
+  "luci-app-ap-modem", "luci-app-bandix", "luci-app-broadbandacc",
+  "luci-app-clouddrive2", "luci-app-cloudreve", "luci-app-cupsd",
+  "luci-app-ddnsto", "luci-app-easymesh", "luci-app-easytier",
+  "luci-app-filebrowser-q", "luci-app-guest-wifi", "luci-app-homeassistant",
+  "luci-app-homeredirect", "luci-app-ipsec-server", "luci-app-iptvhelper",
+  "luci-app-kodexplorer", "luci-app-linkease", "luci-app-lucky",
+  "luci-app-mwan3-nft", "luci-app-nft-timecontrol", "luci-app-npc",
+  "luci-app-fastnet", "luci-app-oaf", "luci-app-openclaw",
+  "luci-app-openlist2", "luci-app-openvpn-plus", "luci-app-parentcontrol",
+  "luci-app-partexp", "luci-app-qosmate", "luci-app-quickfile",
+  "luci-app-run", "luci-app-shunt", "luci-app-socat",
+  "luci-app-store", "luci-app-substore", "luci-app-taskplan",
+  "luci-app-thunder", "luci-app-timedreboot", "luci-app-trafficctl",
+  "luci-app-turboacc", "luci-app-unshare", "luci-app-uugamebooster",
+  "luci-app-webdav", "luci-app-apfree-wifidog", "luci-app-wireguard",
+  "luci-app-wrtbwmon", "luci-app-xunyou", "tvhelper",
+]);
 
 const state = {
 
@@ -1189,6 +1214,9 @@ function renderCommonChips() {
 
     if (!state.catalog.has(name)) return;
 
+    // apk 模式隐藏源内未提供的常用包（见 APK_COMMON_MISSING）
+    if (state.base === "immortalwrt" && APK_COMMON_MISSING.has(name)) return;
+
     const tag = el("span", "ctag" + (chosen.has(name) ? " on" : ""));
 
     tag.title = desc || name;
@@ -1706,8 +1734,8 @@ function validateBase() {
   const btn = $("btnBuild");
   if (!warn || !btn) return true;
   if (state.base === "immortalwrt" && !immSupported(state.device)) {
-    warn.textContent = "当前设备「" + state.device.name + "」的 target（" + state.device.target +
-      "）不在 apk 格式支持范围，请切回 ipk 格式或更换设备。";
+    warn.textContent = "该设备 target（" + state.device.target +
+      "）不支持 apk，请切回 ipk 或更换设备。";
     warn.hidden = false;
     btn.disabled = true;
     return false;
@@ -1986,7 +2014,7 @@ async function resumeProgress() {
 
     } catch (e) {
 
-      logc("查询定制进度失败：" + (e && e.message ? e.message : String(e)) + "（如提示未登录请重新登录；并确认 Cloudflare 项目 zwrt 已配置 GH_TOKEN）", "err");
+      logc("查询进度失败：" + (e && e.message ? e.message : String(e)) + "（未登录请重新登录，并确认 CF 项目 zwrt 已配置 GH_TOKEN）", "err");
 
       return;
 
@@ -2170,7 +2198,7 @@ function render() {
 
   if (by && $("f-wwan").checked) { state.features.wwan = false; $("f-wwan").checked = false; }
 
-  $("featureHint").textContent = by ? "旁路由：仅 LAN 口、关闭 WAN/DHCP，网关指向主路由（DNS=网关），不可开无线。" : "";
+  $("featureHint").textContent = by ? "旁路由：仅 LAN，关 WAN/DHCP，网关指向主路由，不可开无线。" : "";
 
   $("p-hostname").value = state.params.hostname;
 
@@ -2252,7 +2280,7 @@ function bindStatic() {
 
   on("p-token", "input", () => { readParams(); saveAcct(); });
 
-  on("p-base", "change", () => { readParams(); validateBase(); renderSummary(); loadCustomPkgs(); });
+  on("p-base", "change", () => { readParams(); validateBase(); renderSummary(); renderCommonChips(); loadCustomPkgs(); });
 
   on("btnUploadPkg", "click", () => $("pkgFile").click());
 
