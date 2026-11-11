@@ -41,7 +41,7 @@ PKG_WH3000="${PKG_WH3000:-}"
 CUSTOM_PKGS="${CUSTOM_PKGS:-}"
 BASE="${BASE:-kwrt}"
 # apk 体系 (immortalwrt) 追加的自定义源; 可用环境变量覆盖
-APK_FEED_ZWRT="${ZWRT_APK_FEED:-https://mirror.zwrt.cc/packages/all/packages.adb}"
+APK_FEED_ZWRT="${ZWRT_APK_FEED:-https://cdn.zwrt.cc/packages/all/packages.adb}"
 APK_FEED_NIKKI="${NIKKI_FEED_BASE:-https://nikkinikki.pages.dev}/openwrt-25.12/$FEED_ARCH/nikki/packages.adb"
 
 echo "=============================================================="
@@ -439,7 +439,7 @@ esac
 COMMON_P="$(apply_src "$PKG_COMMON" "$COMMON_BASE")"
 DEV_P="$(apply_src "$PKG_WH3000" "$DEV_BASE")"
 PACKAGES="$( { echo "$COMMON_P"; echo "$DEV_P"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
-# 强制内置 luci-app-afrp（all 架构源 mirror.zwrt.cc/packages/all，所有设备可装；前端剔除不影响）
+# 强制内置 luci-app-afrp（all 架构源 cdn.zwrt.cc/packages/all，所有设备可装；前端剔除不影响）
 PACKAGES="$( { echo "$PACKAGES"; echo "luci-app-afrp"; } | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' ' )"
 # 自定义插件真实包名（来自本地 packages/ 源）
 if [ -n "$LOCAL_NAMES" ]; then

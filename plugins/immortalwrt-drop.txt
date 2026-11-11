@@ -3,7 +3,7 @@
 # 官方 ImmortalWrt 25.12 apk 源尚未提供这些包, 构建时自动剔除。
 #
 # 已能安装、故不在此列的包:
-#   自建源 mirror.zwrt.cc/packages/all:
+#   自建源 cdn.zwrt.cc/packages/all:
 #     luci-app-afrp / luci-theme-zwrt / luci-app-5gmodem /
 #     luci-i18n-5gmodem-zh-cn / luci-i18n-5gmodem-zh-tw
 #   nikki 官方 apk 源 (nikkinikki-org/OpenWrt-nikki):

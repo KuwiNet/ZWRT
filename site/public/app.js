@@ -456,7 +456,7 @@ const COMMON_PKGS = [
 
 ];
 
-/* apk(immortalwrt) 源当前未提供的常用包：经真实 apk 全源(官方 7 源 + 自建 mirror.zwrt.cc + nikki)
+/* apk(immortalwrt) 源当前未提供的常用包：经真实 apk 全源(官方 7 源 + 自建 cdn.zwrt.cc + nikki)
    adbdump 核对(25.12.2 / x86_64)。apk 模式下隐藏这些包，避免点选后构建被剔除；ipk 模式不受影响。
    上游补包后，从该集合删除对应名字即可。 */
 const APK_COMMON_MISSING = new Set([
