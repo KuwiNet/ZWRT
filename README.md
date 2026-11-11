@@ -1,8 +1,8 @@
 # ZWRT-openwrt
 
-基于 GitHub Actions + Cloudflare Pages 的自建 **OpenWrt 固件在线定制与构建**项目。
+基于 GitHub Actions + EdgeOne Pages 的自建 **OpenWrt 固件在线定制与构建**项目。
 
-- **在线构建器**：https://zwrt.cc （Cloudflare Pages 与 VPS 双部署）
+- **在线构建器**：https://zwrt.cc （EdgeOne 部署）
 - 选设备、开功能开关（旁路由 / IPv6 / 无线 / WWAN / Docker / HTTPS 后台 / DHCP / iStoreOS）、选软件包、写初始化脚本 → **一键触发 GitHub Actions 构建**
 - 构建产物自动发布到 GitHub Release；固件可选上传 R2/B2（下载地址由 `R2_PUBLIC_URL` 自定义）
 - **去中心化**：任何人 fork 到自己的库即可构建，不依赖本项目配额
@@ -36,7 +36,7 @@
 ├── feeds/feeds.conf.custom   # 自定义 feeds
 ├── files/                    # 覆盖层（hostname=ZWRT、opkg 源、网络/无线生成模板）
 ├── scripts/                  # merge-feeds / merge-config / custom
-└── site/public/              # 在线构建器前端（GitHub Pages + Cloudflare Pages）
+└── site/public/              # 在线构建器前端（EdgeOne Pages）
 ```
 
 ## 支持的设备
@@ -139,7 +139,7 @@
 
 - **GitHub Release**：单 tag `ZWRT-日期`，含全部设备固件。
 - **R2/B2 对象存储（可选）**：配置 R2 密钥后固件自动上传，上传完成后把下载地址写进 Release 描述。下载地址前缀由仓库 Secret `R2_PUBLIC_URL` 定义（当前为 `https://dl.zwrt.cc`，R2 桶自定义域），R2 只保留最近 2 版。前端"固件下载"优先显示该地址，无则回退 GitHub Release 直链。
-- **网站**：`site/public` 由 `pages-cloudflare.yml`（Cloudflare Pages）与 `pages.yml`（GitHub Pages）双发布；推送 `site/public/**` 自动触发。
+- **网站**：`site/public` 由 EdgeOne Pages 部署（生产分支 `zwrt-web`），推送 `site/**` 自动上线。
 
 ## 本地构建
 
