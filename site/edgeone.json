@@ -1,0 +1,74 @@
+{
+  "outputDirectory": "./public",
+  "nodeVersion": "20.18.0",
+  "headers": [
+    {
+      "source": "/data/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    },
+    {
+      "source": "/*.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    },
+    {
+      "source": "/*.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300"
+        }
+      ]
+    },
+    {
+      "source": "/*.png",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    },
+    {
+      "source": "/*.ico",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    }
+  ],
+  "caches": [
+    {
+      "source": "/data/*",
+      "cacheTtl": 300
+    },
+    {
+      "source": "/*.png",
+      "cacheTtl": 3600
+    },
+    {
+      "source": "/*.ico",
+      "cacheTtl": 3600
+    }
+  ]
+}

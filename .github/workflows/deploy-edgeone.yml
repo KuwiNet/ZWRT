@@ -1,0 +1,68 @@
+# =============================================================
+# ZWRT 构建配置器网站 -> 腾讯云 EdgeOne Pages（自动部署）
+#
+# 触发：push 到 zwrt-web 且改动 site/** 时自动发布（与 CF Pages 并行，互不影响）
+#
+# 仓库需先配置：
+#   - Secret  EDGEONE_API_TOKEN
+#     获取：EdgeOne Pages 控制台 -> 账户设置 -> API Token
+#     未配置该 secret 时本工作流自动跳过（fork 仓库无需部署）
+#
+# 部署形态：
+#   - 静态站点：site/public/ 直接作为站点根
+#   - 边缘函数：site/edge-functions/api/bird.js -> /api/bird（每日壁纸）
+#   - 构建配置：site/edgeone.json（缓存策略等）
+#
+# 说明：CLI 部署（非 Git 集成）要求边缘函数目录随产物一起上传，
+#       故此处先把 public/ 与 edge-functions/ 组装到 dist/ 再部署。
+# =============================================================
+name: Deploy Site to EdgeOne Pages
+
+on:
+  push:
+    branches: [ zwrt-web ]
+    paths:
+      - 'site/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edgeone-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: 部署网站到 EdgeOne Pages
+    runs-on: ubuntu-latest
+    env:
+      EO_TOKEN: ${{ secrets.EDGEONE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 未配置 EdgeOne API Token，跳过部署
+        if: ${{ env.EO_TOKEN == '' }}
+        run: echo "跳过：未配置 EDGEONE_API_TOKEN secret（fork 仓库无需部署 EdgeOne）"
+
+      - uses: actions/setup-node@v4
+        if: ${{ env.EO_TOKEN != '' }}
+        with:
+          node-version: '20'
+
+      - name: 组装部署目录（静态文件 + edge-functions）
+        if: ${{ env.EO_TOKEN != '' }}
+        run: |
+          rm -rf dist
+          mkdir -p dist
+          cp -r site/public/. dist/
+          cp -r site/edge-functions dist/edge-functions
+          cp site/edgeone.json dist/edgeone.json
+          echo "--- dist 顶层 ---"
+          ls -1 dist
+          echo "--- 边缘函数 ---"
+          find dist/edge-functions -type f
+
+      - name: 部署到 EdgeOne Pages
+        if: ${{ env.EO_TOKEN != '' }}
+        run: npx --yes edgeone@latest pages deploy ./dist -n zwrt -t "$EO_TOKEN" -e production
