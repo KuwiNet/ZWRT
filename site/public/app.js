@@ -236,11 +236,20 @@ function buildInputs(o) {
 
   // packages_common = 出厂包(已剔除用户删除项) + 可选点选 + 互联网方案 + 主题 + 蜂窝 + 功能开关，合并去重
 
-  // apk（immortalwrt）ImageBuilder 默认基线已内置 wpad-openssl（提供 hostapd/wpa_supplicant）；
-  // 显式再装 wpad-basic-mbedtls 会与 wpad-openssl 互斥，导致 package_install 失败。apk 模式剔除，
-  // 由默认 wpad-openssl 接管；ipk（kwrt）模式保留。
+  // apk（immortalwrt）ImageBuilder 的默认基线对 WiFi 型 target 强制 CONFIG_DEFAULT_wpad-openssl=y，
+  // 而各设备出厂包里可能出现其它 wpad 变体（wpad-basic-mbedtls / wpad-mbedtls / wpad-mini /
+  // wpad-basic-wolfssl / wpad），任一都会与 wpad-openssl 互斥导致 apk 求解失败。
+  // 故 apk 模式统一把这些变体改写为 wpad-openssl：基线已有时同名不冲突，基线无时（如无内置 WiFi
+  // 的 target）则显式安装，无线功能不丢失。ipk（kwrt）模式保持原样。
+  const WPAD_ALIASES = new Set([
+    "wpad", "wpad-basic", "wpad-basic-mbedtls", "wpad-mbedtls", "wpad-mini",
+    "wpad-basic-wolfssl", "wpad-wolfssl", "wpad-mesh-mbedtls", "wpad-mesh-openssl",
+    "wpad-mesh-wolfssl",
+  ]);
   const commonRaw = [...new Set([...base, ...sel, ...netPkgs, ...themePkgs, ...wwan, ...featurePkgs])];
-  const common = o.base === "immortalwrt" ? commonRaw.filter((p) => p !== "wpad-basic-mbedtls") : commonRaw;
+  const common = o.base === "immortalwrt"
+    ? [...new Set(commonRaw.map((p) => (WPAD_ALIASES.has(p) ? "wpad-openssl" : p)))]
+    : commonRaw;
 
   // packages_wh3000 仅 wh3000pro 设备传 whExtra+wwan，其余传空串
 
