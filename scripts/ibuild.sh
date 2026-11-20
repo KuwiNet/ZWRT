@@ -41,7 +41,20 @@ PKG_WH3000="${PKG_WH3000:-}"
 CUSTOM_PKGS="${CUSTOM_PKGS:-}"
 BASE="${BASE:-kwrt}"
 # apk 体系 (immortalwrt) 追加的自定义源; 可用环境变量覆盖
-APK_FEED_ZWRT="${ZWRT_APK_FEED:-https://cdn.zwrt.cc/packages/all/packages.adb}"
+# 优先取与设备架构同名的源目录(mihomo 等架构包只在架构目录里), 该目录不存在时回退 all
+if [ -n "${ZWRT_APK_FEED:-}" ]; then
+  APK_FEED_ZWRT="$ZWRT_APK_FEED"
+  APK_FEED_NOTE="环境变量 ZWRT_APK_FEED 覆盖"
+else
+  APK_FEED_ARCH="https://cdn.zwrt.cc/packages/$FEED_ARCH/packages.adb"
+  if curl -fs -o /dev/null --max-time 8 "$APK_FEED_ARCH" 2>/dev/null; then
+    APK_FEED_ZWRT="$APK_FEED_ARCH"
+    APK_FEED_NOTE="架构目录 $FEED_ARCH"
+  else
+    APK_FEED_ZWRT="https://cdn.zwrt.cc/packages/all/packages.adb"
+    APK_FEED_NOTE="无 $FEED_ARCH 目录, 回退 all"
+  fi
+fi
 APK_FEED_NIKKI="${NIKKI_FEED_BASE:-https://nikkinikki.pages.dev}/openwrt-25.12/$FEED_ARCH/nikki/packages.adb"
 
 echo "=============================================================="
@@ -68,12 +81,21 @@ if [ "$BASE" = "immortalwrt" ]; then
   done
   grep -qxF "$APK_FEED_ZWRT"  "$IB_DIR/repositories" || echo "$APK_FEED_ZWRT"  >> "$IB_DIR/repositories"
   grep -qxF "$APK_FEED_NIKKI" "$IB_DIR/repositories" || echo "$APK_FEED_NIKKI" >> "$IB_DIR/repositories"
+  echo ">> 自建 apk 源: $APK_FEED_ZWRT ($APK_FEED_NOTE)"
   echo ">> apk 源 (repositories):"
   cat "$IB_DIR/repositories"
 else
+  # 自建 ipk 源: 优先架构目录, 无该目录则回退 all
+  if curl -fs -o /dev/null --max-time 8 "https://cdn.zwrt.cc/packages/$FEED_ARCH/Packages" 2>/dev/null; then
+    ZWRT_IPK_ARCH="$FEED_ARCH"
+  else
+    ZWRT_IPK_ARCH="all"
+  fi
   # 由固件运行时源 distfeeds.conf 生成(替换架构占位符)
   sed -e "s|__FEED_ARCH__|$FEED_ARCH|g" -e "s|__FEED_TARGET__|$FEED_TARGET|g" \
+      -e "s|__ZWRT_IPK_ARCH__|$ZWRT_IPK_ARCH|g" \
       "$ZWRT_DIR/files/etc/opkg/distfeeds.conf" > /tmp/zwrt-distfeeds.conf
+  echo ">> 自建 ipk 源目录: $ZWRT_IPK_ARCH"
   # opkg 引擎 (kwrt): 由 distfeeds.conf 生成 repositories.conf
   grep -E '^src/gz ' /tmp/zwrt-distfeeds.conf > "$IB_DIR/repositories.conf"
   echo ">> opkg 源 (repositories.conf):"
